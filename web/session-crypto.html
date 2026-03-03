@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Session Forecast - StockandCrypto</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/components.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="header-container">
+            <div class="logo">
+                <a href="index.html">
+                    <span class="logo-icon">◈</span>
+                    <span class="logo-text">StockandCrypto</span>
+                </a>
+            </div>
+            <nav class="nav">
+                <button class="nav-toggle" id="navToggle">
+                    <span></span><span></span><span></span>
+                </button>
+                <ul class="nav-menu" id="navMenu">
+                    <li><a href="index.html" class="nav-link">Home</a></li>
+                    <li><a href="crypto.html" class="nav-link">Crypto</a></li>
+                    <li><a href="cn-equity.html" class="nav-link">CN Equity</a></li>
+                    <li><a href="us-equity.html" class="nav-link">US Equity</a></li>
+                    <li><a href="session-crypto.html" class="nav-link active">Session Forecast</a></li>
+                    <li><a href="tracking.html" class="nav-link">Tracking</a></li>
+                </ul>
+            </nav>
+            <div class="nav-actions">
+                <a href="login.html" class="btn btn-secondary btn-sm">Login</a>
+            </div>
+        </div>
+    </header>
+
+    <main style="padding-top: 100px; min-height: 100vh;">
+        <div class="container">
+            <div class="section-header" style="text-align: left; margin-bottom: 2rem;">
+                <span class="section-tag">Session Analysis</span>
+                <h1 class="section-title">Crypto Trading Session Forecast</h1>
+                <p style="color: var(--text-secondary);">24-hour session predictions: Asia (08:00-15:59), Europe (16:00-23:59), US (00:00-07:59) Beijing Time</p>
+            </div>
+
+            <!-- Session Overview -->
+            <div class="dashboard-grid" style="margin-bottom: 2rem;">
+                <div class="metric-card">
+                    <div class="metric-label">Asia Session</div>
+                    <div class="metric-value" style="font-size: 2rem;">08:00-15:59</div>
+                    <div class="metric-change positive">
+                        <span>P(UP): 0.58</span>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <span class="status-badge success">Active</span>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Europe Session</div>
+                    <div class="metric-value" style="font-size: 2rem;">16:00-23:59</div>
+                    <div class="metric-change negative">
+                        <span>P(UP): 0.45</span>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <span class="status-badge warning">Pending</span>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">US Session</div>
+                    <div class="metric-value" style="font-size: 2rem;">00:00-07:59</div>
+                    <div class="metric-change positive">
+                        <span>P(UP): 0.62</span>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <span class="status-badge info">Upcoming</span>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Current Price</div>
+                    <div class="metric-value" id="currentPrice">$67,234.50</div>
+                    <div class="metric-change positive" id="priceChange">+2.3%</div>
+                    <div style="margin-top: 1rem;">
+                        <span class="status-badge success">Live</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Session Forecast Chart -->
+            <div class="chart-container" style="margin-bottom: 2rem;">
+                <div class="chart-header">
+                    <h3 class="chart-title">24-Hour Session Forecast</h3>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-primary btn-sm">P(UP)</button>
+                        <button class="btn btn-secondary btn-sm">Volatility</button>
+                    </div>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="sessionChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Decision Cards -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-bottom: 2rem;">
+                <!-- Quick Decision Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Quick Decision</h3>
+                        <span class="status-badge success">Ready</span>
+                    </div>
+                    <div class="card-body">
+                        <div style="margin: 1.5rem 0; text-align: center;">
+                            <div style="font-size: 4rem; font-weight: 700; color: var(--success); margin-bottom: 1rem;">LONG</div>
+                            <div style="color: var(--text-secondary); margin-bottom: 0.5rem;">Recommended Action</div>
+                        </div>
+                        <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 8px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <span style="color: var(--text-secondary);">Entry Price:</span>
+                                <span style="color: var(--text-primary); font-weight: 600;">$67,234.50</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <span style="color: var(--text-secondary);">Stop Loss:</span>
+                                <span style="color: var(--danger); font-weight: 600;">$65,500.00 (-2.6%)</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">Take Profit:</span>
+                                <span style="color: var(--success); font-weight: 600;">$70,000.00 (+4.2%)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Risk Assessment -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Risk Assessment</h3>
+                        <span class="status-badge warning">Medium</span>
+                    </div>
+                    <div class="card-body">
+                        <div style="margin: 1.5rem 0;">
+                            <div style="margin-bottom: 1.5rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span style="color: var(--text-secondary);">Risk Level:</span>
+                                    <span style="color: var(--warning); font-weight: 600;">Medium</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 60%;"></div>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 1.5rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span style="color: var(--text-secondary);">Volatility:</span>
+                                    <span style="color: var(--warning); font-weight: 600;">3.2%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 45%; background: var(--gradient-secondary);"></div>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 1rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span style="color: var(--text-secondary);">Confidence:</span>
+                                    <span style="color: var(--success); font-weight: 600;">72%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 72%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 8px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <span style="color: var(--text-secondary);">Expected Return:</span>
+                                <span style="color: var(--success); font-weight: 600;">+4.2%</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">Net Edge:</span>
+                                <span style="color: var(--success); font-weight: 600;">+3.8% (after cost)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Model Health -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Model Health</h3>
+                        <span class="status-badge warning">NO-GO</span>
+                    </div>
+                    <div class="card-body">
+                        <div style="margin: 1.5rem 0;">
+                            <div style="margin-bottom: 1rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span style="color: var(--text-secondary);">Drift Status:</span>
+                                    <span style="color: var(--danger); font-weight: 600;">47 Alerts</span>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 1rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span style="color: var(--text-secondary);">Data Freshness:</span>
+                                    <span style="color: var(--success); font-weight: 600;">2 hours ago</span>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 1rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span style="color: var(--text-secondary);">Last Training:</span>
+                                    <span style="color: var(--warning); font-weight: 600;">2026-02-06</span>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 1rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span style="color: var(--text-secondary);">Model Version:</span>
+                                    <span style="color: var(--text-primary); font-weight: 600;">baseline_momentum_quantile</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="background: rgba(255, 51, 102, 0.1); border: 1px solid var(--danger); padding: 1rem; border-radius: 8px;">
+                            <p style="color: var(--danger); font-size: 0.875rem; margin: 0;">
+                                ⚠️ Model status is NO-GO. Recommend retraining before live trading.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hourly Forecast Table -->
+            <div class="table-container">
+                <div class="table-header">
+                    <h3 style="font-size: 1.25rem; font-weight: 600;">Hourly Forecast Details</h3>
+                    <div class="table-controls">
+                        <select class="form-select" style="width: auto;">
+                            <option>All Sessions</option>
+                            <option>Asia</option>
+                            <option>Europe</option>
+                            <option>US</option>
+                        </select>
+                    </div>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Hour (BJT)</th>
+                            <th>Session</th>
+                            <th>P(UP)</th>
+                            <th>q10</th>
+                            <th>q50</th>
+                            <th>q90</th>
+                            <th>Signal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>08:00</strong></td>
+                            <td>Asia</td>
+                            <td style="color: var(--success);">0.62</td>
+                            <td style="color: var(--danger);">-0.8%</td>
+                            <td style="color: var(--success);">+0.5%</td>
+                            <td style="color: var(--success);">+1.2%</td>
+                            <td><span class="status-badge success">LONG</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>09:00</strong></td>
+                            <td>Asia</td>
+                            <td style="color: var(--success);">0.58</td>
+                            <td style="color: var(--danger);">-1.0%</td>
+                            <td style="color: var(--success);">+0.3%</td>
+                            <td style="color: var(--success);">+1.5%</td>
+                            <td><span class="status-badge success">LONG</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>10:00</strong></td>
+                            <td>Asia</td>
+                            <td style="color: var(--success);">0.65</td>
+                            <td style="color: var(--danger);">-0.5%</td>
+                            <td style="color: var(--success);">+0.8%</td>
+                            <td style="color: var(--success);">+2.0%</td>
+                            <td><span class="status-badge success">STRONG LONG</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>16:00</strong></td>
+                            <td>Europe</td>
+                            <td style="color: var(--danger);">0.45</td>
+                            <td style="color: var(--danger);">-1.5%</td>
+                            <td style="color: var(--danger);">-0.2%</td>
+                            <td style="color: var(--success);">+0.8%</td>
+                            <td><span class="status-badge warning">FLAT</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>17:00</strong></td>
+                            <td>Europe</td>
+                            <td style="color: var(--danger);">0.42</td>
+                            <td style="color: var(--danger);">-2.0%</td>
+                            <td style="color: var(--danger);">-0.5%</td>
+                            <td style="color: var(--success);">+0.5%</td>
+                            <td><span class="status-badge warning">FLAT</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>00:00</strong></td>
+                            <td>US</td>
+                            <td style="color: var(--success);">0.68</td>
+                            <td style="color: var(--danger);">-0.6%</td>
+                            <td style="color: var(--success);">+1.0%</td>
+                            <td style="color: var(--success);">+2.5%</td>
+                            <td><span class="status-badge success">STRONG LONG</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <footer style="background: var(--bg-secondary); border-top: 1px solid var(--border-color); padding: 2rem 0; margin-top: 4rem;">
+        <div class="container">
+            <div style="text-align: center;">
+                <p style="color: var(--text-muted); font-size: 0.875rem;">
+                    © 2026 StockandCrypto. AI-powered quantitative trading platform.
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/session-crypto.js"></script>
+</body>
+</html>

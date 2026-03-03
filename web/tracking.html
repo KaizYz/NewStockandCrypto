@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tracking & Selection - StockandCrypto</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/components.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="header-container">
+            <div class="logo">
+                <a href="index.html">
+                    <span class="logo-icon">◈</span>
+                    <span class="logo-text">StockandCrypto</span>
+                </a>
+            </div>
+            <nav class="nav">
+                <button class="nav-toggle" id="navToggle">
+                    <span></span><span></span><span></span>
+                </button>
+                <ul class="nav-menu" id="navMenu">
+                    <li><a href="index.html" class="nav-link">Home</a></li>
+                    <li><a href="crypto.html" class="nav-link">Crypto</a></li>
+                    <li><a href="cn-equity.html" class="nav-link">CN Equity</a></li>
+                    <li><a href="us-equity.html" class="nav-link">US Equity</a></li>
+                    <li><a href="session-crypto.html" class="nav-link">Session Forecast</a></li>
+                    <li><a href="tracking.html" class="nav-link active">Tracking</a></li>
+                </ul>
+            </nav>
+            <div class="nav-actions">
+                <a href="login.html" class="btn btn-secondary btn-sm">Login</a>
+            </div>
+        </div>
+    </header>
+
+    <main style="padding-top: 100px; min-height: 100vh;">
+        <div class="container">
+            <div class="section-header" style="text-align: left; margin-bottom: 2rem;">
+                <span class="section-tag">Research</span>
+                <h1 class="section-title">Selection & Tracking</h1>
+                <p style="color: var(--text-secondary);">Universe selection, factor scoring & tracking actions for multi-market portfolios</p>
+            </div>
+
+            <!-- Universe Overview -->
+            <div class="dashboard-grid" style="margin-bottom: 2rem;">
+                <div class="metric-card">
+                    <div class="metric-label">Crypto Universe</div>
+                    <div class="metric-value" style="font-size: 2rem;">103</div>
+                    <div class="metric-change positive">
+                        <span>Top 100 + BTC/ETH/SOL</span>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <span class="status-badge success">Active</span>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">CN A-Shares</div>
+                    <div class="metric-value" style="font-size: 2rem;">300</div>
+                    <div class="metric-change positive">
+                        <span>CSI 300 Constituents</span>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <span class="status-badge info">Coverage: SSE + CSI 300</span>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">US Equities</div>
+                    <div class="metric-value" style="font-size: 2rem;">630</div>
+                    <div class="metric-change positive">
+                        <span>Dow30 + Nasdaq100 + S&P500</span>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <span class="status-badge info">Large Cap Focus</span>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Total Coverage</div>
+                    <div class="metric-value" style="font-size: 2rem;">1,033</div>
+                    <div class="metric-change positive">
+                        <span>Multi-Market Universe</span>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <span class="status-badge success">Diversified</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Factor Scores -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem; margin-bottom: 2rem;">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Factor Scoring</h3>
+                        <span class="status-badge info">Quant Factors</span>
+                    </div>
+                    <div class="card-body">
+                        <div style="margin: 1.5rem 0;">
+                            <div style="margin-bottom: 1.5rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span style="color: var(--text-secondary);">Size Factor:</span>
+                                    <span style="color: var(--success); font-weight: 600;">+0.82</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 82%;"></div>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 1.5rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span style="color: var(--text-secondary);">Value Factor:</span>
+                                    <span style="color: var(--warning); font-weight: 600;">+0.45</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 45%; background: var(--gradient-secondary);"></div>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 1.5rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span style="color: var(--text-secondary);">Momentum Factor:</span>
+                                    <span style="color: var(--success); font-weight: 600;">+0.91</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 91%;"></div>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 1.5rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span style="color: var(--text-secondary);">Reversal Factor:</span>
+                                    <span style="color: var(--danger); font-weight: 600;">-0.28</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 28%; background: var(--danger);"></div>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 1rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span style="color: var(--text-secondary);">Low Vol Factor:</span>
+                                    <span style="color: var(--success); font-weight: 600;">+0.67</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 67%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Coverage Matrix</h3>
+                        <span class="status-badge info">Data Quality</span>
+                    </div>
+                    <div class="card-body">
+                        <div style="margin: 1.5rem 0;">
+                            <table class="data-table" style="font-size: 0.875rem;">
+                                <thead>
+                                    <tr>
+                                        <th>Market</th>
+                                        <th>Coverage</th>
+                                        <th>Missing</th>
+                                        <th>Quality</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Crypto</td>
+                                        <td style="color: var(--success);">98.5%</td>
+                                        <td style="color: var(--text-muted);">1.5%</td>
+                                        <td><span class="status-badge success">High</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>CN A-Shares</td>
+                                        <td style="color: var(--success);">95.2%</td>
+                                        <td style="color: var(--text-muted);">4.8%</td>
+                                        <td><span class="status-badge success">High</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>US Equities</td>
+                                        <td style="color: var(--success);">97.8%</td>
+                                        <td style="color: var(--text-muted);">2.2%</td>
+                                        <td><span class="status-badge success">High</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <span style="color: var(--text-secondary);">Total Symbols:</span>
+                                <span style="color: var(--text-primary); font-weight: 600;">1,033</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">Avg Quality Score:</span>
+                                <span style="color: var(--success); font-weight: 600;">97.2%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ranked Universe Table -->
+            <div class="table-container">
+                <div class="table-header">
+                    <h3 style="font-size: 1.25rem; font-weight: 600;">Ranked Universe (Top 20)</h3>
+                    <div class="table-controls">
+                        <select class="form-select" style="width: auto;">
+                            <option>All Markets</option>
+                            <option>Crypto</option>
+                            <option>CN A-Shares</option>
+                            <option>US Equities</option>
+                        </select>
+                        <button class="btn btn-primary btn-sm">Export</button>
+                    </div>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Symbol</th>
+                            <th>Market</th>
+                            <th>Total Score</th>
+                            <th>P(UP)</th>
+                            <th>Factor Score</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>#1</strong></td>
+                            <td><strong>BTC</strong></td>
+                            <td>Crypto</td>
+                            <td style="color: var(--success); font-weight: 600;">0.89</td>
+                            <td>0.67</td>
+                            <td>0.92</td>
+                            <td><span class="status-badge success">STRONG BUY</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>#2</strong></td>
+                            <td><strong>ETH</strong></td>
+                            <td>Crypto</td>
+                            <td style="color: var(--success); font-weight: 600;">0.85</td>
+                            <td>0.65</td>
+                            <td>0.88</td>
+                            <td><span class="status-badge success">BUY</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>#3</strong></td>
+                            <td><strong>600519</strong></td>
+                            <td>CN A-Shares</td>
+                            <td style="color: var(--success); font-weight: 600;">0.82</td>
+                            <td>0.61</td>
+                            <td>0.85</td>
+                            <td><span class="status-badge success">BUY</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>#4</strong></td>
+                            <td><strong>AAPL</strong></td>
+                            <td>US Equities</td>
+                            <td style="color: var(--success); font-weight: 600;">0.81</td>
+                            <td>0.68</td>
+                            <td>0.79</td>
+                            <td><span class="status-badge success">BUY</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>#5</strong></td>
+                            <td><strong>MSFT</strong></td>
+                            <td>US Equities</td>
+                            <td style="color: var(--success); font-weight: 600;">0.79</td>
+                            <td>0.71</td>
+                            <td>0.76</td>
+                            <td><span class="status-badge success">BUY</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>#6</strong></td>
+                            <td><strong>SOL</strong></td>
+                            <td>Crypto</td>
+                            <td style="color: var(--warning); font-weight: 600;">0.65</td>
+                            <td>0.48</td>
+                            <td>0.72</td>
+                            <td><span class="status-badge warning">HOLD</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Tracking Actions -->
+            <div class="card" style="margin-top: 2rem;">
+                <div class="card-header">
+                    <h3 class="card-title">Tracking Actions</h3>
+                    <span class="status-badge info">Recent Updates</span>
+                </div>
+                <div class="card-body">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                        <div style="padding: 1rem; background: var(--bg-tertiary); border-radius: 8px; border-left: 4px solid var(--success);">
+                            <div style="color: var(--success); font-weight: 600; margin-bottom: 0.5rem;">Added to Watchlist</div>
+                            <div style="color: var(--text-secondary); font-size: 0.875rem;">BTC - Strong bullish signal detected</div>
+                            <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.5rem;">2026-03-02 20:15 UTC</div>
+                        </div>
+                        <div style="padding: 1rem; background: var(--bg-tertiary); border-radius: 8px; border-left: 4px solid var(--warning);">
+                            <div style="color: var(--warning); font-weight: 600; margin-bottom: 0.5rem;">Position Reduced</div>
+                            <div style="color: var(--text-secondary); font-size: 0.875rem;">SOL - Momentum weakening</div>
+                            <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.5rem;">2026-03-02 19:45 UTC</div>
+                        </div>
+                        <div style="padding: 1rem; background: var(--bg-tertiary); border-radius: 8px; border-left: 4px solid var(--info);">
+                            <div style="color: var(--info); font-weight: 600; margin-bottom: 0.5rem;">New Coverage</div>
+                            <div style="color: var(--text-secondary); font-size: 0.875rem;">AAPL - Added to universe</div>
+                            <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.5rem;">2026-03-02 18:30 UTC</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer style="background: var(--bg-secondary); border-top: 1px solid var(--border-color); padding: 2rem 0; margin-top: 4rem;">
+        <div class="container">
+            <div style="text-align: center;">
+                <p style="color: var(--text-muted); font-size: 0.875rem;">
+                    © 2026 StockandCrypto. AI-powered quantitative trading platform.
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/tracking.js"></script>
+</body>
+</html>

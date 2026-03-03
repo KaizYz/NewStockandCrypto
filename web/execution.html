@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Execution Records - StockandCrypto</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/components.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="header-container">
+            <div class="logo">
+                <a href="index.html">
+                    <span class="logo-icon">◈</span>
+                    <span class="logo-text">StockandCrypto</span>
+                </a>
+            </div>
+            <nav class="nav">
+                <button class="nav-toggle" id="navToggle">
+                    <span></span><span></span><span></span>
+                </button>
+                <ul class="nav-menu" id="navMenu">
+                    <li><a href="index.html" class="nav-link">Home</a></li>
+                    <li><a href="crypto.html" class="nav-link">Crypto</a></li>
+                    <li><a href="cn-equity.html" class="nav-link">CN Equity</a></li>
+                    <li><a href="us-equity.html" class="nav-link">US Equity</a></li>
+                    <li><a href="session-crypto.html" class="nav-link">Session Forecast</a></li>
+                    <li><a href="tracking.html" class="nav-link">Tracking</a></li>
+                </ul>
+            </nav>
+            <div class="nav-actions">
+                <a href="login.html" class="btn btn-secondary btn-sm">Login</a>
+            </div>
+        </div>
+    </header>
+
+    <main style="padding-top: 100px; min-height: 100vh;">
+        <div class="container">
+            <div class="section-header" style="text-align: left; margin-bottom: 2rem;">
+                <span class="section-tag">Paper Trading</span>
+                <h1 class="section-title">Execution Records</h1>
+                <p style="color: var(--text-secondary);">Paper trading execution log with decision packets and performance tracking</p>
+            </div>
+
+            <!-- Performance Overview -->
+            <div class="dashboard-grid" style="margin-bottom: 2rem;">
+                <div class="metric-card">
+                    <div class="metric-label">Total Trades</div>
+                    <div class="metric-value" style="font-size: 2rem;">1,868</div>
+                    <div class="metric-change positive">
+                        <span>Across All Markets</span>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <span class="status-badge info">Paper Trading</span>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Win Rate</div>
+                    <div class="metric-value" style="font-size: 2rem;">54.2%</div>
+                    <div class="metric-change positive">
+                        <span>+2.1% vs Baseline</span>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <span class="status-badge success">Above Target</span>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Total P&L</div>
+                    <div class="metric-value" style="font-size: 2rem;">+12.4%</div>
+                    <div class="metric-change positive">
+                        <span>Paper Trading Return</span>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <span class="status-badge success">Profitable</span>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Sharpe Ratio</div>
+                    <div class="metric-value" style="font-size: 2rem; color: var(--danger);">0.65</div>
+                    <div class="metric-change negative">
+                        <span>Target: 0.8</span>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <span class="status-badge warning">Below Target</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Equity Curve -->
+            <div class="chart-container" style="margin-bottom: 2rem;">
+                <div class="chart-header">
+                    <h3 class="chart-title">Paper Trading Equity Curve</h3>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-secondary btn-sm">1W</button>
+                        <button class="btn btn-primary btn-sm">1M</button>
+                        <button class="btn btn-secondary btn-sm">3M</button>
+                    </div>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="equityChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Execution Stats -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem; margin-bottom: 2rem;">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Execution by Market</h3>
+                        <span class="status-badge info">Distribution</span>
+                    </div>
+                    <div class="card-body">
+                        <div style="margin: 1.5rem 0;">
+                            <div style="margin-bottom: 1.5rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span style="color: var(--text-secondary);">Crypto:</span>
+                                    <span style="color: var(--text-primary); font-weight: 600;">698 trades (37.4%)</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 37.4%;"></div>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 1.5rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span style="color: var(--text-secondary);">CN A-Shares:</span>
+                                    <span style="color: var(--text-primary); font-weight: 600;">340 trades (18.2%)</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 18.2%; background: var(--gradient-secondary);"></div>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 1rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span style="color: var(--text-secondary);">US Equities:</span>
+                                    <span style="color: var(--text-primary); font-weight: 600;">830 trades (44.4%)</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 44.4%; background: var(--success);"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Execution Metrics</h3>
+                        <span class="status-badge warning">Cost Analysis</span>
+                    </div>
+                    <div class="card-body">
+                        <div style="margin: 1.5rem 0;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 8px;">
+                                <span style="color: var(--text-secondary);">Fee Cost:</span>
+                                <span style="color: var(--warning); font-weight: 600;">$2,456.78 (10 bps)</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 8px;">
+                                <span style="color: var(--text-secondary);">Slippage:</span>
+                                <span style="color: var(--danger); font-weight: 600;">$3,892.34 (15 bps)</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 8px;">
+                                <span style="color: var(--text-secondary);">Market Impact:</span>
+                                <span style="color: var(--text-muted); font-weight: 600;">$245.67 (1 bps)</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 0.75rem; background: rgba(255, 51, 102, 0.1); border-radius: 8px; border: 1px solid var(--danger);">
+                                <span style="color: var(--danger); font-weight: 600;">Total Cost:</span>
+                                <span style="color: var(--danger); font-weight: 700;">$6,594.79 (26 bps)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Executions Table -->
+            <div class="table-container">
+                <div class="table-header">
+                    <h3 style="font-size: 1.25rem; font-weight: 600;">Recent Executions</h3>
+                    <div class="table-controls">
+                        <select class="form-select" style="width: auto;">
+                            <option>All Markets</option>
+                            <option>Crypto</option>
+                            <option>CN A-Shares</option>
+                            <option>US Equities</option>
+                        </select>
+                        <button class="btn btn-primary btn-sm">Export CSV</button>
+                    </div>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Decision ID</th>
+                            <th>Timestamp</th>
+                            <th>Symbol</th>
+                            <th>Market</th>
+                            <th>Side</th>
+                            <th>Qty</th>
+                            <th>Entry Price</th>
+                            <th>Current P&L</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>#D202603022015</strong></td>
+                            <td>2026-03-02 20:15</td>
+                            <td>BTCUSDT</td>
+                            <td>Crypto</td>
+                            <td style="color: var(--success); font-weight: 600;">LONG</td>
+                            <td>0.5</td>
+                            <td>$67,234.50</td>
+                            <td style="color: var(--success);">+$312.45</td>
+                            <td><span class="status-badge success">Open</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>#D202603021945</strong></td>
+                            <td>2026-03-02 19:45</td>
+                            <td>ETHUSDT</td>
+                            <td>Crypto</td>
+                            <td style="color: var(--success); font-weight: 600;">LONG</td>
+                            <td>2.3</td>
+                            <td>$3,456.78</td>
+                            <td style="color: var(--success);">+$89.23</td>
+                            <td><span class="status-badge success">Open</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>#D202603021830</strong></td>
+                            <td>2026-03-02 18:30</td>
+                            <td>600519</td>
+                            <td>CN A-Shares</td>
+                            <td style="color: var(--success); font-weight: 600;">LONG</td>
+                            <td>100</td>
+                            <td>¥1,856.00</td>
+                            <td style="color: var(--danger);">-¥45.00</td>
+                            <td><span class="status-badge warning">Closed</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>#D202603021715</strong></td>
+                            <td>2026-03-02 17:15</td>
+                            <td>AAPL</td>
+                            <td>US Equities</td>
+                            <td style="color: var(--success); font-weight: 600;">LONG</td>
+                            <td>50</td>
+                            <td>$178.72</td>
+                            <td style="color: var(--success);">+$156.50</td>
+                            <td><span class="status-badge success">Open</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>#D202603021600</strong></td>
+                            <td>2026-03-02 16:00</td>
+                            <td>SOLUSDT</td>
+                            <td>Crypto</td>
+                            <td style="color: var(--danger); font-weight: 600;">SHORT</td>
+                            <td>15</td>
+                            <td>$145.23</td>
+                            <td style="color: var(--danger);">-$23.45</td>
+                            <td><span class="status-badge warning">Closed</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Decision Packet Details -->
+            <div class="card" style="margin-top: 2rem;">
+                <div class="card-header">
+                    <h3 class="card-title">Latest Decision Packet</h3>
+                    <span class="status-badge info">Real-time</span>
+                </div>
+                <div class="card-body">
+                    <div style="background: var(--bg-tertiary); padding: 1.5rem; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.875rem;">
+                        <pre style="color: var(--text-secondary); margin: 0; white-space: pre-wrap;">{
+  "decision_id": "D202603022015",
+  "timestamp_utc": "2026-03-02T20:15:32Z",
+  "symbol": "BTCUSDT",
+  "market": "crypto",
+  "action": "long",
+  "signed_position": 0.85,
+  "entry_price": 67234.50,
+  "stop_loss": 65500.00,
+  "take_profit_1": 68500.00,
+  "take_profit_2": 70000.00,
+  "expected_return_q50": 0.042,
+  "risk_to_sl": 0.026,
+  "net_edge_after_cost": 0.038,
+  "reason_codes": ["p_bull_gate", "momentum_gate", "volatility_gate"],
+  "model_version": "baseline_momentum_quantile",
+  "confidence_score": 0.72
+}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer style="background: var(--bg-secondary); border-top: 1px solid var(--border-color); padding: 2rem 0; margin-top: 4rem;">
+        <div class="container">
+            <div style="text-align: center;">
+                <p style="color: var(--text-muted); font-size: 0.875rem;">
+                    © 2026 StockandCrypto. AI-powered quantitative trading platform.
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/execution.js"></script>
+</body>
+</html>
