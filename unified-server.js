@@ -15,9 +15,15 @@ const WEB_ROOT = path.join(__dirname, 'web');
 const CRYPTO_CACHE_TTL_MS = Number(process.env.CRYPTO_CACHE_TTL_MS || 9000);
 const CN_CACHE_TTL_MS = Number(process.env.CN_CACHE_TTL_MS || 9000);
 const CN_POLL_INTERVAL_SEC = Number(process.env.CN_POLL_INTERVAL_SEC || 10);
+const US_CACHE_TTL_MS = Number(process.env.US_CACHE_TTL_MS || 9000);
+const US_POLL_INTERVAL_SEC = Number(process.env.US_POLL_INTERVAL_SEC || 10);
 const BINANCE_US_URL = 'https://api.binance.us/api/v3/ticker/24hr?symbols=%5B%22BTCUSDT%22,%22ETHUSDT%22,%22SOLUSDT%22%5D';
 const EASTMONEY_ULIST_FIELDS = 'f2,f3,f4,f12,f13,f14,f15,f16,f17,f18,f20,f21,f47,f48,f100,f103,f115';
 const EASTMONEY_ULIST_BASE = 'https://push2.eastmoney.com/api/qt/ulist.np/get';
+const STOOQ_BATCH_BASE = 'https://stooq.com/q/l/?f=sd2t2ohlcv&h&e=csv&s=';
+const SP500_SNAPSHOT_PATH = path.join(WEB_ROOT, 'assets', 'sp500-constituents.json');
+const ALPHA_VANTAGE_API_KEY = process.env.ALPHA_VANTAGE_API_KEY || '';
+const US_ENABLE_ALPHA_FALLBACK = String(process.env.US_ENABLE_ALPHA_FALLBACK || 'true').toLowerCase() !== 'false';
 const CSI300_SNAPSHOT_PATH = path.join(WEB_ROOT, 'assets', 'csi300-constituents.json');
 const INDEX_SECIDS = {
     '000001.SH': '1.000001',
@@ -32,6 +38,17 @@ const MARKET_SESSION_TIMEZONE_LABEL = 'Beijing Time (CST, UTC+8)';
 const CN_DELAY_NOTE = 'Data Source: EastMoney API | Delay: ~3-10s (Level-1)';
 const CN_DISCLAIMER = 'Not for actual trading - Simulation only';
 const CN_POLICY_SHORT_REASON = 'CN policy mode: strict no-short';
+const US_DELAY_NOTE = 'US Level-1 quote feed; normal delay depends on venue';
+const US_DISCLAIMER = 'Not for actual trading - simulation only';
+const US_SESSION_TIMEZONE = 'America/New_York';
+const US_BEIJING_LABEL = 'Beijing Time (CST, UTC+8)';
+const US_MAX_LEVERAGE = 2.0;
+const US_LIMIT_POSITION = 2.0;
+const US_INDEX_SYMBOL_CONFIG = {
+    '^DJI': { symbol: '^DJI', aliases: ['^DJI', 'DJI'], name: 'Dow Jones' },
+    '^NDX': { symbol: '^NDX', aliases: ['^NDX', 'NDX'], name: 'Nasdaq 100' },
+    '^SPX': { symbol: '^SPX', aliases: ['^SPX', 'SPX', '^GSPC', 'GSPC'], name: 'S&P 500' }
+};
 const LIMIT_STATUS_ORDER = {
     LIMIT_UP: 3,
     LIMIT_DOWN: 2,
@@ -42,6 +59,8 @@ let cryptoPriceCache = null;
 let cryptoPriceCacheAt = 0;
 let cnCache = null;
 let cnCacheAt = 0;
+let usCache = null;
+let usCacheAt = 0;
 
 const MIME_TYPES = {
     '.html': 'text/html; charset=utf-8',
@@ -218,6 +237,174 @@ function computeMarketSession(now = new Date()) {
     };
 }
 
+const US_HOLIDAYS_2026 = new Set([
+    '2026-01-01',
+    '2026-01-19',
+    '2026-02-16',
+    '2026-04-03',
+    '2026-05-25',
+    '2026-07-03',
+    '2026-09-07',
+    '2026-11-26',
+    '2026-12-25'
+]);
+
+const US_EARLY_CLOSE_2026 = new Set([
+    '2026-07-03',
+    '2026-11-27',
+    '2026-12-24'
+]);
+
+function parseOffsetMinutes(offsetValue) {
+    const normalized = String(offsetValue || '').replace('GMT', '').trim();
+    const match = normalized.match(/^([+-])(\d{1,2})(?::?(\d{2}))?$/);
+    if (!match) return 0;
+    const sign = match[1] === '-' ? -1 : 1;
+    const hours = Number(match[2] || 0);
+    const minutes = Number(match[3] || 0);
+    return sign * (hours * 60 + minutes);
+}
+
+function offsetMinutesToIso(minutes) {
+    const sign = minutes < 0 ? '-' : '+';
+    const abs = Math.abs(minutes);
+    const hh = String(Math.floor(abs / 60)).padStart(2, '0');
+    const mm = String(abs % 60).padStart(2, '0');
+    return `${sign}${hh}:${mm}`;
+}
+
+function getTimeZoneOffsetMinutes(timeZone, refDate) {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        timeZoneName: 'shortOffset'
+    });
+    const tzPart = formatter.formatToParts(refDate).find((part) => part.type === 'timeZoneName');
+    return parseOffsetMinutes(tzPart?.value || 'GMT+0');
+}
+
+function toNewYorkNow(now = new Date()) {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: US_SESSION_TIMEZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        weekday: 'short',
+        hour12: false
+    });
+    const parts = Object.fromEntries(formatter.formatToParts(now).map((part) => [part.type, part.value]));
+    const year = Number(parts.year);
+    const month = Number(parts.month);
+    const day = Number(parts.day);
+    const hour = Number(parts.hour);
+    const minute = Number(parts.minute);
+    const second = Number(parts.second);
+    const weekday = parts.weekday;
+    const dateKey = `${parts.year}-${parts.month}-${parts.day}`;
+    const offsetMinutes = getTimeZoneOffsetMinutes(US_SESSION_TIMEZONE, now);
+    const isoOffset = offsetMinutesToIso(offsetMinutes);
+    const date = new Date(`${dateKey}T${parts.hour}:${parts.minute}:${parts.second}${isoOffset}`);
+    return { year, month, day, hour, minute, second, weekday, dateKey, date, offsetMinutes };
+}
+
+function makeNewYorkDate(dateKey, hour, minute, second = 0) {
+    const [year, month, day] = String(dateKey).split('-').map((value) => Number(value));
+    const probe = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    const offsetMinutes = getTimeZoneOffsetMinutes(US_SESSION_TIMEZONE, probe);
+    const isoOffset = offsetMinutesToIso(offsetMinutes);
+    const hh = String(hour).padStart(2, '0');
+    const mm = String(minute).padStart(2, '0');
+    const ss = String(second).padStart(2, '0');
+    return new Date(`${dateKey}T${hh}:${mm}:${ss}${isoOffset}`);
+}
+
+function isUsTradingDate(dateKey, weekday) {
+    if (weekday === 'Sat' || weekday === 'Sun') return false;
+    if (US_HOLIDAYS_2026.has(dateKey)) return false;
+    return true;
+}
+
+function nextUsTradingDateKey(currentDate) {
+    const date = new Date(currentDate.getTime());
+    while (true) {
+        date.setUTCDate(date.getUTCDate() + 1);
+        const ny = toNewYorkNow(date);
+        if (isUsTradingDate(ny.dateKey, ny.weekday)) {
+            return ny.dateKey;
+        }
+    }
+}
+
+function computeUsMarketSession(now = new Date()) {
+    const ny = toNewYorkNow(now);
+    const isTradingDate = isUsTradingDate(ny.dateKey, ny.weekday);
+    const isEarlyClose = US_EARLY_CLOSE_2026.has(ny.dateKey);
+    const regularCloseHour = isEarlyClose ? 13 : 16;
+
+    const premarketStart = makeNewYorkDate(ny.dateKey, 4, 0);
+    const regularStart = makeNewYorkDate(ny.dateKey, 9, 30);
+    const regularEnd = makeNewYorkDate(ny.dateKey, regularCloseHour, 0);
+    const afterHoursEnd = makeNewYorkDate(ny.dateKey, 20, 0);
+
+    const phases = isTradingDate
+        ? [
+            { code: 'PREMARKET', label: 'Pre-market', tone: 'info', start: premarketStart, end: regularStart },
+            { code: 'REGULAR', label: 'Regular Hours', tone: 'success', start: regularStart, end: regularEnd },
+            { code: 'AFTER_HOURS', label: 'After-hours', tone: 'warning', start: regularEnd, end: afterHoursEnd }
+        ]
+        : [];
+
+    const nowMs = ny.date.getTime();
+    let current = null;
+    for (const phase of phases) {
+        if (nowMs >= phase.start.getTime() && nowMs < phase.end.getTime()) {
+            current = phase;
+            break;
+        }
+    }
+
+    let nextPhase = null;
+    if (current) {
+        const currentIndex = phases.findIndex((phase) => phase.code === current.code);
+        if (currentIndex > -1 && currentIndex < phases.length - 1) {
+            const candidate = phases[currentIndex + 1];
+            nextPhase = { code: candidate.code, label: candidate.label, at: candidate.start };
+        } else {
+            nextPhase = { code: 'CLOSED', label: 'Closed', at: afterHoursEnd };
+        }
+    } else if (isTradingDate && nowMs < premarketStart.getTime()) {
+        nextPhase = { code: 'PREMARKET', label: 'Pre-market', at: premarketStart };
+    } else {
+        const nextDateKey = nextUsTradingDateKey(ny.date);
+        nextPhase = {
+            code: 'PREMARKET',
+            label: 'Pre-market',
+            at: makeNewYorkDate(nextDateKey, 4, 0)
+        };
+    }
+
+    const fallbackPhase = { code: 'CLOSED', label: 'Closed', tone: 'danger' };
+    const activePhase = current || fallbackPhase;
+    const countdownSec = nextPhase ? Math.max(0, Math.floor((nextPhase.at.getTime() - nowMs) / 1000)) : 0;
+
+    return {
+        timezone: US_SESSION_TIMEZONE,
+        timezoneLabel: 'New York Time (ET)',
+        beijingLabel: US_BEIJING_LABEL,
+        phaseCode: activePhase.code,
+        phaseLabel: activePhase.label,
+        phaseTone: activePhase.tone,
+        nextPhaseCode: nextPhase ? nextPhase.code : null,
+        nextPhaseLabel: nextPhase ? nextPhase.label : null,
+        nextPhaseAt: nextPhase ? nextPhase.at.toISOString() : null,
+        countdownSec,
+        isHoliday: US_HOLIDAYS_2026.has(ny.dateKey),
+        isEarlyClose
+    };
+}
+
 function translateSectorToEnglish(rawSector) {
     const text = String(rawSector || '').trim();
     if (!text) return 'Other';
@@ -344,6 +531,147 @@ function fetchBinanceUS() {
     return fetchJsonFromHttps(BINANCE_US_URL, 5000).then(normalizeTickerRows);
 }
 
+function fetchTextFromHttps(url, timeoutMs = 5000, redirectCount = 0) {
+    return new Promise((resolve, reject) => {
+        const request = https.request(
+            url,
+            {
+                method: 'GET',
+                timeout: timeoutMs,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0',
+                    Accept: 'text/plain,text/csv,*/*'
+                }
+            },
+            (upstream) => {
+                let body = '';
+                upstream.on('data', (chunk) => { body += chunk.toString('utf8'); });
+                upstream.on('end', () => {
+                    const statusCode = upstream.statusCode || 500;
+                    if (statusCode >= 300 && statusCode <= 399 && upstream.headers.location) {
+                        if (redirectCount >= 5) {
+                            reject(new Error(`Too many upstream redirects from ${url}`));
+                            return;
+                        }
+                        const nextUrl = new URL(upstream.headers.location, url).toString();
+                        fetchTextFromHttps(nextUrl, timeoutMs, redirectCount + 1).then(resolve).catch(reject);
+                        return;
+                    }
+                    if (statusCode < 200 || statusCode > 299) {
+                        reject(new Error(`Upstream status ${upstream.statusCode}`));
+                        return;
+                    }
+                    resolve(body);
+                });
+            }
+        );
+
+        request.on('timeout', () => request.destroy(new Error('Upstream timeout')));
+        request.on('error', reject);
+        request.end();
+    });
+}
+
+function buildStooqBatchUrl(symbols) {
+    const symbolPart = symbols.map((symbol) => encodeURIComponent(symbol)).join('+');
+    return `${STOOQ_BATCH_BASE}${symbolPart}`;
+}
+
+function parseStooqCsvRows(csvText) {
+    const lines = String(csvText || '').trim().split(/\r?\n/);
+    if (lines.length <= 1) return [];
+    const rows = [];
+    for (let i = 1; i < lines.length; i += 1) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        const cells = line.split(',');
+        if (cells.length < 8) continue;
+        const symbol = String(cells[0] || '').trim().toUpperCase();
+        const date = String(cells[1] || '').trim();
+        const time = String(cells[2] || '').trim();
+        const open = parseNumber(cells[3]);
+        const high = parseNumber(cells[4]);
+        const low = parseNumber(cells[5]);
+        const close = parseNumber(cells[6]);
+        const volume = parseNumber(cells[7]);
+        const changePct = Number.isFinite(open) && Number.isFinite(close) && open !== 0
+            ? Number((((close - open) / open) * 100).toFixed(4))
+            : null;
+        rows.push({
+            symbol,
+            date,
+            time,
+            open,
+            high,
+            low,
+            price: close,
+            volume,
+            changePct
+        });
+    }
+    return rows;
+}
+
+async function fetchStooqQuotes(sourceSymbols) {
+    const CHUNK_SIZE = 40;
+    const bySymbol = new Map();
+    for (let i = 0; i < sourceSymbols.length; i += CHUNK_SIZE) {
+        const chunk = sourceSymbols.slice(i, i + CHUNK_SIZE);
+        const csvText = await fetchTextFromHttps(buildStooqBatchUrl(chunk), 9000);
+        const rows = parseStooqCsvRows(csvText);
+        rows.forEach((row) => bySymbol.set(row.symbol, row));
+    }
+    return bySymbol;
+}
+
+function parseAlphaGlobalQuote(payload) {
+    const row = payload?.['Global Quote'];
+    if (!row || typeof row !== 'object') return null;
+    const price = parseNumber(row['05. price']);
+    if (price === null) return null;
+    const open = parseNumber(row['02. open']);
+    const high = parseNumber(row['03. high']);
+    const low = parseNumber(row['04. low']);
+    const volume = parseNumber(row['06. volume']);
+    const changePctRaw = String(row['10. change percent'] || '').replace('%', '').trim();
+    const changePct = parseNumber(changePctRaw);
+    return {
+        symbol: String(row['01. symbol'] || '').toUpperCase(),
+        open,
+        high,
+        low,
+        price,
+        volume,
+        changePct
+    };
+}
+
+async function fetchAlphaGlobalQuote(symbol) {
+    if (!ALPHA_VANTAGE_API_KEY || !US_ENABLE_ALPHA_FALLBACK) return null;
+    const endpoint = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(symbol)}&apikey=${encodeURIComponent(ALPHA_VANTAGE_API_KEY)}`;
+    const payload = await fetchJsonFromHttps(endpoint, 9000);
+    return parseAlphaGlobalQuote(payload);
+}
+
+async function fetchAlphaIndexQuote(indexSymbol) {
+    if (!ALPHA_VANTAGE_API_KEY || !US_ENABLE_ALPHA_FALLBACK) return null;
+    const probesByIndex = {
+        '^DJI': ['^DJI', 'DJI'],
+        '^NDX': ['^NDX', 'NDX'],
+        '^SPX': ['^SPX', 'SPX', '^GSPC', 'GSPC']
+    };
+    const probes = probesByIndex[indexSymbol] || [indexSymbol];
+    for (const probe of probes) {
+        try {
+            const quote = await fetchAlphaGlobalQuote(probe);
+            if (quote && quote.price !== null) return quote;
+        } catch (error) {
+            // Continue probing aliases.
+        }
+    }
+    return null;
+}
+
 function loadCsi300Snapshot() {
     if (!fs.existsSync(CSI300_SNAPSHOT_PATH)) {
         throw new Error(`Missing CSI300 snapshot file: ${CSI300_SNAPSHOT_PATH}`);
@@ -391,9 +719,69 @@ function loadCsi300Snapshot() {
     });
 }
 
+function normalizeUsSourceSymbol(symbol) {
+    return `${String(symbol || '').trim().toUpperCase().replace(/\./g, '-')}.US`;
+}
+
+function normalizeUsSymbol(rawSymbol) {
+    return String(rawSymbol || '')
+        .trim()
+        .toUpperCase()
+        .replace(/\.US$/, '')
+        .replace(/-/g, '.');
+}
+
+function loadSp500Snapshot() {
+    if (!fs.existsSync(SP500_SNAPSHOT_PATH)) {
+        throw new Error(`Missing S&P 500 snapshot file: ${SP500_SNAPSHOT_PATH}`);
+    }
+
+    let parsed;
+    try {
+        const raw = fs.readFileSync(SP500_SNAPSHOT_PATH, 'utf8').replace(/^\uFEFF/, '');
+        parsed = JSON.parse(raw);
+    } catch (error) {
+        throw new Error(`Failed to parse S&P 500 snapshot: ${error.message}`);
+    }
+
+    if (!Array.isArray(parsed.constituents)) {
+        throw new Error('Invalid S&P 500 snapshot format: constituents must be an array');
+    }
+    if (parsed.constituents.length !== 500) {
+        throw new Error(`Invalid S&P 500 snapshot size: expected 500, got ${parsed.constituents.length}`);
+    }
+
+    const seen = new Set();
+    return parsed.constituents.map((row, index) => {
+        const symbol = normalizeUsSymbol(row.symbol);
+        const name = String(row.name || '').trim();
+        const sector = String(row.sector || '').trim() || 'Other';
+        const sourceSymbol = String(row.sourceSymbol || normalizeUsSourceSymbol(symbol)).trim().toUpperCase();
+
+        if (!symbol || !/^[A-Z0-9.]+$/.test(symbol)) {
+            throw new Error(`Invalid symbol at row ${index + 1}: ${row.symbol}`);
+        }
+        if (!name) {
+            throw new Error(`Missing security name at row ${index + 1}`);
+        }
+        if (!sourceSymbol.endsWith('.US')) {
+            throw new Error(`Invalid sourceSymbol at row ${index + 1}: ${sourceSymbol}`);
+        }
+        if (seen.has(symbol)) {
+            throw new Error(`Duplicate symbol at row ${index + 1}: ${symbol}`);
+        }
+        seen.add(symbol);
+
+        return { symbol, name, sector, sourceSymbol };
+    });
+}
+
 const csi300Snapshot = loadCsi300Snapshot();
 const csi300ByCode = new Map(csi300Snapshot.map((row) => [row.code, row]));
 const csi300Secids = csi300Snapshot.map((row) => row.secid);
+const sp500Snapshot = loadSp500Snapshot();
+const sp500BySymbol = new Map(sp500Snapshot.map((row) => [row.symbol, row]));
+const sp500SourceSymbols = sp500Snapshot.map((row) => row.sourceSymbol);
 
 async function handleCryptoPrices(req, res) {
     if (req.method === 'OPTIONS') {
@@ -1128,6 +1516,611 @@ async function handleCnRanking(req, res, parsedUrl) {
     }
 }
 
+function normalizeUsIndexSymbol(rawIndexSymbol) {
+    const candidate = String(rawIndexSymbol || '').trim().toUpperCase();
+    if (!candidate) return null;
+    for (const config of Object.values(US_INDEX_SYMBOL_CONFIG)) {
+        if (config.aliases.includes(candidate)) return config.symbol;
+    }
+    return null;
+}
+
+function usQuoteFromStooqRow(stooqRow) {
+    if (!stooqRow) return null;
+    return {
+        open: stooqRow.open,
+        high: stooqRow.high,
+        low: stooqRow.low,
+        price: stooqRow.price,
+        volume: stooqRow.volume,
+        changePct: stooqRow.changePct
+    };
+}
+
+function calculateUsPrediction(quote) {
+    const price = quote?.price ?? null;
+    const open = quote?.open ?? price ?? null;
+    const high = quote?.high ?? price ?? null;
+    const low = quote?.low ?? price ?? null;
+    const changePct = quote?.changePct ?? 0;
+
+    const intradayPct = Number.isFinite(price) && Number.isFinite(open) && open !== 0
+        ? ((price - open) / open) * 100
+        : 0;
+    const rangePct = Number.isFinite(high) && Number.isFinite(low) && Number.isFinite(open) && open !== 0
+        ? (high - low) / open
+        : 0;
+
+    const trendComponent = clamp(changePct / 5, -1, 1);
+    const intradayComponent = clamp(intradayPct / 4, -1, 1);
+    const pUp = clamp(0.5 + trendComponent * 0.24 + intradayComponent * 0.16, 0.02, 0.98);
+    const pDown = clamp(1 - pUp, 0.02, 0.98);
+
+    const distance = Math.abs(pUp - 0.5) * 2;
+    const rangePenalty = clamp(rangePct / 0.07, 0, 1);
+    const confidence = clamp(0.82 + distance * 0.18 - rangePenalty * 0.10, 0.75, 0.99);
+
+    const center = clamp((changePct / 100) * 0.38 + (pUp - 0.5) * 0.06, -0.11, 0.11);
+    const spread = clamp(0.012 + rangePct * 0.55 + (1 - confidence) * 0.05, 0.01, 0.09);
+    let q10 = clamp(center - spread * 0.95, -0.15, 0.15);
+    let q50 = clamp(center, -0.12, 0.12);
+    let q90 = clamp(center + spread * 0.95, -0.15, 0.15);
+    [q10, q50, q90] = [q10, q50, q90].sort((a, b) => a - b);
+
+    let signal = 'FLAT';
+    if (pUp >= 0.65 && confidence >= 0.95) signal = 'STRONG LONG';
+    else if (pUp >= 0.55 && confidence >= 0.90) signal = 'LONG';
+    else if (pUp <= 0.35 && confidence >= 0.95) signal = 'STRONG SHORT';
+    else if (pUp <= 0.45 && confidence >= 0.90) signal = 'SHORT';
+
+    let w1 = clamp(0.26 + (pUp - 0.5) * 0.35, 0.08, 0.55);
+    let w2 = clamp(0.28 + distance * 0.12, 0.10, 0.50);
+    let w3 = clamp(0.24 + (0.5 - Math.abs(pUp - 0.5)) * 0.12, 0.08, 0.45);
+    let w0 = Math.max(0.02, 1 - (w1 + w2 + w3));
+    const total = w0 + w1 + w2 + w3;
+    w0 /= total;
+    w1 /= total;
+    w2 /= total;
+    w3 /= total;
+    const window = {
+        W0: Number(w0.toFixed(4)),
+        W1: Number(w1.toFixed(4)),
+        W2: Number(w2.toFixed(4)),
+        W3: Number(w3.toFixed(4)),
+        mostLikely: Object.entries({ W0: w0, W1: w1, W2: w2, W3: w3 }).sort((a, b) => b[1] - a[1])[0][0]
+    };
+
+    return {
+        pUp: Number(pUp.toFixed(4)),
+        pDown: Number(pDown.toFixed(4)),
+        confidence: Number(confidence.toFixed(4)),
+        signal,
+        q10: Number(q10.toFixed(4)),
+        q50: Number(q50.toFixed(4)),
+        q90: Number(q90.toFixed(4)),
+        window
+    };
+}
+
+function calculateUsPolicy(prediction) {
+    const pUp = prediction.pUp;
+    const confidence = prediction.confidence;
+    const q10 = prediction.q10;
+    const q50 = prediction.q50;
+
+    let signal = 'FLAT';
+    let action = 'Hold';
+    if (pUp >= 0.65 && confidence >= 0.95) {
+        signal = 'STRONG LONG';
+        action = 'Buy (aggressive)';
+    } else if (pUp >= 0.55 && confidence >= 0.90) {
+        signal = 'LONG';
+        action = 'Buy';
+    } else if (pUp <= 0.35 && confidence >= 0.95) {
+        signal = 'STRONG SHORT';
+        action = 'Sell short (aggressive)';
+    } else if (pUp <= 0.45 && confidence >= 0.90) {
+        signal = 'SHORT';
+        action = 'Sell short';
+    }
+
+    let positionSize = 0;
+    if (signal !== 'FLAT') {
+        const isLong = signal.includes('LONG');
+        const winProb = isLong ? pUp : 1 - pUp;
+        const winReturn = Math.max(isLong ? q50 : Math.abs(q10), 0.001);
+        const lossReturn = Math.max(isLong ? Math.abs(q10) : q50, 0.001);
+        const kelly = (winProb * winReturn - (1 - winProb) * lossReturn) / winReturn;
+        const capped = clamp(Math.abs(kelly), 0, US_LIMIT_POSITION);
+        positionSize = clamp(capped * confidence, 0, US_LIMIT_POSITION);
+    }
+
+    return {
+        signal,
+        action,
+        positionSize: Number(positionSize.toFixed(4)),
+        shortAllowed: true,
+        leverage: US_MAX_LEVERAGE
+    };
+}
+
+function calculateUsTpSl(entryPrice, prediction, signal) {
+    if (!Number.isFinite(entryPrice) || entryPrice <= 0) {
+        return {
+            entryPrice: null,
+            stopLoss: null,
+            stopLossPct: null,
+            takeProfit1: null,
+            takeProfit1Pct: null,
+            takeProfit2: null,
+            takeProfit2Pct: null
+        };
+    }
+
+    const q10 = prediction.q10;
+    const q50 = prediction.q50;
+    const q90 = prediction.q90;
+    if (signal === 'FLAT') {
+        return {
+            entryPrice: Number(entryPrice.toFixed(4)),
+            stopLoss: null,
+            stopLossPct: null,
+            takeProfit1: null,
+            takeProfit1Pct: null,
+            takeProfit2: null,
+            takeProfit2Pct: null
+        };
+    }
+
+    const isLong = signal.includes('LONG');
+    const stopLossPct = isLong ? q10 * 0.9 : -q90 * 0.9;
+    const takeProfit1Pct = isLong ? q50 * 0.8 : -q10 * 0.8;
+    const takeProfit2Pct = isLong ? q90 * 0.7 : -q10 * 1.5;
+
+    return {
+        entryPrice: Number(entryPrice.toFixed(4)),
+        stopLoss: Number((entryPrice * (1 + stopLossPct)).toFixed(4)),
+        stopLossPct: Number(stopLossPct.toFixed(4)),
+        takeProfit1: Number((entryPrice * (1 + takeProfit1Pct)).toFixed(4)),
+        takeProfit1Pct: Number(takeProfit1Pct.toFixed(4)),
+        takeProfit2: Number((entryPrice * (1 + takeProfit2Pct)).toFixed(4)),
+        takeProfit2Pct: Number(takeProfit2Pct.toFixed(4))
+    };
+}
+
+function asUsUniverseRow(constituent, stooqRow, status) {
+    const quote = usQuoteFromStooqRow(stooqRow) || {
+        open: null, high: null, low: null, price: null, volume: null, changePct: null
+    };
+    const prediction = calculateUsPrediction(quote);
+    const policy = calculateUsPolicy(prediction);
+    return {
+        symbol: constituent.symbol,
+        name: constituent.name,
+        sector: constituent.sector,
+        sourceSymbol: constituent.sourceSymbol,
+        price: quote.price,
+        changePct: quote.changePct,
+        open: quote.open,
+        high: quote.high,
+        low: quote.low,
+        volume: quote.volume,
+        prediction: {
+            pUp: prediction.pUp,
+            pDown: prediction.pDown,
+            confidence: prediction.confidence,
+            signal: prediction.signal,
+            q10: prediction.q10,
+            q50: prediction.q50,
+            q90: prediction.q90,
+            window: prediction.window
+        },
+        policy,
+        valuation: {
+            marketCap: null,
+            peTtm: null
+        },
+        status: quote.price === null ? 'ERROR' : status
+    };
+}
+
+async function fetchUsLivePayload() {
+    const indexSymbols = ['^DJI', '^NDX', '^SPX'];
+    const allSymbols = [...new Set([...indexSymbols, ...sp500SourceSymbols])];
+    const quoteMap = await fetchStooqQuotes(allSymbols);
+    let source = 'stooq';
+
+    const indices = {};
+    for (const canonical of indexSymbols) {
+        const config = US_INDEX_SYMBOL_CONFIG[canonical];
+        const row = quoteMap.get(canonical);
+        let quote = usQuoteFromStooqRow(row);
+        if ((!quote || quote.price === null) && US_ENABLE_ALPHA_FALLBACK && ALPHA_VANTAGE_API_KEY) {
+            const alphaQuote = await fetchAlphaIndexQuote(canonical);
+            if (alphaQuote && alphaQuote.price !== null) {
+                quote = alphaQuote;
+                source = 'stooq+alpha';
+            }
+        }
+        indices[canonical] = {
+            symbol: canonical,
+            name: config.name,
+            price: quote?.price ?? null,
+            changePct: quote?.changePct ?? null,
+            open: quote?.open ?? null,
+            high: quote?.high ?? null,
+            low: quote?.low ?? null,
+            volume: quote?.volume ?? null
+        };
+    }
+
+    const status = 'LIVE';
+    const rows = sp500Snapshot.map((constituent) => asUsUniverseRow(constituent, quoteMap.get(constituent.sourceSymbol), status));
+    const marketSession = computeUsMarketSession();
+
+    return {
+        meta: {
+            source,
+            timestamp: new Date().toISOString(),
+            stale: false,
+            pollIntervalSec: US_POLL_INTERVAL_SEC,
+            delayNote: US_DELAY_NOTE,
+            disclaimer: US_DISCLAIMER
+        },
+        marketSession,
+        indices: {
+            dow: indices['^DJI'],
+            nasdaq100: indices['^NDX'],
+            sp500: indices['^SPX']
+        },
+        universe: {
+            total: sp500Snapshot.length,
+            rows
+        }
+    };
+}
+
+async function getUsPayloadWithCache() {
+    const now = Date.now();
+    if (usCache && now - usCacheAt <= US_CACHE_TTL_MS) {
+        return deepCopy(usCache);
+    }
+
+    try {
+        const payload = await fetchUsLivePayload();
+        usCache = payload;
+        usCacheAt = Date.now();
+        return deepCopy(payload);
+    } catch (error) {
+        if (usCache) {
+            const stalePayload = deepCopy(usCache);
+            stalePayload.meta.stale = true;
+            stalePayload.meta.staleReason = error.message;
+            stalePayload.meta.timestamp = new Date().toISOString();
+            return stalePayload;
+        }
+        throw error;
+    }
+}
+
+function getUsSortValue(row, sortKey) {
+    switch (sortKey) {
+    case 'symbol': return row.symbol;
+    case 'name': return row.name;
+    case 'sector': return row.sector;
+    case 'price': return row.price ?? Number.NEGATIVE_INFINITY;
+    case 'changePct': return row.changePct ?? Number.NEGATIVE_INFINITY;
+    case 'volume': return row.volume ?? Number.NEGATIVE_INFINITY;
+    case 'confidence': return row.prediction.confidence;
+    case 'pUp':
+    default:
+        return row.prediction.pUp;
+    }
+}
+
+function applyUsUniverseQuery(rows, search, sector, sort, direction, page, pageSize) {
+    const keyword = String(search || '').trim().toLowerCase();
+    const sectorFilter = String(sector || 'all').trim().toLowerCase();
+
+    const filtered = rows.filter((row) => {
+        const searchMatch = !keyword || row.symbol.toLowerCase().includes(keyword) || row.name.toLowerCase().includes(keyword) || row.sector.toLowerCase().includes(keyword);
+        const sectorMatch = sectorFilter === 'all' || row.sector.toLowerCase() === sectorFilter;
+        return searchMatch && sectorMatch;
+    });
+
+    const directionFactor = direction === 'asc' ? 1 : -1;
+    filtered.sort((a, b) => {
+        const av = getUsSortValue(a, sort);
+        const bv = getUsSortValue(b, sort);
+        if (typeof av === 'string' && typeof bv === 'string') {
+            return av.localeCompare(bv) * directionFactor;
+        }
+        if (av === bv) return 0;
+        return av > bv ? directionFactor : -directionFactor;
+    });
+
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const safePage = clamp(page, 1, totalPages);
+    const start = (safePage - 1) * pageSize;
+    const pagedRows = filtered.slice(start, start + pageSize);
+    return {
+        total,
+        page: safePage,
+        pageSize,
+        totalPages,
+        rows: pagedRows
+    };
+}
+
+function parseUsListQuery(parsedUrl) {
+    const page = parseInteger(parsedUrl.searchParams.get('page'), 1);
+    const pageSize = clamp(parseInteger(parsedUrl.searchParams.get('pageSize'), 50), 10, 100);
+    const sort = parsedUrl.searchParams.get('sort') || 'pUp';
+    const direction = (parsedUrl.searchParams.get('direction') || 'desc').toLowerCase() === 'asc' ? 'asc' : 'desc';
+    const search = parsedUrl.searchParams.get('search') || '';
+    const sector = parsedUrl.searchParams.get('sector') || 'all';
+    return { page, pageSize, sort, direction, search, sector };
+}
+
+async function handleUsPrices(req, res, parsedUrl) {
+    if (req.method === 'OPTIONS') {
+        sendJson(res, 200, { ok: true });
+        return;
+    }
+    if (req.method !== 'GET') {
+        sendJson(res, 405, { error: 'Method not allowed' });
+        return;
+    }
+
+    const query = parseUsListQuery(parsedUrl);
+    try {
+        const payload = await getUsPayloadWithCache();
+        const universe = applyUsUniverseQuery(payload.universe.rows, query.search, query.sector, query.sort, query.direction, query.page, query.pageSize);
+        const status = payload.meta.stale ? 'STALE' : 'LIVE';
+        universe.rows = universe.rows.map((row) => ({ ...row, status: row.price === null ? 'ERROR' : status }));
+
+        sendJson(res, 200, {
+            meta: payload.meta,
+            marketSession: payload.marketSession,
+            indices: payload.indices,
+            universe
+        });
+    } catch (error) {
+        sendJson(res, 502, {
+            error: 'Failed to fetch US equity prices from upstream',
+            detail: error.message
+        });
+    }
+}
+
+async function handleUsSp500Quotes(req, res, parsedUrl) {
+    if (req.method === 'OPTIONS') {
+        sendJson(res, 200, { ok: true });
+        return;
+    }
+    if (req.method !== 'GET') {
+        sendJson(res, 405, { error: 'Method not allowed' });
+        return;
+    }
+
+    const query = parseUsListQuery(parsedUrl);
+    try {
+        const payload = await getUsPayloadWithCache();
+        const universe = applyUsUniverseQuery(payload.universe.rows, query.search, query.sector, query.sort, query.direction, query.page, query.pageSize);
+        const status = payload.meta.stale ? 'STALE' : 'LIVE';
+        universe.rows = universe.rows.map((row) => ({ ...row, status: row.price === null ? 'ERROR' : status }));
+
+        sendJson(res, 200, {
+            meta: payload.meta,
+            marketSession: payload.marketSession,
+            universe
+        });
+    } catch (error) {
+        sendJson(res, 502, {
+            error: 'Failed to fetch S&P 500 quotes',
+            detail: error.message
+        });
+    }
+}
+
+function indexKeyFromCanonicalSymbol(symbol) {
+    if (symbol === '^DJI') return 'dow';
+    if (symbol === '^NDX') return 'nasdaq100';
+    if (symbol === '^SPX') return 'sp500';
+    return null;
+}
+
+async function handleUsIndexPrediction(req, res, rawIndexSymbol) {
+    if (req.method === 'OPTIONS') {
+        sendJson(res, 200, { ok: true });
+        return;
+    }
+    if (req.method !== 'GET') {
+        sendJson(res, 405, { error: 'Method not allowed' });
+        return;
+    }
+
+    const canonical = normalizeUsIndexSymbol(rawIndexSymbol);
+    if (!canonical) {
+        sendJson(res, 404, { error: `Unsupported US index symbol: ${rawIndexSymbol}` });
+        return;
+    }
+
+    try {
+        const payload = await getUsPayloadWithCache();
+        const indexKey = indexKeyFromCanonicalSymbol(canonical);
+        const indexData = payload.indices[indexKey];
+        if (!indexData) {
+            sendJson(res, 404, { error: `Index quote unavailable for ${canonical}` });
+            return;
+        }
+
+        const prediction = calculateUsPrediction(indexData);
+        const policy = calculateUsPolicy(prediction);
+        const tpSl = calculateUsTpSl(indexData.price || 0, prediction, policy.signal);
+
+        sendJson(res, 200, {
+            meta: payload.meta,
+            marketSession: payload.marketSession,
+            symbol: canonical,
+            name: indexData.name,
+            currentValue: indexData.price,
+            prediction: {
+                direction: {
+                    pUp: prediction.pUp,
+                    pDown: prediction.pDown,
+                    confidence: prediction.confidence,
+                    signal: prediction.signal,
+                    horizon: '1d'
+                },
+                window: prediction.window,
+                magnitude: {
+                    q10: prediction.q10,
+                    q50: prediction.q50,
+                    q90: prediction.q90
+                }
+            },
+            policy,
+            tpSl
+        });
+    } catch (error) {
+        sendJson(res, 502, {
+            error: 'Failed to generate US index prediction',
+            detail: error.message
+        });
+    }
+}
+
+async function handleUsStock(req, res, rawSymbol) {
+    if (req.method === 'OPTIONS') {
+        sendJson(res, 200, { ok: true });
+        return;
+    }
+    if (req.method !== 'GET') {
+        sendJson(res, 405, { error: 'Method not allowed' });
+        return;
+    }
+
+    const symbol = normalizeUsSymbol(rawSymbol);
+    const constituent = sp500BySymbol.get(symbol);
+    if (!constituent) {
+        sendJson(res, 404, { error: `Symbol ${symbol} is not in S&P 500 snapshot` });
+        return;
+    }
+
+    try {
+        const payload = await getUsPayloadWithCache();
+        let row = payload.universe.rows.find((item) => item.symbol === symbol);
+        if ((!row || row.price === null) && US_ENABLE_ALPHA_FALLBACK && ALPHA_VANTAGE_API_KEY) {
+            const alphaQuote = await fetchAlphaGlobalQuote(symbol);
+            if (alphaQuote && alphaQuote.price !== null) {
+                row = asUsUniverseRow(constituent, alphaQuote, payload.meta.stale ? 'STALE' : 'LIVE');
+            }
+        }
+        if (!row) {
+            sendJson(res, 404, { error: `Quote unavailable for ${symbol}` });
+            return;
+        }
+
+        const prediction = calculateUsPrediction(row);
+        const policy = calculateUsPolicy(prediction);
+        const tpSl = calculateUsTpSl(row.price || 0, prediction, policy.signal);
+
+        sendJson(res, 200, {
+            meta: payload.meta,
+            marketSession: payload.marketSession,
+            symbol: row.symbol,
+            name: row.name,
+            sector: row.sector,
+            sourceSymbol: row.sourceSymbol,
+            currentPrice: row.price,
+            changePct: row.changePct,
+            open: row.open,
+            high: row.high,
+            low: row.low,
+            volume: row.volume,
+            prediction: {
+                pUp: prediction.pUp,
+                pDown: prediction.pDown,
+                confidence: prediction.confidence,
+                signal: prediction.signal,
+                q10: prediction.q10,
+                q50: prediction.q50,
+                q90: prediction.q90,
+                window: prediction.window
+            },
+            policy,
+            tpSl,
+            valuation: row.valuation,
+            status: row.price === null ? 'ERROR' : (payload.meta.stale ? 'STALE' : 'LIVE')
+        });
+    } catch (error) {
+        sendJson(res, 502, {
+            error: 'Failed to generate US stock prediction',
+            detail: error.message
+        });
+    }
+}
+
+async function handleUsTopMovers(req, res, parsedUrl) {
+    if (req.method === 'OPTIONS') {
+        sendJson(res, 200, { ok: true });
+        return;
+    }
+    if (req.method !== 'GET') {
+        sendJson(res, 405, { error: 'Method not allowed' });
+        return;
+    }
+
+    const limit = clamp(parseInteger(parsedUrl.searchParams.get('limit'), 20), 1, 100);
+    try {
+        const payload = await getUsPayloadWithCache();
+        const rows = payload.universe.rows.filter((row) => Number.isFinite(row.changePct));
+        const topGainers = [...rows]
+            .sort((a, b) => b.changePct - a.changePct)
+            .slice(0, limit)
+            .map((row) => ({
+                symbol: row.symbol,
+                name: row.name,
+                changePct: row.changePct,
+                pUp: row.prediction.pUp,
+                signal: row.prediction.signal
+            }));
+        const topLosers = [...rows]
+            .sort((a, b) => a.changePct - b.changePct)
+            .slice(0, limit)
+            .map((row) => ({
+                symbol: row.symbol,
+                name: row.name,
+                changePct: row.changePct,
+                pUp: row.prediction.pUp,
+                signal: row.prediction.signal
+            }));
+        sendJson(res, 200, {
+            meta: payload.meta,
+            marketSession: payload.marketSession,
+            date: payload.meta.timestamp.slice(0, 10),
+            topGainers,
+            topLosers
+        });
+    } catch (error) {
+        sendJson(res, 502, {
+            error: 'Failed to compute US top movers',
+            detail: error.message
+        });
+    }
+}
+
+async function handleUsPredictionsAlias(req, res, parsedUrl) {
+    const symbol = parsedUrl.searchParams.get('symbol');
+    if (!symbol) {
+        sendJson(res, 400, { error: 'Missing required query param: symbol' });
+        return;
+    }
+    await handleUsStock(req, res, symbol);
+}
+
 function handleAlertContract(req, res) {
     if (req.method === 'OPTIONS') {
         sendJson(res, 200, { ok: true });
@@ -1290,6 +2283,33 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    if (parsedUrl.pathname === '/api/us-equity/prices') {
+        handleUsPrices(req, res, parsedUrl);
+        return;
+    }
+    if (parsedUrl.pathname === '/api/us-equity/sp500/quotes') {
+        handleUsSp500Quotes(req, res, parsedUrl);
+        return;
+    }
+    if (parsedUrl.pathname === '/api/us-equity/top-movers') {
+        handleUsTopMovers(req, res, parsedUrl);
+        return;
+    }
+    if (parsedUrl.pathname.startsWith('/api/us-equity/prediction/')) {
+        const indexSymbol = decodeURIComponent(parsedUrl.pathname.replace('/api/us-equity/prediction/', ''));
+        handleUsIndexPrediction(req, res, indexSymbol);
+        return;
+    }
+    if (parsedUrl.pathname.startsWith('/api/us-equity/stock/')) {
+        const symbol = decodeURIComponent(parsedUrl.pathname.replace('/api/us-equity/stock/', ''));
+        handleUsStock(req, res, symbol);
+        return;
+    }
+    if (parsedUrl.pathname === '/api/us-equity/predictions') {
+        handleUsPredictionsAlias(req, res, parsedUrl);
+        return;
+    }
+
     if (parsedUrl.pathname === '/api/alerts') {
         handleAlertContract(req, res);
         return;
@@ -1308,4 +2328,5 @@ server.listen(PORT, HOST, () => {
     console.log(`API proxy target: http://${API_HOST}:${API_PORT}`);
     console.log(`Web root: ${WEB_ROOT}`);
     console.log(`Loaded CSI300 snapshot rows: ${csi300Snapshot.length}`);
+    console.log(`Loaded S&P 500 snapshot rows: ${sp500Snapshot.length}`);
 });

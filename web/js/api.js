@@ -129,13 +129,33 @@ const api = {
     },
 
     // Get US equity prices
-    async getUSEquityPrices() {
-        return this.get('/us-equity/prices');
+    async getUSEquityPrices(params = {}) {
+        return this.get(`/us-equity/prices${buildQueryString(params)}`);
     },
 
-    // Get US equity predictions
+    // Get US equity predictions legacy alias
     async getUSEquityPredictions(symbol) {
-        return this.get(`/us-equity/predictions?symbol=${symbol}`);
+        return this.get(`/us-equity/predictions${buildQueryString({ symbol })}`);
+    },
+
+    // Get paginated S&P 500 quotes
+    async getUSEquityQuotes(params = {}) {
+        return this.get(`/us-equity/sp500/quotes${buildQueryString(params)}`);
+    },
+
+    // Get US index prediction
+    async getUSEquityIndexPrediction(indexSymbol = '^SPX') {
+        return this.get(`/us-equity/prediction/${encodeURIComponent(indexSymbol)}`);
+    },
+
+    // Get US single-stock prediction
+    async getUSEquityStockPrediction(symbol) {
+        return this.get(`/us-equity/stock/${encodeURIComponent(symbol)}`);
+    },
+
+    // Get US top movers
+    async getUSEquityTopMovers(limit = 20) {
+        return this.get(`/us-equity/top-movers${buildQueryString({ limit })}`);
     },
 
     // ==================== Session Forecast ====================
