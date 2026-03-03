@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notes - StockandCrypto</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-container">
+            <div class="logo">
+                <a href="index.html">
+                    <span class="logo-icon">◈</span>
+                    <span class="logo-text">StockandCrypto</span>
+                </a>
+            </div>
+            <nav class="nav">
+                <button class="nav-toggle" id="navToggle">
+                    <span></span><span></span><span></span>
+                </button>
+                <ul class="nav-menu" id="navMenu">
+                    <li><a href="index.html" class="nav-link">Home</a></li>
+                    <li><a href="crypto.html" class="nav-link">Crypto</a></li>
+                    <li><a href="cn-equity.html" class="nav-link">CN Equity</a></li>
+                    <li><a href="us-equity.html" class="nav-link">US Equity</a></li>
+                    <li><a href="session-crypto.html" class="nav-link">Session Forecast</a></li>
+                    <li><a href="tracking.html" class="nav-link">Tracking</a></li>
+                </ul>
+            </nav>
+            <div class="nav-actions">
+                <a href="login.html" class="btn btn-secondary btn-sm">Login</a>
+            </div>
+        </div>
+    </header>
+
+    <main style="padding-top: 100px; min-height: 100vh;">
+        <div class="container">
+            <div class="section-header" style="text-align: left; margin-bottom: 2rem;">
+                <span class="section-tag">Research</span>
+                <h1 class="section-title">Trading Notes</h1>
+                <p style="color: var(--text-secondary);">Document insights, strategies, and observations for your trading journey</p>
+            </div>
+
+            <!-- Note Editor -->
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+                <div class="card">
+                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                        <h3 class="card-title">New Note</h3>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-secondary btn-sm">Save Draft</button>
+                            <button class="btn btn-primary btn-sm">Publish</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <input type="text" class="form-input" placeholder="Note title..." style="font-size: 1.25rem; font-weight: 600;">
+                        </div>
+                        <div class="form-group">
+                            <select class="form-select">
+                                <option>Select Market</option>
+                                <option>Crypto</option>
+                                <option>CN A-Shares</option>
+                                <option>US Equities</option>
+                                <option>General</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <input type="text" class="form-input" placeholder="Tags (comma separated)...">
+                        </div>
+                        <div class="form-group">
+                            <textarea class="form-textarea" rows="12" placeholder="Write your note here...
+
+You can include:
+- Market observations
+- Trading strategies
+- Model insights
+- Risk management notes
+- Performance analysis"></textarea>
+                        </div>
+                        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                            <span class="status-badge info">Markdown Supported</span>
+                            <span class="status-badge success">Auto-saved</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="card" style="margin-bottom: 1rem;">
+                        <div class="card-header">
+                            <h3 class="card-title">Quick Stats</h3>
+                        </div>
+                        <div class="card-body">
+                            <div style="margin-bottom: 1rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span style="color: var(--text-secondary);">Total Notes:</span>
+                                    <span style="font-weight: 600;">24</span>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 1rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span style="color: var(--text-secondary);">This Week:</span>
+                                    <span style="font-weight: 600; color: var(--success);">+5</span>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 1rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span style="color: var(--text-secondary);">Crypto Notes:</span>
+                                    <span style="font-weight: 600;">12</span>
+                                </div>
+                            </div>
+                            <div>
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span style="color: var(--text-secondary);">Equity Notes:</span>
+                                    <span style="font-weight: 600;">8</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Popular Tags</h3>
+                        </div>
+                        <div class="card-body">
+                            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                                <span class="status-badge info">strategy</span>
+                                <span class="status-badge success">BTC</span>
+                                <span class="status-badge warning">risk</span>
+                                <span class="status-badge info">model</span>
+                                <span class="status-badge success">ETH</span>
+                                <span class="status-badge warning">volatility</span>
+                                <span class="status-badge info">backtest</span>
+                                <span class="status-badge success">momentum</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Notes -->
+            <div class="table-container">
+                <div class="table-header">
+                    <h3 style="font-size: 1.25rem; font-weight: 600;">Recent Notes</h3>
+                    <div class="table-controls">
+                        <input type="text" class="search-input" placeholder="Search notes...">
+                        <button class="filter-btn">Filter</button>
+                    </div>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Market</th>
+                            <th>Tags</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>BTC Bullish Momentum Analysis</strong></td>
+                            <td>Crypto</td>
+                            <td><span class="status-badge info" style="font-size: 0.7rem;">BTC</span> <span class="status-badge success" style="font-size: 0.7rem;">momentum</span></td>
+                            <td style="color: var(--text-muted);">2026-03-02</td>
+                            <td>
+                                <button class="btn btn-secondary btn-sm">Edit</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Risk Management Strategy v2</strong></td>
+                            <td>General</td>
+                            <td><span class="status-badge warning" style="font-size: 0.7rem;">risk</span></td>
+                            <td style="color: var(--text-muted);">2026-03-01</td>
+                            <td>
+                                <button class="btn btn-secondary btn-sm">Edit</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>SSE Index Session Patterns</strong></td>
+                            <td>CN A-Shares</td>
+                            <td><span class="status-badge info" style="font-size: 0.7rem;">session</span> <span class="status-badge success" style="font-size: 0.7rem;">SSE</span></td>
+                            <td style="color: var(--text-muted);">2026-02-28</td>
+                            <td>
+                                <button class="btn btn-secondary btn-sm">Edit</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Model Performance Review</strong></td>
+                            <td>General</td>
+                            <td><span class="status-badge info" style="font-size: 0.7rem;">model</span> <span class="status-badge warning" style="font-size: 0.7rem;">backtest</span></td>
+                            <td style="color: var(--text-muted);">2026-02-27</td>
+                            <td>
+                                <button class="btn btn-secondary btn-sm">Edit</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <footer style="background: var(--bg-secondary); border-top: 1px solid var(--border-color); padding: 2rem 0; margin-top: 4rem;">
+        <div class="container">
+            <div style="text-align: center;">
+                <p style="color: var(--text-muted); font-size: 0.875rem;">
+                    © 2026 StockandCrypto. AI-powered quantitative trading platform.
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/utils.js"></script>
+    <script src="js/notes.js"></script>
+</body>
+</html>

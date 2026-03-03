@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - StockandCrypto</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/components.css">
+</head>
+<body style="background: var(--bg-primary); min-height: 100vh; display: flex; align-items: center; justify-content: center;">
+    <div class="grid-lines" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.3;"></div>
+
+    <div style="position: relative; z-index: 1; width: 100%; max-width: 440px; padding: 2rem;">
+        <div class="card" style="background: var(--bg-card); backdrop-filter: blur(20px);">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <div class="logo" style="justify-content: center; margin-bottom: 1.5rem;">
+                    <span class="logo-icon" style="font-size: 3rem;">◈</span>
+                </div>
+                <h1 style="font-size: 2rem; margin-bottom: 0.5rem; background: var(--gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Create Account</h1>
+                <p style="color: var(--text-secondary); font-size: 0.875rem;">Join the AI-powered trading platform</p>
+            </div>
+
+            <form id="registerForm">
+                <div class="form-group">
+                    <label class="form-label" for="fullname">Full Name</label>
+                    <input type="text" id="fullname" class="form-input" placeholder="John Doe" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="email">Email Address</label>
+                    <input type="email" id="email" class="form-input" placeholder="you@example.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <input type="password" id="password" class="form-input" placeholder="••••••••" required>
+                    <p class="form-help">Minimum 8 characters with uppercase, lowercase, and numbers</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="confirmPassword">Confirm Password</label>
+                    <input type="password" id="confirmPassword" class="form-input" placeholder="••••••••" required>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <label class="form-checkbox">
+                        <input type="checkbox" id="terms" required>
+                        <span style="font-size: 0.875rem; color: var(--text-secondary);">I agree to the <a href="#" style="color: var(--primary-accent);">Terms of Service</a> and <a href="#" style="color: var(--primary-accent);">Privacy Policy</a></span>
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-bottom: 1rem;">
+                    Create Account
+                </button>
+
+                <div style="text-align: center;">
+                    <p style="color: var(--text-secondary); font-size: 0.875rem;">
+                        Already have an account? 
+                        <a href="login.html" style="color: var(--primary-accent); font-weight: 600;">Sign in</a>
+                    </p>
+                </div>
+            </form>
+        </div>
+
+        <div style="text-align: center; margin-top: 2rem;">
+            <a href="index.html" style="color: var(--text-muted); font-size: 0.875rem; text-decoration: none;">
+                ← Back to Home
+            </a>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            window.location.href = 'login.html';
+        });
+    </script>
+</body>
+</html>
