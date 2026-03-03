@@ -1,0 +1,331 @@
+/* Crypto Page UI Optimizations */
+
+/* ==================== CONFIDENCE RING ENHANCEMENT ==================== */
+
+/* Optimized confidence ring position - moved to card top */
+.prediction-header-section {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1.5rem;
+  align-items: start;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.confidence-ring-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  background: linear-gradient(135deg, 
+    rgba(0, 229, 255, 0.08) 0%, 
+    rgba(5, 10, 26, 0.6) 100%);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  border-radius: var(--radius-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.confidence-ring-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--gradient-accent);
+}
+
+.confidence-ring-container::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(0, 229, 255, 0.1), transparent 70%);
+  animation: rotate-glow 10s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes rotate-glow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.confidence-ring {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--action-long) 0deg, 
+    rgba(0, 255, 170, 0.3) 340deg,
+    rgba(148, 163, 184, 0.15) 340deg
+  );
+  position: relative;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 
+    0 0 20px rgba(0, 255, 170, 0.3),
+    inset 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+.confidence-ring:hover {
+  transform: scale(1.05);
+  box-shadow: 
+    0 0 30px rgba(0, 255, 170, 0.5),
+    inset 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+.confidence-ring::after {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(5, 10, 26, 0.95), rgba(15, 23, 42, 0.9));
+  border: 1px solid rgba(0, 255, 170, 0.3);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.confidence-ring-value {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.4rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--action-long);
+  z-index: 2;
+  text-shadow: 0 0 10px rgba(0, 255, 170, 0.5);
+}
+
+.confidence-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-align: center;
+  margin-top: 0.25rem;
+}
+
+/* ==================== DIRECTION DISPLAY OPTIMIZATION ==================== */
+
+.direction-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.direction-split {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.direction-block {
+  background: linear-gradient(135deg, 
+    rgba(15, 23, 42, 0.8) 0%, 
+    rgba(5, 10, 26, 0.9) 100%);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  text-align: center;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.direction-block::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+}
+
+.direction-block.up::before {
+  background: linear-gradient(90deg, transparent, var(--action-long), transparent);
+}
+
+.direction-block.down::before {
+  background: linear-gradient(90deg, transparent, var(--action-short), transparent);
+}
+
+.direction-block:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.direction-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.direction-value {
+  font-size: 2rem;
+  font-family: var(--font-mono);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.direction-value.positive {
+  background: linear-gradient(135deg, var(--action-long), #00ff88);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.direction-value.negative {
+  background: linear-gradient(135deg, var(--action-short), #ff6b6b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ==================== SIGNAL INFO SECTION ==================== */
+
+.signal-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.signal-info-item {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.signal-info-key {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.signal-info-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/* ==================== PREDICTION CARD ENHANCEMENT ==================== */
+
+.prediction-card-enhanced {
+  background: linear-gradient(135deg, 
+    rgba(15, 23, 42, 0.95) 0%, 
+    rgba(5, 10, 26, 0.98) 100%);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(0, 229, 255, 0.12);
+  border-radius: var(--radius-lg);
+  position: relative;
+  overflow: hidden;
+}
+
+.prediction-card-enhanced::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, 
+    var(--primary-accent), 
+    var(--action-long), 
+    var(--primary-accent));
+  background-size: 200% 100%;
+  animation: gradient-shift 3s ease infinite;
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* ==================== RESPONSIVE ADJUSTMENTS ==================== */
+
+@media (max-width: 768px) {
+  .prediction-header-section {
+    grid-template-columns: 1fr;
+  }
+  
+  .confidence-ring-container {
+    width: 100%;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .confidence-ring {
+    width: 70px;
+    height: 70px;
+  }
+  
+  .confidence-ring-value {
+    font-size: 1.2rem;
+  }
+  
+  .direction-value {
+    font-size: 1.75rem;
+  }
+  
+  .signal-info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==================== ANIMATION ==================== */
+
+@keyframes confidence-pulse {
+  0%, 100% {
+    box-shadow: 
+      0 0 20px rgba(0, 255, 170, 0.3),
+      inset 0 0 20px rgba(0, 0, 0, 0.5);
+  }
+  50% {
+    box-shadow: 
+      0 0 30px rgba(0, 255, 170, 0.5),
+      inset 0 0 20px rgba(0, 0, 0, 0.5);
+  }
+}
+
+.confidence-ring {
+  animation: confidence-pulse 3s ease-in-out infinite;
+}
+
+/* Confidence level colors */
+.confidence-ring.high-confidence {
+  background: conic-gradient(
+    var(--action-long) 0deg, 
+    rgba(0, 255, 170, 0.3) 340deg,
+    rgba(148, 163, 184, 0.15) 340deg
+  );
+}
+
+.confidence-ring.medium-confidence {
+  background: conic-gradient(
+    var(--action-flat) 0deg, 
+    rgba(251, 191, 36, 0.3) 340deg,
+    rgba(148, 163, 184, 0.15) 340deg
+  );
+}
+
+.confidence-ring.low-confidence {
+  background: conic-gradient(
+    var(--action-short) 0deg, 
+    rgba(255, 77, 79, 0.3) 340deg,
+    rgba(148, 163, 184, 0.15) 340deg
+  );
+}
