@@ -10,6 +10,8 @@ const HOST = process.env.HOST || '127.0.0.1';
 const PORT = Number(process.env.PORT || 9000);
 const API_HOST = process.env.API_HOST || '127.0.0.1';
 const API_PORT = Number(process.env.API_PORT || 5001);
+const MODEL_EXPLORER_HOST = process.env.MODEL_EXPLORER_HOST || '127.0.0.1';
+const MODEL_EXPLORER_PORT = Number(process.env.MODEL_EXPLORER_PORT || 8000);
 const WEB_ROOT = path.join(__dirname, 'web');
 
 const CRYPTO_CACHE_TTL_MS = Number(process.env.CRYPTO_CACHE_TTL_MS || 9000);
@@ -2594,6 +2596,47 @@ function proxyApi(req, res) {
     req.pipe(proxyReq);
 }
 
+function proxyModelExplorer(req, res, parsedUrl) {
+    if (req.method === 'OPTIONS') {
+        sendJson(res, 200, { ok: true });
+        return;
+    }
+
+    const rewrittenPathname = parsedUrl.pathname.replace(/^\/api\/model-explorer/, '') || '/';
+    const upstreamPath = `${rewrittenPathname}${parsedUrl.search || ''}`;
+
+    const proxyReq = http.request(
+        {
+            hostname: MODEL_EXPLORER_HOST,
+            port: MODEL_EXPLORER_PORT,
+            path: upstreamPath,
+            method: req.method,
+            headers: {
+                ...req.headers,
+                host: `${MODEL_EXPLORER_HOST}:${MODEL_EXPLORER_PORT}`
+            }
+        },
+        (proxyRes) => {
+            res.writeHead(proxyRes.statusCode || 502, {
+                ...proxyRes.headers,
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+                'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
+            });
+            proxyRes.pipe(res);
+        }
+    );
+
+    proxyReq.on('error', (error) => {
+        sendJson(res, 502, {
+            error: 'Model explorer proxy failed',
+            detail: error.message
+        });
+    });
+
+    req.pipe(proxyReq);
+}
+
 function safeJoin(basePath, targetPath) {
     const resolvedPath = path.normalize(path.join(basePath, targetPath));
     if (!resolvedPath.startsWith(basePath)) {
@@ -2712,6 +2755,11 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    if (parsedUrl.pathname.startsWith('/api/model-explorer')) {
+        proxyModelExplorer(req, res, parsedUrl);
+        return;
+    }
+
     if (parsedUrl.pathname.startsWith('/api/')) {
         proxyApi(req, res);
         return;
@@ -2723,6 +2771,7 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, HOST, () => {
     console.log(`Unified server listening at http://${HOST}:${PORT}`);
     console.log(`API proxy target: http://${API_HOST}:${API_PORT}`);
+    console.log(`Model explorer proxy target: http://${MODEL_EXPLORER_HOST}:${MODEL_EXPLORER_PORT}`);
     console.log(`Web root: ${WEB_ROOT}`);
     console.log(`Loaded CSI300 snapshot rows: ${csi300Snapshot.length}`);
     console.log(`Loaded S&P 500 snapshot rows: ${sp500Snapshot.length}`);

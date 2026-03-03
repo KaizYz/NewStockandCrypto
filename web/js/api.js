@@ -168,6 +168,32 @@ const api = {
         return this.get(`/us-equity/top-movers${buildQueryString({ limit })}`);
     },
 
+    // ==================== Model Explorer ====================
+
+    async getModelExplorerHealth() {
+        return this.get('/model-explorer/health');
+    },
+
+    async getModelExplorerModels() {
+        return this.get('/model-explorer/v1/catalog/models');
+    },
+
+    async getModelExplorerAssets() {
+        return this.get('/model-explorer/v1/catalog/assets');
+    },
+
+    async getModelExplorerPrediction(payload) {
+        return this.post('/model-explorer/v1/predict', payload);
+    },
+
+    async getModelExplorerHeatmap(params = {}) {
+        return this.get(`/model-explorer/v1/explain/heatmap${buildQueryString(params)}`);
+    },
+
+    async getModelExplorerPerformance(params = {}) {
+        return this.get(`/model-explorer/v1/performance${buildQueryString(params)}`);
+    },
+
     // ==================== Session Forecast ====================
     
     // Get crypto session forecast
