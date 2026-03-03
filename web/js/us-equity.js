@@ -9,10 +9,15 @@ const US_INDEX_HISTORY_INTERVAL = '5m';
 const US_ET_TIMEZONE = 'America/New_York';
 const SESSION_REFRESH_COOLDOWN_MS = 60000;
 const DEFAULT_SESSION_LABEL = 'Regular Session (09:30-16:00 ET)';
+const MAIN_CHART_TIMEFRAME_TO_SESSIONS = {
+    '1d': 1,
+    '5d': 5,
+    '1m': 22
+};
 const MAX_MAIN_POINTS_BY_TIMEFRAME = {
     '1d': 180,
     '5d': 540,
-    '1m': 1200
+    '1m': 2500
 };
 
 const state = {
@@ -68,6 +73,11 @@ const state = {
     historySessionEndMs: null,
     historySessionLabel: DEFAULT_SESSION_LABEL,
     lastHistoryReseedAttemptAt: 0,
+    mainChartSessionStartMs: null,
+    mainChartSessionEndMs: null,
+    mainChartRangeLabel: 'Range: Last 5 regular sessions (09:30-16:00 ET)',
+    lastMainChartQuoteKey: '',
+    mainChartSeedRequestId: 0,
     sparklineCharts: {
         dowCard: null,
         ndxCard: null,
@@ -94,12 +104,14 @@ const phaseToneToBadge = {
 
 document.addEventListener('DOMContentLoaded', async () => {
     cacheElements();
+    renderMainChartRangeLabel();
     bindEvents();
     initializeMainChart();
     initializeSparklineCharts();
 
     await seedIndexHistory();
     await refreshIndicesFast(true);
+    await seedMainChartByTimeframe(state.timeframe);
     await refreshFullData(true);
 
     startFastTimer();
@@ -169,7 +181,8 @@ function cacheElements() {
         spxMiniTrend: byId('spxMiniTrend'),
         dowMiniLabel: byId('dowMiniLabel'),
         ndxMiniLabel: byId('ndxMiniLabel'),
-        spxMiniLabel: byId('spxMiniLabel')
+        spxMiniLabel: byId('spxMiniLabel'),
+        mainChartRangeLabel: byId('mainChartRangeLabel')
     });
 }
 
@@ -229,6 +242,7 @@ function bindEvents() {
     if (els.refreshNowBtn) {
         els.refreshNowBtn.addEventListener('click', async () => {
             await refreshIndicesFast(true);
+            await seedMainChartByTimeframe(state.timeframe, true);
             await refreshFullData(true);
         });
     }
@@ -249,13 +263,12 @@ function bindEvents() {
     });
 
     document.querySelectorAll('[data-timeframe]').forEach((button) => {
-        button.addEventListener('click', () => {
+        button.addEventListener('click', async () => {
             const timeframe = button.getAttribute('data-timeframe');
             if (!timeframe) return;
             state.timeframe = timeframe;
             document.querySelectorAll('[data-timeframe]').forEach((chip) => chip.classList.toggle('active', chip === button));
-            trimMainChartSeries();
-            syncMainChartDatasets();
+            await seedMainChartByTimeframe(state.timeframe, true);
         });
     });
 
@@ -404,6 +417,102 @@ async function seedIndexHistory(silent = false) {
     }
 }
 
+function sessionsFromTimeframe(timeframe) {
+    return MAIN_CHART_TIMEFRAME_TO_SESSIONS[timeframe] || 5;
+}
+
+async function seedMainChartByTimeframe(timeframe, silent = false) {
+    if (!state.chart) return false;
+    const requestId = state.mainChartSeedRequestId + 1;
+    state.mainChartSeedRequestId = requestId;
+    const sessions = sessionsFromTimeframe(timeframe);
+    try {
+        const payload = await api.getUSEquityIndicesHistory({
+            mode: 'regular_sessions',
+            sessions,
+            interval: US_INDEX_HISTORY_INTERVAL
+        });
+        if (requestId !== state.mainChartSeedRequestId) return false;
+        const raw = Array.isArray(payload?.series?.sp500) ? payload.series.sp500 : [];
+        const points = raw
+            .map((point) => {
+                const ts = Date.parse(point?.ts);
+                const price = Number(point?.price);
+                if (!Number.isFinite(ts) || !Number.isFinite(price)) return null;
+                return { ts, price };
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.ts - b.ts);
+
+        const startMs = Date.parse(payload?.selectedSession?.startEt || '');
+        const endMs = Date.parse(payload?.selectedSession?.endEt || '');
+        state.mainChartSessionStartMs = Number.isFinite(startMs) ? startMs : null;
+        state.mainChartSessionEndMs = Number.isFinite(endMs) ? endMs : null;
+        state.mainChartRangeLabel = resolveMainChartRangeLabel(payload?.selectedSession, sessions);
+        renderMainChartRangeLabel();
+        replaceMainChartSeries(points);
+        updateMainChartXAxisDensity(points.length);
+        if (state.prediction?.prediction?.magnitude) {
+            updateMainChartOverlays(state.prediction.prediction.magnitude);
+        }
+        state.lastMainChartQuoteKey = '';
+        return points.length > 0;
+    } catch (error) {
+        if (!silent && window.showToast?.warning) {
+            window.showToast.warning('Failed to load main chart history.');
+        }
+        return false;
+    }
+}
+
+function resolveMainChartRangeLabel(selectedSession, sessions) {
+    if (sessions > 1) {
+        return `Range: Last ${sessions} regular sessions (09:30-16:00 ET)`;
+    }
+    const type = String(selectedSession?.type || '').toUpperCase();
+    if (type === 'LAST_REGULAR') return 'Range: Last regular session (09:30-16:00 ET)';
+    return 'Range: Today regular session (09:30-16:00 ET)';
+}
+
+function renderMainChartRangeLabel() {
+    text(els.mainChartRangeLabel, state.mainChartRangeLabel);
+}
+
+function replaceMainChartSeries(points) {
+    const safePoints = Array.isArray(points) ? points : [];
+    state.chartLabels = safePoints.map((point) => formatMainChartLabel(point.ts));
+    state.chartSeries.actual = safePoints.map((point) => Number(point.price.toFixed(2)));
+    state.chartSeries.predictedOpen = safePoints.map(() => null);
+    state.chartSeries.predictedClose = safePoints.map(() => null);
+    syncMainChartDatasets();
+}
+
+function formatMainChartLabel(timestampMs) {
+    const includeDate = state.timeframe !== '1d';
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: US_ET_TIMEZONE,
+        month: includeDate ? '2-digit' : undefined,
+        day: includeDate ? '2-digit' : undefined,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+    const parts = formatter.formatToParts(new Date(timestampMs));
+    const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    if (includeDate) return `${map.month}/${map.day} ${map.hour}:${map.minute}`;
+    return `${map.hour}:${map.minute}`;
+}
+
+function updateMainChartXAxisDensity(pointCount) {
+    if (!state.chart) return;
+    let ticks = 8;
+    if (state.timeframe === '1d') ticks = 8;
+    else if (state.timeframe === '5d') ticks = pointCount > 420 ? 8 : 10;
+    else if (state.timeframe === '1m') ticks = pointCount > 1200 ? 8 : 10;
+    state.chart.options.scales.x.ticks.maxTicksLimit = ticks;
+    state.chart.update('none');
+}
+
 async function refreshIndicesFast(manual = false) {
     if (state.fastLoading) return;
     state.fastLoading = true;
@@ -422,6 +531,7 @@ async function refreshIndicesFast(manual = false) {
             if (cooldownElapsed) {
                 state.lastHistoryReseedAttemptAt = Date.now();
                 await seedIndexHistory(true);
+                await seedMainChartByTimeframe(state.timeframe, true);
             }
         }
 
@@ -429,7 +539,7 @@ async function refreshIndicesFast(manual = false) {
         text(els.disclaimerText, payload.meta?.disclaimer || 'Not for actual trading - simulation only');
 
         appendIndexSeriesPoints(payload.indices, state.lastUpdated, true);
-        if (Number.isFinite(payload.indices?.sp500?.price)) {
+        if (Number.isFinite(payload.indices?.sp500?.price) && shouldAppendMainChartPoint(payload.indices?.sp500, nowMs)) {
             pushMainChartPoint(payload.indices.sp500.price, state.lastUpdated);
         }
 
@@ -730,7 +840,8 @@ function appendSingleIndexPoint(key, price, nowMs, quoteStamp, dedupeByQuoteStam
 
 function pushMainChartPoint(price, timestampIso) {
     if (!state.chart || !Number.isFinite(price)) return;
-    state.chartLabels.push(utils.formatTimestamp(timestampIso, 'time'));
+    const timestampMs = Date.parse(timestampIso) || Date.now();
+    state.chartLabels.push(formatMainChartLabel(timestampMs));
     state.chartSeries.actual.push(Number(price.toFixed(2)));
     state.chartSeries.predictedOpen.push(null);
     state.chartSeries.predictedClose.push(null);
@@ -861,6 +972,17 @@ function shouldAppendRealtimePoint(nowMs) {
     if (phaseCode !== 'REGULAR') return false;
     if (Number.isFinite(state.historySessionStartMs) && nowMs < state.historySessionStartMs) return false;
     if (Number.isFinite(state.historySessionEndMs) && nowMs > state.historySessionEndMs) return false;
+    return true;
+}
+
+function shouldAppendMainChartPoint(indexQuote, nowMs) {
+    const phaseCode = String(state.marketSession?.phaseCode || '').toUpperCase();
+    if (phaseCode !== 'REGULAR') return false;
+    if (Number.isFinite(state.mainChartSessionStartMs) && nowMs < state.mainChartSessionStartMs) return false;
+    if (Number.isFinite(state.mainChartSessionEndMs) && nowMs > state.mainChartSessionEndMs) return false;
+    const quoteKey = buildQuoteStamp(indexQuote);
+    if (quoteKey && quoteKey === state.lastMainChartQuoteKey) return false;
+    if (quoteKey) state.lastMainChartQuoteKey = quoteKey;
     return true;
 }
 

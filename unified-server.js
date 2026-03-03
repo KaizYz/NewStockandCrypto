@@ -55,13 +55,14 @@ const US_INDEX_SYMBOL_CONFIG = {
     '^NDX': { symbol: '^NDX', aliases: ['^NDX', 'NDX'], name: 'Nasdaq 100' },
     '^SPX': { symbol: '^SPX', aliases: ['^SPX', 'SPX', '^GSPC', 'GSPC'], name: 'S&P 500' }
 };
-const US_HISTORY_RANGE_ALLOW = new Set(['1d', '2d', '5d']);
+const US_HISTORY_RANGE_ALLOW = new Set(['1d', '2d', '5d', '1mo', '3mo', '6mo']);
 const US_HISTORY_INTERVAL_ALLOW = new Set(['1m', '2m', '5m', '15m']);
 const US_INDEX_HISTORY_SYMBOLS = {
     dow: '^DJI',
     nasdaq100: '^NDX',
     sp500: '^GSPC'
 };
+const US_INDEX_HISTORY_MODE_ALLOW = new Set(['regular_sessions']);
 const LIMIT_STATUS_ORDER = {
     LIMIT_UP: 3,
     LIMIT_DOWN: 2,
@@ -1871,11 +1872,17 @@ async function fetchUsIndicesPayload() {
 }
 
 function parseUsIndicesHistoryQuery(parsedUrl) {
-    const rangeCandidate = String(parsedUrl.searchParams.get('range') || US_INDEX_HISTORY_DEFAULT_RANGE).toLowerCase();
+    const modeCandidate = String(parsedUrl.searchParams.get('mode') || 'regular_sessions').toLowerCase();
+    const mode = US_INDEX_HISTORY_MODE_ALLOW.has(modeCandidate) ? modeCandidate : 'regular_sessions';
+    const sessionsRaw = parseInteger(parsedUrl.searchParams.get('sessions'), 1);
+    const sessions = clamp(sessionsRaw, 1, 22);
+    const rangeParam = parsedUrl.searchParams.get('range');
+    const defaultRangeBySessions = sessions >= 5 ? '1mo' : US_INDEX_HISTORY_DEFAULT_RANGE;
+    const rangeCandidate = String(rangeParam || defaultRangeBySessions).toLowerCase();
     const intervalCandidate = String(parsedUrl.searchParams.get('interval') || US_INDEX_HISTORY_DEFAULT_INTERVAL).toLowerCase();
     const range = US_HISTORY_RANGE_ALLOW.has(rangeCandidate) ? rangeCandidate : US_INDEX_HISTORY_DEFAULT_RANGE;
     const interval = US_HISTORY_INTERVAL_ALLOW.has(intervalCandidate) ? intervalCandidate : US_INDEX_HISTORY_DEFAULT_INTERVAL;
-    return { range, interval };
+    return { mode, sessions, range, interval };
 }
 
 function buildYahooChartUrl(symbol, range, interval) {
@@ -1950,6 +1957,51 @@ function filterSeriesBySession(points, sessionStart, sessionEnd) {
     });
 }
 
+function makeNoonEtDate(dateKey) {
+    return makeNewYorkDate(dateKey, 12, 0);
+}
+
+function buildRegularSessionWindow(dateKey) {
+    const isEarlyClose = US_EARLY_CLOSE_2026.has(dateKey);
+    const closeHour = isEarlyClose ? 13 : 16;
+    const start = makeNewYorkDate(dateKey, 9, 30);
+    const end = makeNewYorkDate(dateKey, closeHour, 0);
+    return {
+        dateEt: dateKey,
+        startEt: start.toISOString(),
+        endEt: end.toISOString(),
+        isEarlyClose,
+        startMs: start.getTime(),
+        endMs: end.getTime()
+    };
+}
+
+function buildRegularSessionWindows(targetDateKey, sessions) {
+    const windows = [];
+    let cursorDateKey = targetDateKey;
+    for (let i = 0; i < sessions; i += 1) {
+        windows.push(buildRegularSessionWindow(cursorDateKey));
+        const cursorDate = makeNoonEtDate(cursorDateKey);
+        cursorDateKey = previousUsTradingDateKey(cursorDate);
+    }
+    windows.reverse();
+    return windows;
+}
+
+function filterSeriesBySessionWindows(points, windows) {
+    if (!Array.isArray(points) || !points.length || !Array.isArray(windows) || !windows.length) return [];
+    return points.filter((point) => {
+        const pointMs = Date.parse(point.ts);
+        if (!Number.isFinite(pointMs)) return false;
+        for (const window of windows) {
+            if (pointMs >= window.startMs && pointMs <= window.endMs) {
+                return true;
+            }
+        }
+        return false;
+    });
+}
+
 function formatEtTimeHm(date) {
     const formatter = new Intl.DateTimeFormat('en-US', {
         timeZone: US_SESSION_TIMEZONE,
@@ -1960,7 +2012,11 @@ function formatEtTimeHm(date) {
     return formatter.format(date);
 }
 
-async function fetchUsIndicesHistoryPayload(range, interval) {
+async function fetchUsIndicesHistoryPayload(query) {
+    const mode = query?.mode || 'regular_sessions';
+    const sessions = clamp(parseInteger(query?.sessions, 1), 1, 22);
+    const range = query?.range || US_INDEX_HISTORY_DEFAULT_RANGE;
+    const interval = query?.interval || US_INDEX_HISTORY_DEFAULT_INTERVAL;
     const targets = Object.entries(US_INDEX_HISTORY_SYMBOLS);
     const series = {
         dow: [],
@@ -1974,30 +2030,34 @@ async function fetchUsIndicesHistoryPayload(range, interval) {
 
     const target = resolveUsHistorySessionTarget();
     let selectedType = target.selectedType;
-    let start = target.sessionStart;
-    let end = target.sessionEnd;
+    let sessionWindows = buildRegularSessionWindows(target.targetDateKey, sessions);
 
-    series.dow = filterSeriesBySession(series.dow, start, end);
-    series.nasdaq100 = filterSeriesBySession(series.nasdaq100, start, end);
-    series.sp500 = filterSeriesBySession(series.sp500, start, end);
+    series.dow = filterSeriesBySessionWindows(series.dow, sessionWindows);
+    series.nasdaq100 = filterSeriesBySessionWindows(series.nasdaq100, sessionWindows);
+    series.sp500 = filterSeriesBySessionWindows(series.sp500, sessionWindows);
 
     if (selectedType === 'TODAY_REGULAR' && !series.dow.length && !series.nasdaq100.length && !series.sp500.length) {
-        const fallbackDateKey = previousUsTradingDateKey(target.sessionStart);
-        const isEarlyClose = US_EARLY_CLOSE_2026.has(fallbackDateKey);
-        const regularCloseHour = isEarlyClose ? 13 : 16;
-        start = makeNewYorkDate(fallbackDateKey, 9, 30);
-        end = makeNewYorkDate(fallbackDateKey, regularCloseHour, 0);
-        series.dow = filterSeriesBySession(parseYahooIndexHistoryPoints(dowPayload), start, end);
-        series.nasdaq100 = filterSeriesBySession(parseYahooIndexHistoryPoints(ndxPayload), start, end);
-        series.sp500 = filterSeriesBySession(parseYahooIndexHistoryPoints(spxPayload), start, end);
+        const fallbackDateKey = previousUsTradingDateKey(makeNoonEtDate(target.targetDateKey));
+        sessionWindows = buildRegularSessionWindows(fallbackDateKey, sessions);
+        series.dow = filterSeriesBySessionWindows(parseYahooIndexHistoryPoints(dowPayload), sessionWindows);
+        series.nasdaq100 = filterSeriesBySessionWindows(parseYahooIndexHistoryPoints(ndxPayload), sessionWindows);
+        series.sp500 = filterSeriesBySessionWindows(parseYahooIndexHistoryPoints(spxPayload), sessionWindows);
         selectedType = 'LAST_REGULAR';
     }
+
+    const sessionStartIso = sessionWindows[0]?.startEt || null;
+    const sessionEndIso = sessionWindows[sessionWindows.length - 1]?.endEt || null;
+    const selectedLabel = sessions > 1
+        ? `Regular Sessions (last ${sessions})`
+        : `${selectedType === 'LAST_REGULAR' ? 'Last Regular Session' : 'Regular Session'} (${formatEtTimeHm(new Date(sessionStartIso))}-${formatEtTimeHm(new Date(sessionEndIso))} ET)`;
 
     return {
         meta: {
             source: 'yahoo_chart',
             timestamp: new Date().toISOString(),
             stale: false,
+            mode,
+            sessions,
             range,
             interval
         },
@@ -2008,22 +2068,32 @@ async function fetchUsIndicesHistoryPayload(range, interval) {
         series,
         selectedSession: {
             type: selectedType,
-            startEt: start.toISOString(),
-            endEt: end.toISOString(),
-            label: `${selectedType === 'LAST_REGULAR' ? 'Last Regular Session' : 'Regular Session'} (${formatEtTimeHm(start)}-${formatEtTimeHm(end)} ET)`
-        }
+            startEt: sessionStartIso,
+            endEt: sessionEndIso,
+            label: selectedLabel
+        },
+        sessionWindows: sessionWindows.map((window) => ({
+            dateEt: window.dateEt,
+            startEt: window.startEt,
+            endEt: window.endEt,
+            isEarlyClose: window.isEarlyClose
+        }))
     };
 }
 
-async function getUsIndicesHistoryWithCache(range, interval) {
+async function getUsIndicesHistoryWithCache(query) {
     const now = Date.now();
-    const cacheKey = `${range}|${interval}`;
+    const mode = query?.mode || 'regular_sessions';
+    const sessions = clamp(parseInteger(query?.sessions, 1), 1, 22);
+    const range = query?.range || US_INDEX_HISTORY_DEFAULT_RANGE;
+    const interval = query?.interval || US_INDEX_HISTORY_DEFAULT_INTERVAL;
+    const cacheKey = `${mode}|${sessions}|${range}|${interval}`;
     if (usIndicesHistoryCache && usIndicesHistoryCacheKey === cacheKey && now - usIndicesHistoryCacheAt <= US_INDEX_HISTORY_CACHE_TTL_MS) {
         return deepCopy(usIndicesHistoryCache);
     }
 
     try {
-        const payload = await fetchUsIndicesHistoryPayload(range, interval);
+        const payload = await fetchUsIndicesHistoryPayload({ mode, sessions, range, interval });
         usIndicesHistoryCache = payload;
         usIndicesHistoryCacheAt = Date.now();
         usIndicesHistoryCacheKey = cacheKey;
@@ -2203,7 +2273,7 @@ async function handleUsIndicesHistory(req, res, parsedUrl) {
 
     const query = parseUsIndicesHistoryQuery(parsedUrl);
     try {
-        const payload = await getUsIndicesHistoryWithCache(query.range, query.interval);
+        const payload = await getUsIndicesHistoryWithCache(query);
         sendJson(res, 200, payload);
     } catch (error) {
         sendJson(res, 502, {
