@@ -6,9 +6,11 @@ const CRYPTO_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'];
 const TABLE_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'AVAXUSDT', 'LINKUSDT', 'LTCUSDT', 'DOTUSDT', 'MATICUSDT'];
 const SIGNAL_FILTERS = ['ALL', 'LONG', 'SHORT', 'FLAT'];
 const ALERT_STORAGE_KEY = 'crypto_alerts_v1';
+const PRESET_STORAGE_KEY = 'crypto_ui_preset_v1';
 const MAX_LEVERAGE = 2.0;
 const POLL_INTERVAL_MS = 10000;
 const ALERT_COOLDOWN_MS = 60000;
+const COMPARISON_HISTORY_LIMIT = 30;
 
 const ACTION_COLORS = {
     LONG: '#00FFAA',
@@ -45,6 +47,12 @@ const state = {
     priceChart: null,
     comparisonChart: null,
     sharpeChart: null,
+    comparisonLabels: [],
+    comparisonHistory: {
+        BTCUSDT: [],
+        ETHUSDT: [],
+        SOLUSDT: []
+    },
     sortKey: 'pUp',
     sortDirection: 'desc',
     visibleRows: 8,
@@ -86,9 +94,11 @@ const lastPointPulsePlugin = {
 
 document.addEventListener('DOMContentLoaded', async () => {
     cacheElements();
+    loadPreset();
     bindEvents();
     loadAlerts();
     initializeCharts();
+    syncControlState();
     updateTimeframeButtons();
     await refreshData(true);
     startAutoRefresh();
@@ -100,6 +110,8 @@ function cacheElements() {
         symbolSelect: byId('symbolSelect'),
         refreshNowBtn: byId('refreshNowBtn'),
         autoRefreshBtn: byId('autoRefreshBtn'),
+        savePresetBtn: byId('savePresetBtn'),
+        exportReportBtn: byId('exportReportBtn'),
         dataModeBadge: byId('dataModeBadge'),
         transportBadge: byId('transportBadge'),
         lastUpdated: byId('lastUpdated'),
@@ -140,6 +152,7 @@ function cacheElements() {
         intervalWidth: byId('intervalWidth'),
         expectedReturn: byId('expectedReturn'),
         actionPill: byId('actionPill'),
+        regimeChip: byId('regimeChip'),
         positionSize: byId('positionSize'),
         entryPrice: byId('entryPrice'),
         stopLoss: byId('stopLoss'),
@@ -181,6 +194,7 @@ function cacheElements() {
         sizerTp: byId('sizerTp'),
         sizerSl: byId('sizerSl'),
         sizerRr: byId('sizerRr'),
+        applyToLiveBtn: byId('applyToLiveBtn'),
         momentumDelta: byId('momentumDelta'),
         momentumDeltaValue: byId('momentumDeltaValue'),
         volatilityMultiplier: byId('volatilityMultiplier'),
@@ -194,12 +208,15 @@ function cacheElements() {
         alertList: byId('alertList'),
         alertStatusText: byId('alertStatusText'),
         setBtcDriftAlert: byId('setBtcDriftAlert'),
+        testAlertBtn: byId('testAlertBtn'),
         sortableHeaders: Array.from(document.querySelectorAll('.sortable')),
         timeframeButtons: Array.from(document.querySelectorAll('.timeframe-btn'))
     });
 }
 
 function bindEvents() {
+    const throttledWhatIf = utils.throttle(() => renderWhatIf(), 40);
+
     if (els.symbolSelect) {
         els.symbolSelect.value = state.selectedSymbol;
         els.symbolSelect.addEventListener('change', async (event) => {
@@ -239,6 +256,18 @@ function bindEvents() {
     if (els.refreshNowBtn) {
         els.refreshNowBtn.addEventListener('click', async () => {
             await refreshData(true, true);
+        });
+    }
+
+    if (els.savePresetBtn) {
+        els.savePresetBtn.addEventListener('click', () => {
+            savePreset();
+        });
+    }
+
+    if (els.exportReportBtn) {
+        els.exportReportBtn.addEventListener('click', () => {
+            exportReport();
         });
     }
 
@@ -300,10 +329,18 @@ function bindEvents() {
     });
 
     if (els.momentumDelta) {
-        els.momentumDelta.addEventListener('input', renderWhatIf);
+        els.momentumDelta.addEventListener('input', throttledWhatIf);
     }
     if (els.volatilityMultiplier) {
-        els.volatilityMultiplier.addEventListener('input', renderWhatIf);
+        els.volatilityMultiplier.addEventListener('input', throttledWhatIf);
+    }
+
+    if (els.applyToLiveBtn) {
+        els.applyToLiveBtn.addEventListener('click', () => {
+            if (window.showToast?.info) {
+                window.showToast.info('Simulated execution submitted.', 2500);
+            }
+        });
     }
 
     if (els.alertForm) {
@@ -316,6 +353,12 @@ function bindEvents() {
     if (els.setBtcDriftAlert) {
         els.setBtcDriftAlert.addEventListener('click', () => {
             addAlert('BTCUSDT', 5);
+        });
+    }
+
+    if (els.testAlertBtn) {
+        els.testAlertBtn.addEventListener('click', () => {
+            triggerTestAlert();
         });
     }
 
@@ -370,7 +413,15 @@ function initializeCharts() {
                         label: 'Band Low',
                         data: [],
                         borderColor: 'rgba(103, 232, 249, 0)',
-                        backgroundColor: 'rgba(103, 232, 249, 0.18)',
+                        backgroundColor(context) {
+                            const { chart } = context;
+                            const area = chart.chartArea;
+                            if (!area) return 'rgba(103, 232, 249, 0.2)';
+                            const gradient = chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+                            gradient.addColorStop(0, 'rgba(103, 232, 249, 0.32)');
+                            gradient.addColorStop(1, 'rgba(103, 232, 249, 0.04)');
+                            return gradient;
+                        },
                         borderWidth: 0,
                         pointRadius: 0,
                         fill: '-1'
@@ -422,20 +473,60 @@ function initializeCharts() {
 
     if (els.comparisonChart) {
         state.comparisonChart = new Chart(els.comparisonChart.getContext('2d'), {
-            type: 'bar',
+            type: 'line',
             data: {
-                labels: ['BTC', 'ETH', 'SOL'],
-                datasets: [{
-                    label: 'P(UP) %',
-                    data: [0, 0, 0],
-                    borderRadius: 6,
-                    backgroundColor: ['#00FFAA', '#00FFAA', '#FBBF24']
-                }]
+                labels: [],
+                datasets: [
+                    {
+                        label: 'BTC P(UP)',
+                        data: [],
+                        borderColor: '#00FFAA',
+                        backgroundColor: 'rgba(0, 255, 170, 0.2)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.28
+                    },
+                    {
+                        label: 'ETH P(UP)',
+                        data: [],
+                        borderColor: '#67E8F9',
+                        backgroundColor: 'rgba(103, 232, 249, 0.2)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.28
+                    },
+                    {
+                        label: 'SOL P(UP)',
+                        data: [],
+                        borderColor: '#FBBF24',
+                        backgroundColor: 'rgba(251, 191, 36, 0.2)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.28
+                    }
+                ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label(context) {
+                                const values = context.dataset.data;
+                                const current = asNumber(context.raw, 0);
+                                const previous = context.dataIndex > 0
+                                    ? asNumber(values[context.dataIndex - 1], current)
+                                    : current;
+                                const delta = current - previous;
+                                const sign = delta >= 0 ? '+' : '';
+                                return `${context.dataset.label}: ${current.toFixed(2)}% | Delta ${sign}${delta.toFixed(2)}%`;
+                            }
+                        }
+                    }
+                },
                 scales: {
                     x: { ticks: { color: '#94A3B8' }, grid: { display: false } },
                     y: {
@@ -486,6 +577,7 @@ async function refreshData(loadFullPrediction = false, manual = false) {
     ensureChartSeries();
     pushLatestPriceToSeries();
     buildUniverseRows();
+    updateComparisonHistory();
 
     state.tickCount += 1;
     state.lastTickAt = new Date().toISOString();
@@ -807,7 +899,9 @@ function renderAll() {
 }
 
 function renderModeAndBanner() {
-    const modeClass = state.dataMode === 'Live Feed' ? 'success' : state.dataMode === 'Stale Feed' ? 'warning' : 'danger';
+    const modeClass = state.dataMode === 'Live Feed'
+        ? 'status-live'
+        : state.dataMode === 'Stale Feed' ? 'status-stale' : 'status-simulated';
     if (els.dataModeBadge) {
         els.dataModeBadge.textContent = state.dataMode;
         els.dataModeBadge.className = `status-badge ${modeClass}`;
@@ -845,6 +939,16 @@ function updateAutoRefreshButton() {
     els.autoRefreshBtn.setAttribute('aria-pressed', state.autoRefreshEnabled ? 'true' : 'false');
 }
 
+function syncControlState() {
+    if (els.symbolSelect) {
+        els.symbolSelect.value = state.selectedSymbol;
+    }
+    if (els.filterBtn) {
+        els.filterBtn.textContent = `Signal: ${state.signalFilter}`;
+    }
+    updateAutoRefreshButton();
+}
+
 function renderPriceCards() {
     renderPriceCard('BTCUSDT', els.btcPrice, els.btcChange, els.btcStatus);
     renderPriceCard('ETHUSDT', els.ethPrice, els.ethChange, els.ethStatus);
@@ -864,7 +968,7 @@ function renderPriceCard(symbol, priceEl, changeEl, statusEl) {
     if (statusEl) {
         const statusText = state.dataMode === 'Live Feed' ? 'Live' : state.dataMode === 'Stale Feed' ? 'Stale' : 'Simulated';
         statusEl.textContent = statusText;
-        statusEl.className = `status-badge ${statusText === 'Live' ? 'success' : 'warning'}`;
+        statusEl.className = `status-badge ${statusBadgeClass(statusText)}`;
     }
 }
 
@@ -966,8 +1070,19 @@ function renderHealth() {
             : 'Sharpe is positive. Risk-adjusted return quality remains acceptable.';
         els.sharpeContext.textContent = context;
     }
+    if (els.sharpeChart) {
+        els.sharpeChart.setAttribute('title', 'Negative Sharpe indicates low volatility regime, strategy in review.');
+    }
 
+    renderRegimeChip(health.sharpeRatio);
     updateSharpeChart(health.sharpeRatio);
+}
+
+function renderRegimeChip(sharpeRatio) {
+    if (!els.regimeChip) return;
+    const regime = computeRegimeFromSharpe(sharpeRatio);
+    els.regimeChip.textContent = `Current Regime: ${regime.label}`;
+    els.regimeChip.className = `regime-chip ${regime.className}`;
 }
 
 function updateSharpeChart(currentSharpe) {
@@ -1116,7 +1231,7 @@ function renderUniverseTable() {
 
     els.cryptoTableBody.innerHTML = visibleRows.map((row) => {
         const signalBadge = signalBadgeClass(row.signal);
-        const statusBadge = row.status === 'Live' ? 'success' : 'warning';
+        const statusBadge = statusBadgeClass(row.status);
         const changeColor = row.change >= 0 ? ACTION_COLORS.LONG : ACTION_COLORS.SHORT;
         const expanded = row.symbol === state.expandedSymbol;
 
@@ -1128,7 +1243,7 @@ function renderUniverseTable() {
                 <td>${row.pUp.toFixed(2)}</td>
                 <td><span class="status-badge ${signalBadge}">${row.signal}</span></td>
                 <td>${formatLargeMoney(row.volume)}</td>
-                <td><span class="status-badge ${statusBadge}">${row.status}</span></td>
+                <td><span class="status-badge ${statusBadge}">${row.status.toUpperCase()}</span></td>
             </tr>
         `;
 
@@ -1261,15 +1376,28 @@ function buildProjection(values) {
 
 function renderComparisonChart() {
     if (!state.comparisonChart) return;
-
-    const keys = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'];
-    const rows = keys.map((symbol) => state.universe.find((row) => row.symbol === symbol));
-    const pUpValues = rows.map((row) => Math.round((row?.pUp || 0.5) * 100));
-    const colors = rows.map((row) => ACTION_COLORS[row?.signal || 'FLAT'] || ACTION_COLORS.FLAT);
-
-    state.comparisonChart.data.datasets[0].data = pUpValues;
-    state.comparisonChart.data.datasets[0].backgroundColor = colors;
+    state.comparisonChart.data.labels = state.comparisonLabels;
+    state.comparisonChart.data.datasets[0].data = state.comparisonHistory.BTCUSDT;
+    state.comparisonChart.data.datasets[1].data = state.comparisonHistory.ETHUSDT;
+    state.comparisonChart.data.datasets[2].data = state.comparisonHistory.SOLUSDT;
     state.comparisonChart.update('none');
+}
+
+function updateComparisonHistory() {
+    const lookup = Object.fromEntries(state.universe.map((row) => [row.symbol, row]));
+    const label = `T${state.tickCount + 1}`;
+    state.comparisonLabels.push(label);
+    if (state.comparisonLabels.length > COMPARISON_HISTORY_LIMIT) {
+        state.comparisonLabels.shift();
+    }
+
+    ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'].forEach((symbol) => {
+        const pUpValue = clamp(asNumber(lookup[symbol]?.pUp, 0.5), 0, 1) * 100;
+        state.comparisonHistory[symbol].push(Number(pUpValue.toFixed(2)));
+        if (state.comparisonHistory[symbol].length > COMPARISON_HISTORY_LIMIT) {
+            state.comparisonHistory[symbol].shift();
+        }
+    });
 }
 
 function renderVolatilityStrip() {
@@ -1387,6 +1515,19 @@ function signalBadgeClass(signal) {
     return 'warning';
 }
 
+function statusBadgeClass(status) {
+    if (status === 'Live') return 'status-live';
+    if (status === 'Stale') return 'status-stale';
+    return 'status-simulated';
+}
+
+function computeRegimeFromSharpe(sharpeRatio) {
+    if (asNumber(sharpeRatio, 0) < 0) {
+        return { label: 'Defensive', className: 'defensive' };
+    }
+    return { label: 'Balanced', className: 'balanced' };
+}
+
 function loadAlerts() {
     const saved = utils.storage.get(ALERT_STORAGE_KEY);
     if (saved && Array.isArray(saved.alerts)) {
@@ -1398,6 +1539,87 @@ function loadAlerts() {
 
 function saveAlerts() {
     utils.storage.set(ALERT_STORAGE_KEY, { alerts: state.alerts });
+}
+
+function loadPreset() {
+    const preset = utils.storage.get(PRESET_STORAGE_KEY);
+    if (!preset || typeof preset !== 'object') return;
+
+    state.selectedSymbol = toCanonicalSymbol(preset.selectedSymbol) || state.selectedSymbol;
+    state.timeframe = ['1h', '24h', '7d'].includes(preset.timeframe) ? preset.timeframe : state.timeframe;
+    state.autoRefreshEnabled = typeof preset.autoRefreshEnabled === 'boolean'
+        ? preset.autoRefreshEnabled
+        : state.autoRefreshEnabled;
+    state.signalFilter = SIGNAL_FILTERS.includes(preset.signalFilter) ? preset.signalFilter : state.signalFilter;
+
+    const sizer = preset.sizer;
+    if (sizer && typeof sizer === 'object') {
+        if (els.sizerConfidence) els.sizerConfidence.value = clamp(asNumber(sizer.confidence, 0.9), 0, 1).toFixed(2);
+        if (els.sizerPUp) els.sizerPUp.value = clamp(asNumber(sizer.pUp, 0.5), 0, 1).toFixed(2);
+        if (els.sizerEntry) els.sizerEntry.value = asNumber(sizer.entry, 0).toFixed(2);
+        if (els.sizerQ10) els.sizerQ10.value = normalizeReturn(asNumber(sizer.q10, -0.01)).toFixed(3);
+        if (els.sizerQ50) els.sizerQ50.value = normalizeReturn(asNumber(sizer.q50, 0.01)).toFixed(3);
+        if (els.sizerQ90) els.sizerQ90.value = normalizeReturn(asNumber(sizer.q90, 0.02)).toFixed(3);
+        state.sizerEdited = true;
+    }
+}
+
+function savePreset() {
+    const payload = {
+        selectedSymbol: state.selectedSymbol,
+        timeframe: state.timeframe,
+        autoRefreshEnabled: state.autoRefreshEnabled,
+        signalFilter: state.signalFilter,
+        sizer: {
+            confidence: clamp(asNumber(els.sizerConfidence?.value, 0.9), 0, 1),
+            pUp: clamp(asNumber(els.sizerPUp?.value, 0.5), 0, 1),
+            entry: asNumber(els.sizerEntry?.value, 0),
+            q10: normalizeReturn(asNumber(els.sizerQ10?.value, -0.01)),
+            q50: normalizeReturn(asNumber(els.sizerQ50?.value, 0.01)),
+            q90: normalizeReturn(asNumber(els.sizerQ90?.value, 0.02))
+        },
+        savedAt: new Date().toISOString()
+    };
+
+    utils.storage.set(PRESET_STORAGE_KEY, payload);
+    if (window.showToast?.success) {
+        window.showToast.success('Preset saved locally.', 2200);
+    }
+}
+
+function exportReport() {
+    const report = {
+        generatedAt: new Date().toISOString(),
+        mode: state.dataMode,
+        symbol: state.selectedSymbol,
+        timeframe: state.timeframe,
+        prices: {
+            BTCUSDT: state.prices.BTCUSDT || null,
+            ETHUSDT: state.prices.ETHUSDT || null,
+            SOLUSDT: state.prices.SOLUSDT || null
+        },
+        prediction: state.prediction,
+        performance: state.performance,
+        health: state.health,
+        tableTopRows: getSortedFilteredRows().slice(0, 8)
+    };
+
+    const now = new Date();
+    const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+    const fileName = `crypto-report-${stamp}.json`;
+
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+
+    if (window.showToast?.info) {
+        window.showToast.info('Report exported.', 2200);
+    }
 }
 
 function addAlert(symbol, thresholdPct) {
@@ -1417,6 +1639,17 @@ function addAlert(symbol, thresholdPct) {
 
     if (window.showToast?.success) {
         window.showToast.success(`${toDisplaySymbol(symbol)} alert set at ${threshold.toFixed(1)}%.`, 2500);
+    }
+}
+
+function triggerTestAlert() {
+    const symbol = els.alertSymbol?.value || state.selectedSymbol || 'BTCUSDT';
+    const threshold = Math.max(0.1, asNumber(els.alertThreshold?.value, 5));
+    const syntheticMove = threshold + 0.8;
+    const message = `${toDisplaySymbol(symbol)} ${syntheticMove.toFixed(2)}% >= ${threshold.toFixed(1)}%`;
+    text(els.alertStatusText, `Triggered: ${message} (demo)`);
+    if (window.showToast?.warning) {
+        window.showToast.warning(`Test alert triggered: ${message}`, 3200);
     }
 }
 

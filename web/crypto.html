@@ -39,6 +39,12 @@
             flex-wrap: wrap;
         }
 
+        .control-actions {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
         .control-label {
             color: var(--text-muted);
             font-size: 0.75rem;
@@ -174,6 +180,7 @@
             background: conic-gradient(var(--action-long) 0deg, rgba(148, 163, 184, 0.25) 0deg);
             position: relative;
             transition: background 0.3s ease;
+            animation: ring-breathe 2.8s ease-in-out infinite;
         }
 
         .confidence-ring::after {
@@ -193,6 +200,12 @@
             0% { transform: scale(1); }
             30% { transform: scale(1.06); }
             100% { transform: scale(1); }
+        }
+
+        @keyframes ring-breathe {
+            0% { box-shadow: 0 0 0 rgba(103, 232, 249, 0); }
+            50% { box-shadow: 0 0 16px rgba(103, 232, 249, 0.18); }
+            100% { box-shadow: 0 0 0 rgba(103, 232, 249, 0); }
         }
 
         .confidence-ring-value {
@@ -323,6 +336,37 @@
             margin-top: 0.8rem;
             padding-top: 0.7rem;
             border-top: 1px solid var(--border-default);
+        }
+
+        .sizer-actions {
+            margin-top: 0.8rem;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .regime-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin-top: 0.75rem;
+            padding: 0.3rem 0.6rem;
+            border-radius: 999px;
+            font-family: var(--font-mono);
+            font-size: 0.74rem;
+            letter-spacing: 0.04em;
+            border: 1px solid transparent;
+        }
+
+        .regime-chip.defensive {
+            color: var(--action-flat);
+            border-color: rgba(251, 191, 36, 0.35);
+            background: rgba(251, 191, 36, 0.12);
+        }
+
+        .regime-chip.balanced {
+            color: var(--action-long);
+            border-color: rgba(0, 255, 170, 0.35);
+            background: rgba(0, 255, 170, 0.1);
         }
 
         .slider-row {
@@ -492,7 +536,25 @@
 
         .status-live { color: var(--action-long); }
         .status-stale { color: var(--action-flat); }
-        .status-sim { color: var(--action-short); }
+        .status-sim { color: #9CA3AF; }
+
+        .status-badge.status-live {
+            color: #0A1A14;
+            background: rgba(0, 255, 170, 0.9);
+            border: 1px solid rgba(0, 255, 170, 0.95);
+        }
+
+        .status-badge.status-stale {
+            color: #1D1603;
+            background: rgba(251, 191, 36, 0.85);
+            border: 1px solid rgba(251, 191, 36, 0.9);
+        }
+
+        .status-badge.status-simulated {
+            color: #D1D5DB;
+            background: rgba(107, 114, 128, 0.22);
+            border: 1px solid rgba(156, 163, 175, 0.45);
+        }
 
         @media (max-width: 980px) {
             .chart-subgrid {
@@ -569,6 +631,10 @@
                     <div class="control-group">
                         <button class="btn btn-secondary btn-sm" id="refreshNowBtn" type="button">Refresh Now</button>
                         <button class="btn btn-primary btn-sm" id="autoRefreshBtn" type="button" aria-pressed="true">Auto Refresh: ON</button>
+                        <div class="control-actions">
+                            <button class="btn btn-secondary btn-sm" id="savePresetBtn" type="button">Save Preset</button>
+                            <button class="btn btn-secondary btn-sm" id="exportReportBtn" type="button">Export Report</button>
+                        </div>
                         <span class="status-badge info" id="dataModeBadge">Live Feed</span>
                         <span class="status-badge info" id="transportBadge">Polling</span>
                         <span class="control-label" id="lastUpdated">Updated --</span>
@@ -638,7 +704,7 @@
                             </div>
                             <div class="card-body">
                                 <div style="height: 170px;"><canvas id="comparisonChart"></canvas></div>
-                                <p class="comparison-note">Direction probabilities refresh with the same tick cycle.</p>
+                                <p class="comparison-note">Direction probabilities refresh with the same tick cycle. Hover to inspect per-tick deltas.</p>
                             </div>
                         </div>
                         <div class="card">
@@ -716,11 +782,11 @@
                         </div>
                         <div class="card-body">
                             <div class="kv-grid">
-                                <div class="kv-key" title="10th percentile forecast return">q10</div>
+                                <div class="kv-key" title="Prediction Quantiles">q10</div>
                                 <div class="kv-value" id="q10Value" style="color: var(--action-short);">-1.2%</div>
-                                <div class="kv-key" title="Median forecast return">q50</div>
+                                <div class="kv-key" title="Prediction Quantiles">q50</div>
                                 <div class="kv-value" id="q50Value" style="color: var(--action-long);">+0.8%</div>
-                                <div class="kv-key" title="90th percentile forecast return">q90</div>
+                                <div class="kv-key" title="Prediction Quantiles">q90</div>
                                 <div class="kv-value" id="q90Value" style="color: var(--action-long);">+2.1%</div>
                                 <div class="kv-key">Interval Width</div>
                                 <div class="kv-value" id="intervalWidth">3.3%</div>
@@ -756,6 +822,7 @@
                                 <div class="kv-key">R:R (TP2)</div>
                                 <div class="kv-value" id="rrRatio2">0.00</div>
                             </div>
+                            <div class="regime-chip defensive" id="regimeChip" title="Negative Sharpe indicates low volatility regime, strategy in review.">Current Regime: Defensive</div>
                             <h4 style="font-size: 0.86rem; margin-top: 0.8rem; color: var(--text-secondary);">Execution Rules</h4>
                             <ul class="rules-list">
                                 <li>LONG if P(UP) >= 0.55 and Confidence >= 0.45</li>
@@ -774,11 +841,11 @@
                         <div class="card-body">
                             <div class="input-grid-2">
                                 <div class="input-row"><label for="sizerConfidence">Confidence</label><input id="sizerConfidence" class="control-input" type="number" min="0" max="1" step="0.01" value="0.95"></div>
-                                <div class="input-row"><label for="sizerPUp">P(UP)</label><input id="sizerPUp" class="control-input" type="number" min="0" max="1" step="0.01" value="0.62"></div>
+                                <div class="input-row"><label for="sizerPUp" title="Probability of Upward Movement (next interval)">P(UP)</label><input id="sizerPUp" class="control-input" type="number" min="0" max="1" step="0.01" value="0.62"></div>
                                 <div class="input-row"><label for="sizerEntry">Entry Price</label><input id="sizerEntry" class="control-input" type="number" min="0" step="0.01" value="0"></div>
-                                <div class="input-row"><label for="sizerQ10">q10</label><input id="sizerQ10" class="control-input" type="number" step="0.001" value="-0.012"></div>
-                                <div class="input-row"><label for="sizerQ50">q50</label><input id="sizerQ50" class="control-input" type="number" step="0.001" value="0.008"></div>
-                                <div class="input-row"><label for="sizerQ90">q90</label><input id="sizerQ90" class="control-input" type="number" step="0.001" value="0.021"></div>
+                                <div class="input-row"><label for="sizerQ10" title="Prediction Quantiles">q10</label><input id="sizerQ10" class="control-input" type="number" step="0.001" value="-0.012"></div>
+                                <div class="input-row"><label for="sizerQ50" title="Prediction Quantiles">q50</label><input id="sizerQ50" class="control-input" type="number" step="0.001" value="0.008"></div>
+                                <div class="input-row"><label for="sizerQ90" title="Prediction Quantiles">q90</label><input id="sizerQ90" class="control-input" type="number" step="0.001" value="0.021"></div>
                             </div>
                             <div class="sizer-output kv-grid">
                                 <div class="kv-key">Suggested Action</div><div><span class="signal-pill flat" id="sizerAction">FLAT</span></div>
@@ -786,6 +853,9 @@
                                 <div class="kv-key">TP1 / TP2</div><div class="kv-value" id="sizerTp">$0.00 / $0.00</div>
                                 <div class="kv-key">Stop Loss</div><div class="kv-value" id="sizerSl">$0.00</div>
                                 <div class="kv-key">RR (TP1 / TP2)</div><div class="kv-value" id="sizerRr">0.00 / 0.00</div>
+                            </div>
+                            <div class="sizer-actions">
+                                <button class="btn btn-secondary btn-sm" id="applyToLiveBtn" type="button">Apply to Live</button>
                             </div>
                         </div>
                     </div>
@@ -830,6 +900,7 @@
                                 <div class="input-row"><label for="alertThreshold">24h Move Threshold (%)</label><input id="alertThreshold" class="control-input" type="number" min="0.1" max="50" step="0.1" value="5"></div>
                                 <button type="submit" class="btn btn-secondary btn-sm">Set Alert</button>
                                 <button type="button" class="btn btn-secondary btn-sm" id="setBtcDriftAlert">Set Drift Alert for BTC > 5%</button>
+                                <button type="button" class="btn btn-secondary btn-sm" id="testAlertBtn">Test Alert</button>
                             </form>
                             <div class="alert-head">
                                 <div class="control-label">Alert Status</div>
@@ -863,7 +934,7 @@
                         <div class="card-body">
                             <div class="kv-grid">
                                 <div class="kv-key">Drift Alerts</div><div class="kv-value" id="driftAlerts">0</div>
-                                <div class="kv-key">Sharpe Ratio</div><div class="kv-value" id="healthSharpe">0.00</div>
+                                <div class="kv-key" title="Negative Sharpe indicates low volatility regime, strategy in review.">Sharpe Ratio</div><div class="kv-value" id="healthSharpe">0.00</div>
                                 <div class="kv-key">Sharpe Stability (Std)</div><div class="kv-value" id="sharpeStability">0.00</div>
                                 <div class="kv-key">Data Freshness</div><div class="kv-value" id="dataFreshness">--</div>
                                 <div class="kv-key">Last Training</div><div class="kv-value" id="lastTraining">--</div>
