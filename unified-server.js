@@ -2,6 +2,7 @@
 // Exposes static frontend and API proxy on the same port (default: 9000).
 
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
@@ -10,6 +11,7 @@ const PORT = Number(process.env.PORT || 9000);
 const API_HOST = process.env.API_HOST || '127.0.0.1';
 const API_PORT = Number(process.env.API_PORT || 5001);
 const WEB_ROOT = path.join(__dirname, 'web');
+
 const CRYPTO_CACHE_TTL_MS = Number(process.env.CRYPTO_CACHE_TTL_MS || 9000);
 const BINANCE_US_URL = 'https://api.binance.us/api/v3/ticker/24hr?symbols=%5B%22BTCUSDT%22,%22ETHUSDT%22,%22SOLUSDT%22%5D';
 
@@ -41,6 +43,155 @@ function sendJson(res, statusCode, payload) {
         'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
     });
     res.end(body);
+}
+
+function parseNumber(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeTickerRows(rows) {
+    if (!Array.isArray(rows)) {
+        throw new Error('Unexpected Binance US payload');
+    }
+
+    const bySymbol = Object.fromEntries(rows.map((row) => [row.symbol, row]));
+    const extract = (symbol) => {
+        const row = bySymbol[symbol];
+        if (!row) throw new Error(`Missing symbol ${symbol}`);
+
+        const price = parseNumber(row.lastPrice);
+        const change = parseNumber(row.priceChangePercent);
+        const volume = parseNumber(row.quoteVolume);
+        if (price === null || change === null || volume === null) {
+            throw new Error(`Invalid numeric field for ${symbol}`);
+        }
+
+        return { symbol, price, change, volume };
+    };
+
+    return {
+        meta: {
+            source: 'binance_us',
+            timestamp: new Date().toISOString(),
+            stale: false
+        },
+        btc: extract('BTCUSDT'),
+        eth: extract('ETHUSDT'),
+        sol: extract('SOLUSDT')
+    };
+}
+
+function fetchBinanceUS() {
+    return new Promise((resolve, reject) => {
+        const req = https.request(BINANCE_US_URL, { method: 'GET', timeout: 5000 }, (upstream) => {
+            let body = '';
+            upstream.on('data', (chunk) => { body += chunk.toString('utf8'); });
+            upstream.on('end', () => {
+                if (upstream.statusCode < 200 || upstream.statusCode > 299) {
+                    reject(new Error(`Upstream status ${upstream.statusCode}`));
+                    return;
+                }
+
+                try {
+                    const rows = JSON.parse(body);
+                    resolve(normalizeTickerRows(rows));
+                } catch (error) {
+                    reject(new Error(`Invalid upstream JSON: ${error.message}`));
+                }
+            });
+        });
+
+        req.on('timeout', () => req.destroy(new Error('Upstream timeout')));
+        req.on('error', reject);
+        req.end();
+    });
+}
+
+async function handleCryptoPrices(req, res) {
+    if (req.method === 'OPTIONS') {
+        sendJson(res, 200, { ok: true });
+        return;
+    }
+    if (req.method !== 'GET') {
+        sendJson(res, 405, { error: 'Method not allowed' });
+        return;
+    }
+
+    const now = Date.now();
+    if (cryptoPriceCache && now - cryptoPriceCacheAt <= CRYPTO_CACHE_TTL_MS) {
+        sendJson(res, 200, cryptoPriceCache);
+        return;
+    }
+
+    try {
+        const payload = await fetchBinanceUS();
+        cryptoPriceCache = payload;
+        cryptoPriceCacheAt = Date.now();
+        sendJson(res, 200, payload);
+    } catch (error) {
+        if (cryptoPriceCache) {
+            sendJson(res, 200, {
+                ...cryptoPriceCache,
+                meta: {
+                    ...cryptoPriceCache.meta,
+                    stale: true,
+                    stale_reason: error.message
+                }
+            });
+            return;
+        }
+        sendJson(res, 502, {
+            error: 'Failed to fetch crypto prices from Binance US',
+            detail: error.message
+        });
+    }
+}
+
+function handleAlertContract(req, res) {
+    if (req.method === 'OPTIONS') {
+        sendJson(res, 200, { ok: true });
+        return;
+    }
+
+    const contract = {
+        route: '/api/alerts',
+        status: 'not_implemented',
+        storage: 'planned_server_storage',
+        current_mode: 'client_local_storage',
+        schema: {
+            id: 'string',
+            symbol: 'BTCUSDT|ETHUSDT|SOLUSDT|...',
+            type: 'move_gt_pct_24h',
+            thresholdPct: 'number',
+            enabled: 'boolean',
+            lastTriggeredAt: 'ISO8601|null',
+            createdAt: 'ISO8601'
+        }
+    };
+
+    if (req.method === 'GET') {
+        sendJson(res, 501, {
+            ...contract,
+            message: 'Use localStorage key "crypto_alerts_v1" for this phase.'
+        });
+        return;
+    }
+
+    if (req.method === 'POST') {
+        sendJson(res, 501, {
+            ...contract,
+            expected_request: {
+                symbol: 'BTCUSDT',
+                type: 'move_gt_pct_24h',
+                thresholdPct: 5,
+                enabled: true
+            }
+        });
+        return;
+    }
+
+    sendJson(res, 405, { error: 'Method not allowed' });
 }
 
 function proxyApi(req, res) {
@@ -79,113 +230,6 @@ function proxyApi(req, res) {
     });
 
     req.pipe(proxyReq);
-}
-
-function parseNumber(value) {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
-}
-
-function normalizeTickerRows(rows) {
-    if (!Array.isArray(rows)) {
-        throw new Error('Unexpected Binance US payload');
-    }
-
-    const bySymbol = Object.fromEntries(rows.map((row) => [row.symbol, row]));
-    const extract = (symbol) => {
-        const row = bySymbol[symbol];
-        if (!row) {
-            throw new Error(`Missing symbol ${symbol} in upstream payload`);
-        }
-
-        const price = parseNumber(row.lastPrice);
-        const change = parseNumber(row.priceChangePercent);
-        const volume = parseNumber(row.quoteVolume);
-
-        if (price === null || change === null || volume === null) {
-            throw new Error(`Invalid numeric field for ${symbol}`);
-        }
-
-        return { symbol, price, change, volume };
-    };
-
-    return {
-        meta: {
-            source: 'binance_us',
-            timestamp: new Date().toISOString(),
-            stale: false
-        },
-        btc: extract('BTCUSDT'),
-        eth: extract('ETHUSDT'),
-        sol: extract('SOLUSDT')
-    };
-}
-
-async function fetchCryptoPricesFromBinanceUS() {
-    const timeoutMs = 5000;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-    try {
-        const response = await fetch(BINANCE_US_URL, {
-            method: 'GET',
-            signal: controller.signal,
-            headers: {
-                'Accept': 'application/json'
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error(`Upstream status ${response.status}`);
-        }
-
-        const rows = await response.json();
-        return normalizeTickerRows(rows);
-    } finally {
-        clearTimeout(timer);
-    }
-}
-
-async function handleCryptoPrices(req, res) {
-    if (req.method === 'OPTIONS') {
-        sendJson(res, 200, { ok: true });
-        return;
-    }
-
-    if (req.method !== 'GET') {
-        sendJson(res, 405, { error: 'Method not allowed' });
-        return;
-    }
-
-    const now = Date.now();
-    if (cryptoPriceCache && now - cryptoPriceCacheAt <= CRYPTO_CACHE_TTL_MS) {
-        sendJson(res, 200, cryptoPriceCache);
-        return;
-    }
-
-    try {
-        const payload = await fetchCryptoPricesFromBinanceUS();
-        cryptoPriceCache = payload;
-        cryptoPriceCacheAt = Date.now();
-        sendJson(res, 200, payload);
-    } catch (error) {
-        if (cryptoPriceCache) {
-            sendJson(res, 200, {
-                ...cryptoPriceCache,
-                meta: {
-                    ...cryptoPriceCache.meta,
-                    stale: true,
-                    stale_reason: error.message
-                }
-            });
-            return;
-        }
-
-        sendJson(res, 502, {
-            error: 'Failed to fetch crypto prices from Binance US',
-            detail: error.message
-        });
-    }
 }
 
 function safeJoin(basePath, targetPath) {
@@ -236,6 +280,11 @@ const server = http.createServer((req, res) => {
 
     if (parsedUrl.pathname === '/api/crypto/prices') {
         handleCryptoPrices(req, res);
+        return;
+    }
+
+    if (parsedUrl.pathname === '/api/alerts') {
+        handleAlertContract(req, res);
         return;
     }
 

@@ -8,19 +8,25 @@
     <link rel="stylesheet" href="css/components.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
+        :root {
+            --action-long: #00FFAA;
+            --action-flat: #FBBF24;
+            --action-short: #FF4D5A;
+        }
+
         .crypto-layout {
             display: grid;
-            gap: 2rem;
+            gap: 1rem;
             margin-bottom: 2rem;
         }
 
         .crypto-controls {
             display: flex;
             flex-wrap: wrap;
-            gap: 1rem;
+            gap: 0.9rem;
             align-items: center;
             justify-content: space-between;
-            padding: 1rem 1.25rem;
+            padding: 1rem 1.2rem;
             background: var(--bg-card);
             border: 1px solid var(--border-default);
             border-radius: var(--radius-md);
@@ -30,6 +36,7 @@
             display: flex;
             align-items: center;
             gap: 0.75rem;
+            flex-wrap: wrap;
         }
 
         .control-label {
@@ -40,14 +47,47 @@
             font-weight: 700;
         }
 
-        .control-select {
+        .control-select,
+        .control-input {
             background: rgba(15, 23, 42, 0.8);
             color: var(--text-primary);
             border: 1px solid var(--border-default);
             border-radius: var(--radius-sm);
-            padding: 0.45rem 0.75rem;
+            padding: 0.45rem 0.7rem;
             font-family: var(--font-mono);
             font-size: 0.85rem;
+        }
+
+        .control-input {
+            width: 100%;
+        }
+
+        .live-banner {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.7rem;
+            padding: 0.6rem 0.95rem;
+            border-radius: var(--radius-md);
+            border: 1px solid rgba(0, 229, 255, 0.35);
+            background: rgba(2, 132, 199, 0.1);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--action-long);
+            box-shadow: 0 0 0 rgba(0, 255, 170, 0.5);
+            animation: pulse-live 1.6s infinite;
+        }
+
+        @keyframes pulse-live {
+            0% { box-shadow: 0 0 0 0 rgba(0, 255, 170, 0.45); }
+            70% { box-shadow: 0 0 0 9px rgba(0, 255, 170, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 255, 170, 0); }
         }
 
         .metric-grid {
@@ -56,16 +96,27 @@
             gap: 1rem;
         }
 
+        .chart-grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .chart-subgrid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1rem;
+        }
+
         .prediction-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
             gap: 1rem;
         }
 
         .kv-grid {
             display: grid;
             grid-template-columns: 1fr auto;
-            gap: 0.6rem 0.75rem;
+            gap: 0.55rem 0.75rem;
             align-items: center;
             font-size: 0.9rem;
         }
@@ -84,7 +135,7 @@
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 0.75rem;
-            margin: 1rem 0;
+            margin: 0.9rem 0;
         }
 
         .direction-block {
@@ -104,26 +155,73 @@
         }
 
         .direction-value {
-            font-size: 1.5rem;
+            font-size: 1.45rem;
             font-family: var(--font-mono);
+            font-weight: 700;
+        }
+
+        .confidence-wrap {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            margin: 0.8rem 0;
+        }
+
+        .confidence-ring {
+            width: 78px;
+            height: 78px;
+            border-radius: 50%;
+            background: conic-gradient(var(--action-long) 0deg, rgba(148, 163, 184, 0.25) 0deg);
+            position: relative;
+            transition: background 0.3s ease;
+        }
+
+        .confidence-ring::after {
+            content: "";
+            position: absolute;
+            inset: 8px;
+            border-radius: 50%;
+            background: rgba(5, 10, 26, 0.9);
+            border: 1px solid var(--border-default);
+        }
+
+        .confidence-ring.pulse {
+            animation: ring-pulse 1.2s ease-out;
+        }
+
+        @keyframes ring-pulse {
+            0% { transform: scale(1); }
+            30% { transform: scale(1.06); }
+            100% { transform: scale(1); }
+        }
+
+        .confidence-ring-value {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            z-index: 2;
             font-weight: 700;
         }
 
         .window-list {
             display: grid;
-            gap: 0.7rem;
+            gap: 0.65rem;
         }
 
         .window-row {
             display: grid;
-            grid-template-columns: 80px 1fr 56px;
+            grid-template-columns: 74px 1fr 56px;
+            gap: 0.55rem;
             align-items: center;
-            gap: 0.5rem;
         }
 
         .window-label {
             color: var(--text-secondary);
-            font-size: 0.85rem;
+            font-size: 0.82rem;
             font-family: var(--font-mono);
         }
 
@@ -137,14 +235,14 @@
         .window-fill {
             height: 100%;
             border-radius: inherit;
-            background: linear-gradient(90deg, var(--primary-accent), var(--success));
+            background: linear-gradient(90deg, var(--primary-accent), var(--action-long));
             transition: width 0.3s ease;
         }
 
         .window-prob {
-            color: var(--text-primary);
-            font-family: var(--font-mono);
             font-size: 0.8rem;
+            font-family: var(--font-mono);
+            color: var(--text-primary);
             text-align: right;
         }
 
@@ -152,56 +250,122 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 84px;
+            min-width: 88px;
             border-radius: 999px;
-            padding: 0.25rem 0.75rem;
-            font-size: 0.75rem;
+            padding: 0.22rem 0.75rem;
+            font-size: 0.76rem;
             font-weight: 700;
             letter-spacing: 0.06em;
             text-transform: uppercase;
             border: 1px solid transparent;
+            font-family: var(--font-mono);
         }
 
         .signal-pill.long {
-            color: var(--success);
-            border-color: rgba(16, 185, 129, 0.4);
-            background: rgba(16, 185, 129, 0.1);
-        }
-
-        .signal-pill.short {
-            color: var(--danger);
-            border-color: rgba(239, 68, 68, 0.4);
-            background: rgba(239, 68, 68, 0.1);
+            color: var(--action-long);
+            border-color: rgba(0, 255, 170, 0.4);
+            background: rgba(0, 255, 170, 0.1);
         }
 
         .signal-pill.flat {
-            color: var(--warning);
-            border-color: rgba(245, 158, 11, 0.4);
-            background: rgba(245, 158, 11, 0.1);
+            color: var(--action-flat);
+            border-color: rgba(251, 191, 36, 0.4);
+            background: rgba(251, 191, 36, 0.1);
         }
 
-        .insights-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-            gap: 1rem;
+        .signal-pill.short {
+            color: var(--action-short);
+            border-color: rgba(255, 77, 90, 0.4);
+            background: rgba(255, 77, 90, 0.1);
         }
 
+        .rules-list,
         .feature-list,
-        .reason-list {
+        .reason-list,
+        .alert-list {
             list-style: none;
             display: grid;
-            gap: 0.6rem;
+            gap: 0.55rem;
             margin-top: 0.75rem;
         }
 
+        .rules-list li,
         .feature-item,
-        .reason-item {
-            padding: 0.65rem 0.75rem;
+        .reason-item,
+        .alert-item {
+            font-size: 0.83rem;
             border: 1px solid var(--border-default);
             border-radius: var(--radius-sm);
+            padding: 0.6rem 0.7rem;
             background: rgba(255, 255, 255, 0.02);
-            font-size: 0.85rem;
         }
+
+        .input-grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.6rem;
+        }
+
+        .input-row {
+            display: grid;
+            gap: 0.35rem;
+        }
+
+        .input-row label {
+            font-size: 0.74rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            font-weight: 700;
+        }
+
+        .sizer-output {
+            margin-top: 0.8rem;
+            padding-top: 0.7rem;
+            border-top: 1px solid var(--border-default);
+        }
+
+        .slider-row {
+            display: grid;
+            gap: 0.45rem;
+            margin-bottom: 0.6rem;
+        }
+
+        .slider-row label {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .slider-row input[type="range"] {
+            width: 100%;
+        }
+
+        .comparison-note,
+        .sharpe-context,
+        .regime-note {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.6rem;
+        }
+
+        .regime-strip {
+            display: grid;
+            grid-template-columns: repeat(18, 1fr);
+            gap: 0.2rem;
+            margin-top: 0.75rem;
+        }
+
+        .regime-cell {
+            height: 16px;
+            border-radius: 4px;
+            opacity: 0.85;
+        }
+
+        .regime-cell.low { background: rgba(0, 255, 170, 0.35); }
+        .regime-cell.normal { background: rgba(59, 130, 246, 0.35); }
+        .regime-cell.high { background: rgba(255, 77, 90, 0.35); }
 
         .performance-grid {
             display: grid;
@@ -211,23 +375,147 @@
 
         .performance-value {
             font-family: var(--font-mono);
-            font-size: 1.8rem;
+            font-size: 1.75rem;
             line-height: 1;
-            margin-bottom: 0.4rem;
+            margin-bottom: 0.35rem;
+        }
+
+        .table-controls {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
         }
 
         .search-input {
-            min-width: 240px;
+            min-width: 230px;
+        }
+
+        .data-table .sortable {
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .sort-indicator {
+            margin-left: 0.2rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+        }
+
+        .crypto-row {
+            cursor: pointer;
+            transition: transform 0.15s ease, background 0.15s ease;
+        }
+
+        .crypto-row:hover {
+            background: rgba(0, 229, 255, 0.12);
+            transform: translateY(-1px);
+        }
+
+        .detail-row td {
+            background: rgba(2, 132, 199, 0.08);
+            border-top: none;
+            border-bottom: 1px solid var(--border-default);
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 0.9rem;
+            padding: 0.8rem 0.2rem;
+        }
+
+        .detail-title {
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.72rem;
+            margin-bottom: 0.4rem;
+            font-weight: 700;
+        }
+
+        .load-more-wrap {
+            display: flex;
+            justify-content: center;
+            margin-top: 0.9rem;
+        }
+
+        .alert-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 0.8rem;
+        }
+
+        .alert-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .alert-item button {
+            min-width: 70px;
+        }
+
+        .mini-chart {
+            height: 78px;
+            margin-top: 0.85rem;
+        }
+
+        .chart-wrapper {
+            min-height: 320px;
+        }
+
+        .chart-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.7rem;
+            margin-top: 0.4rem;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+        }
+
+        .legend-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 0.35rem;
+        }
+
+        .legend-dot.actual { background: #00E5FF; }
+        .legend-dot.predicted { background: #67E8F9; }
+        .legend-dot.band { background: rgba(103, 232, 249, 0.4); }
+
+        .status-live { color: var(--action-long); }
+        .status-stale { color: var(--action-flat); }
+        .status-sim { color: var(--action-short); }
+
+        @media (max-width: 980px) {
+            .chart-subgrid {
+                grid-template-columns: 1fr;
+            }
         }
 
         @media (max-width: 768px) {
             .control-group {
                 width: 100%;
-                justify-content: space-between;
+            }
+
+            .input-grid-2 {
+                grid-template-columns: 1fr;
             }
 
             .window-row {
                 grid-template-columns: 68px 1fr 52px;
+            }
+
+            .search-input {
+                width: 100%;
+                min-width: 100%;
             }
         }
     </style>
@@ -237,7 +525,7 @@
         <div class="header-container">
             <div class="logo">
                 <a href="index.html">
-                    <span class="logo-icon">◈</span>
+                    <span class="logo-icon">S</span>
                     <span class="logo-text">StockandCrypto</span>
                 </a>
             </div>
@@ -262,10 +550,10 @@
 
     <main style="padding-top: 100px; min-height: 100vh;">
         <div class="container">
-            <div class="section-header" style="text-align: left; margin-bottom: 1.5rem;">
+            <div class="section-header" style="text-align: left; margin-bottom: 1.2rem;">
                 <span class="section-tag">Live Data</span>
                 <h1 class="section-title">Crypto Market Analysis</h1>
-                <p style="color: var(--text-secondary);">Real-time multi-task forecasts for BTC, ETH, SOL and top crypto pairs.</p>
+                <p>Interactive quantitative demo for BTC, ETH, SOL with execution-ready policy context.</p>
             </div>
 
             <div class="crypto-layout">
@@ -279,291 +567,370 @@
                         </select>
                     </div>
                     <div class="control-group">
+                        <button class="btn btn-secondary btn-sm" id="refreshNowBtn" type="button">Refresh Now</button>
+                        <button class="btn btn-primary btn-sm" id="autoRefreshBtn" type="button" aria-pressed="true">Auto Refresh: ON</button>
                         <span class="status-badge info" id="dataModeBadge">Live Feed</span>
                         <span class="status-badge info" id="transportBadge">Polling</span>
                         <span class="control-label" id="lastUpdated">Updated --</span>
                     </div>
                 </div>
 
-                <!-- Market Stats -->
+                <div class="live-banner" id="liveFeedBanner">
+                    <span class="live-dot"></span>
+                    <strong id="liveBannerMode" class="status-live">Live Feed</strong>
+                    <span>| Tick: <span id="tickCount">0</span></span>
+                    <span>| Transport: <span id="bannerTransport">Polling</span></span>
+                    <span>| Last Tick: <span id="lastTickAt">--:--:--</span></span>
+                </div>
+
                 <div class="metric-grid">
-                <div class="metric-card">
-                    <div class="metric-label">BTC/USDT</div>
-                    <div class="metric-value" id="btcPrice">$0</div>
-                    <div class="metric-change positive" id="btcChange">+0.00%</div>
-                    <div style="margin-top: 1rem;">
-                        <span class="status-badge success">Live</span>
+                    <div class="metric-card">
+                        <div class="metric-label">BTC/USDT</div>
+                        <div class="metric-value" id="btcPrice">$0</div>
+                        <div class="metric-change positive" id="btcChange">+0.00%</div>
+                        <div style="margin-top: 1rem;"><span class="status-badge success" id="btcStatus">Live</span></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">ETH/USDT</div>
+                        <div class="metric-value" id="ethPrice">$0</div>
+                        <div class="metric-change positive" id="ethChange">+0.00%</div>
+                        <div style="margin-top: 1rem;"><span class="status-badge success" id="ethStatus">Live</span></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">SOL/USDT</div>
+                        <div class="metric-value" id="solPrice">$0</div>
+                        <div class="metric-change negative" id="solChange">-0.00%</div>
+                        <div style="margin-top: 1rem;"><span class="status-badge success" id="solStatus">Live</span></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Model Accuracy</div>
+                        <div class="metric-value" id="modelAccuracy">0.67</div>
+                        <div class="metric-change positive"><span>Direction (Daily)</span></div>
+                        <div style="margin-top: 1rem;"><span class="status-badge info">IN REVIEW</span></div>
                     </div>
                 </div>
 
-                <div class="metric-card">
-                    <div class="metric-label">ETH/USDT</div>
-                    <div class="metric-value" id="ethPrice">$0</div>
-                    <div class="metric-change positive" id="ethChange">+0.00%</div>
-                    <div style="margin-top: 1rem;">
-                        <span class="status-badge success">Live</span>
-                    </div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">SOL/USDT</div>
-                    <div class="metric-value" id="solPrice">$0</div>
-                    <div class="metric-change negative" id="solChange">-0.00%</div>
-                    <div style="margin-top: 1rem;">
-                        <span class="status-badge success">Live</span>
-                    </div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label">Model Accuracy</div>
-                    <div class="metric-value" id="modelAccuracy">0.67</div>
-                    <div class="metric-change positive">
-                        <span>Direction (Daily)</span>
-                    </div>
-                    <div style="margin-top: 1rem;">
-                        <span class="status-badge info">IN REVIEW</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Price Chart -->
-            <div class="chart-container">
-                <div class="chart-header">
-                    <h3 class="chart-title" id="priceChartTitle">BTC/USDT Price Movement</h3>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <button class="btn btn-secondary btn-sm timeframe-btn" id="btn1h" data-timeframe="1h">1H</button>
-                        <button class="btn btn-secondary btn-sm timeframe-btn" id="btn24h" data-timeframe="24h">24H</button>
-                        <button class="btn btn-primary btn-sm timeframe-btn" id="btn7d" data-timeframe="7d">7D</button>
-                    </div>
-                </div>
-                <div class="chart-wrapper">
-                    <canvas id="priceChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Prediction Cards -->
-            <div class="prediction-grid">
-                <!-- Direction Prediction -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Direction Forecast</h3>
-                        <span class="status-badge info">H1 Horizon</span>
-                    </div>
-                    <div class="card-body">
-                        <div class="direction-split">
-                            <div class="direction-block">
-                                <div class="direction-label">P(UP)</div>
-                                <div class="direction-value" id="pUpValue" style="color: var(--success);">0.62</div>
-                            </div>
-                            <div class="direction-block">
-                                <div class="direction-label">P(DOWN)</div>
-                                <div class="direction-value" id="pDownValue" style="color: var(--danger);">0.38</div>
+                <div class="chart-grid">
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h3 class="chart-title" id="priceChartTitle">BTC/USDT Price Movement</h3>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button class="btn btn-secondary btn-sm timeframe-btn" id="btn1h" data-timeframe="1h" aria-pressed="false">1H</button>
+                                <button class="btn btn-secondary btn-sm timeframe-btn" id="btn24h" data-timeframe="24h" aria-pressed="false">24H</button>
+                                <button class="btn btn-primary btn-sm timeframe-btn" id="btn7d" data-timeframe="7d" aria-pressed="true">7D</button>
                             </div>
                         </div>
-                        <div class="kv-grid">
-                            <div class="kv-key">Signal</div>
-                            <div><span class="signal-pill long" id="signalPill">LONG</span></div>
-                            <div class="kv-key">Confidence</div>
-                            <div class="kv-value" id="directionConfidence">0.95</div>
-                            <div class="kv-key">Threshold Rule</div>
-                            <div class="kv-value">LONG ≥ 0.55, SHORT ≤ 0.45</div>
+                        <div class="chart-wrapper">
+                            <canvas id="priceChart"></canvas>
+                        </div>
+                        <div class="chart-legend">
+                            <span><span class="legend-dot actual"></span>Actual</span>
+                            <span><span class="legend-dot predicted"></span>Predicted (q50)</span>
+                            <span><span class="legend-dot band"></span>Confidence Band (q10-q90)</span>
                         </div>
                     </div>
-                </div>
 
-                <!-- Start Window -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Start Window Forecast</h3>
-                        <span class="status-badge info">W0-W3</span>
-                    </div>
-                    <div class="card-body">
-                        <div class="window-list">
-                            <div class="window-row">
-                                <div class="window-label">W0</div>
-                                <div class="window-bar"><div class="window-fill" id="w0Fill" style="width: 25%;"></div></div>
-                                <div class="window-prob" id="w0Prob">0.25</div>
+                    <div class="chart-subgrid">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Comparison Mode</h3>
+                                <span class="status-badge info">BTC vs ETH vs SOL</span>
                             </div>
-                            <div class="window-row">
-                                <div class="window-label">W1</div>
-                                <div class="window-bar"><div class="window-fill" id="w1Fill" style="width: 35%;"></div></div>
-                                <div class="window-prob" id="w1Prob">0.35</div>
-                            </div>
-                            <div class="window-row">
-                                <div class="window-label">W2</div>
-                                <div class="window-bar"><div class="window-fill" id="w2Fill" style="width: 28%;"></div></div>
-                                <div class="window-prob" id="w2Prob">0.28</div>
-                            </div>
-                            <div class="window-row">
-                                <div class="window-label">W3</div>
-                                <div class="window-bar"><div class="window-fill" id="w3Fill" style="width: 12%;"></div></div>
-                                <div class="window-prob" id="w3Prob">0.12</div>
+                            <div class="card-body">
+                                <div style="height: 170px;"><canvas id="comparisonChart"></canvas></div>
+                                <p class="comparison-note">Direction probabilities refresh with the same tick cycle.</p>
                             </div>
                         </div>
-                        <div class="kv-grid" style="margin-top: 1rem;">
-                            <div class="kv-key">Most Likely</div>
-                            <div class="kv-value" id="mostLikelyWindow">W1</div>
-                            <div class="kv-key">Expected Start</div>
-                            <div class="kv-value" id="expectedStart">Within 1 hour</div>
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Volatility Regime</h3>
+                                <span class="status-badge info">Rolling</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="regime-strip" id="volatilityStrip"></div>
+                                <p class="regime-note" id="regimeSummary">Regime: normal volatility.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Magnitude Prediction -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Magnitude Intervals</h3>
-                        <span class="status-badge info">1-Hour</span>
+                <div class="prediction-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Direction Forecast</h3>
+                            <span class="status-badge info">H1 Horizon</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="direction-split">
+                                <div class="direction-block">
+                                    <div class="direction-label" title="Probability of Upward Movement (next interval)">P(UP)</div>
+                                    <div class="direction-value" id="pUpValue" style="color: var(--action-long);">0.62</div>
+                                </div>
+                                <div class="direction-block">
+                                    <div class="direction-label">P(DOWN)</div>
+                                    <div class="direction-value" id="pDownValue" style="color: var(--action-short);">0.38</div>
+                                </div>
+                            </div>
+
+                            <div class="confidence-wrap">
+                                <div class="confidence-ring" id="confidenceRing">
+                                    <div class="confidence-ring-value" id="confidenceRingValue">95%</div>
+                                </div>
+                                <div class="kv-grid" style="flex: 1;">
+                                    <div class="kv-key">Signal</div>
+                                    <div><span class="signal-pill long" id="signalPill">LONG</span></div>
+                                    <div class="kv-key">Confidence</div>
+                                    <div class="kv-value" id="directionConfidence">0.95</div>
+                                    <div class="kv-key">Threshold Rule</div>
+                                    <div class="kv-value">LONG >= 0.55, SHORT <= 0.45</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        <div class="kv-grid">
-                            <div class="kv-key">q10</div>
-                            <div class="kv-value" id="q10Value" style="color: var(--danger);">-1.2%</div>
-                            <div class="kv-key">q50</div>
-                            <div class="kv-value" id="q50Value" style="color: var(--success);">+0.8%</div>
-                            <div class="kv-key">q90</div>
-                            <div class="kv-value" id="q90Value" style="color: var(--success);">+2.1%</div>
-                            <div class="kv-key">Interval Width</div>
-                            <div class="kv-value" id="intervalWidth">3.3%</div>
-                            <div class="kv-key">Expected Return</div>
-                            <div class="kv-value" id="expectedReturn">+0.8%</div>
-                            <div class="kv-key">Coverage Target</div>
-                            <div class="kv-value">80%</div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Start Window Forecast</h3>
+                            <span class="status-badge info">W0-W3</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="window-list">
+                                <div class="window-row"><div class="window-label">W0</div><div class="window-bar"><div class="window-fill" id="w0Fill" style="width: 25%;"></div></div><div class="window-prob" id="w0Prob">0.25</div></div>
+                                <div class="window-row"><div class="window-label">W1</div><div class="window-bar"><div class="window-fill" id="w1Fill" style="width: 35%;"></div></div><div class="window-prob" id="w1Prob">0.35</div></div>
+                                <div class="window-row"><div class="window-label">W2</div><div class="window-bar"><div class="window-fill" id="w2Fill" style="width: 28%;"></div></div><div class="window-prob" id="w2Prob">0.28</div></div>
+                                <div class="window-row"><div class="window-label">W3</div><div class="window-bar"><div class="window-fill" id="w3Fill" style="width: 12%;"></div></div><div class="window-prob" id="w3Prob">0.12</div></div>
+                            </div>
+                            <div class="kv-grid" style="margin-top: 0.95rem;">
+                                <div class="kv-key">Most Likely</div>
+                                <div class="kv-value" id="mostLikelyWindow">W1</div>
+                                <div class="kv-key">Expected Start</div>
+                                <div class="kv-value" id="expectedStart">Within 1 hour</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Magnitude Intervals</h3>
+                            <span class="status-badge info">1-Hour</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="kv-grid">
+                                <div class="kv-key" title="10th percentile forecast return">q10</div>
+                                <div class="kv-value" id="q10Value" style="color: var(--action-short);">-1.2%</div>
+                                <div class="kv-key" title="Median forecast return">q50</div>
+                                <div class="kv-value" id="q50Value" style="color: var(--action-long);">+0.8%</div>
+                                <div class="kv-key" title="90th percentile forecast return">q90</div>
+                                <div class="kv-value" id="q90Value" style="color: var(--action-long);">+2.1%</div>
+                                <div class="kv-key">Interval Width</div>
+                                <div class="kv-value" id="intervalWidth">3.3%</div>
+                                <div class="kv-key">Expected Return</div>
+                                <div class="kv-value" id="expectedReturn">+0.8%</div>
+                                <div class="kv-key">Coverage Target</div>
+                                <div class="kv-value">80%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Signal & Risk Packet</h3>
+                            <span class="status-badge info">Policy Engine</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="kv-grid">
+                                <div class="kv-key">Action</div>
+                                <div><span class="signal-pill long" id="actionPill">LONG</span></div>
+                                <div class="kv-key">Position Size</div>
+                                <div class="kv-value" id="positionSize">1.20x</div>
+                                <div class="kv-key">Entry</div>
+                                <div class="kv-value" id="entryPrice">$0.00</div>
+                                <div class="kv-key">Stop Loss</div>
+                                <div class="kv-value" id="stopLoss">$0.00</div>
+                                <div class="kv-key">Take Profit 1</div>
+                                <div class="kv-value" id="takeProfit1">$0.00</div>
+                                <div class="kv-key">Take Profit 2</div>
+                                <div class="kv-value" id="takeProfit2">$0.00</div>
+                                <div class="kv-key">R:R (TP1)</div>
+                                <div class="kv-value" id="rrRatio1">0.00</div>
+                                <div class="kv-key">R:R (TP2)</div>
+                                <div class="kv-value" id="rrRatio2">0.00</div>
+                            </div>
+                            <h4 style="font-size: 0.86rem; margin-top: 0.8rem; color: var(--text-secondary);">Execution Rules</h4>
+                            <ul class="rules-list">
+                                <li>LONG if P(UP) >= 0.55 and Confidence >= 0.45</li>
+                                <li>SHORT if P(UP) <= 0.45 and Confidence >= 0.45</li>
+                                <li>FLAT otherwise</li>
+                                <li>Position capped by max leverage and risk gate</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Dynamic Position Sizer</h3>
+                            <span class="status-badge info">Max 2.0x</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="input-grid-2">
+                                <div class="input-row"><label for="sizerConfidence">Confidence</label><input id="sizerConfidence" class="control-input" type="number" min="0" max="1" step="0.01" value="0.95"></div>
+                                <div class="input-row"><label for="sizerPUp">P(UP)</label><input id="sizerPUp" class="control-input" type="number" min="0" max="1" step="0.01" value="0.62"></div>
+                                <div class="input-row"><label for="sizerEntry">Entry Price</label><input id="sizerEntry" class="control-input" type="number" min="0" step="0.01" value="0"></div>
+                                <div class="input-row"><label for="sizerQ10">q10</label><input id="sizerQ10" class="control-input" type="number" step="0.001" value="-0.012"></div>
+                                <div class="input-row"><label for="sizerQ50">q50</label><input id="sizerQ50" class="control-input" type="number" step="0.001" value="0.008"></div>
+                                <div class="input-row"><label for="sizerQ90">q90</label><input id="sizerQ90" class="control-input" type="number" step="0.001" value="0.021"></div>
+                            </div>
+                            <div class="sizer-output kv-grid">
+                                <div class="kv-key">Suggested Action</div><div><span class="signal-pill flat" id="sizerAction">FLAT</span></div>
+                                <div class="kv-key">Suggested Size</div><div class="kv-value" id="sizerSize">0.00x</div>
+                                <div class="kv-key">TP1 / TP2</div><div class="kv-value" id="sizerTp">$0.00 / $0.00</div>
+                                <div class="kv-key">Stop Loss</div><div class="kv-value" id="sizerSl">$0.00</div>
+                                <div class="kv-key">RR (TP1 / TP2)</div><div class="kv-value" id="sizerRr">0.00 / 0.00</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">What-If Simulator</h3>
+                            <span class="status-badge info">Preview Only</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="slider-row">
+                                <label for="momentumDelta">Momentum Delta <span id="momentumDeltaValue">0.00</span></label>
+                                <input type="range" id="momentumDelta" min="-0.20" max="0.20" step="0.01" value="0">
+                            </div>
+                            <div class="slider-row">
+                                <label for="volatilityMultiplier">Volatility Multiplier <span id="volatilityMultiplierValue">1.00x</span></label>
+                                <input type="range" id="volatilityMultiplier" min="0.50" max="1.50" step="0.01" value="1">
+                            </div>
+                            <div class="kv-grid" style="margin-top: 0.8rem;">
+                                <div class="kv-key">Adjusted P(UP)</div><div class="kv-value" id="whatIfPUp">0.62</div>
+                                <div class="kv-key">Suggested Action</div><div><span class="signal-pill flat" id="whatIfAction">FLAT</span></div>
+                                <div class="kv-key">Confidence Shift</div><div class="kv-value" id="whatIfConfidence">0.00</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Alert Setup</h3>
+                            <span class="status-badge info">Hybrid Mode</span>
+                        </div>
+                        <div class="card-body">
+                            <form id="alertForm" class="input-grid-2" style="align-items: end;">
+                                <div class="input-row">
+                                    <label for="alertSymbol">Symbol</label>
+                                    <select id="alertSymbol" class="control-select">
+                                        <option value="BTCUSDT">BTC/USDT</option>
+                                        <option value="ETHUSDT">ETH/USDT</option>
+                                        <option value="SOLUSDT">SOL/USDT</option>
+                                    </select>
+                                </div>
+                                <div class="input-row"><label for="alertThreshold">24h Move Threshold (%)</label><input id="alertThreshold" class="control-input" type="number" min="0.1" max="50" step="0.1" value="5"></div>
+                                <button type="submit" class="btn btn-secondary btn-sm">Set Alert</button>
+                                <button type="button" class="btn btn-secondary btn-sm" id="setBtcDriftAlert">Set Drift Alert for BTC > 5%</button>
+                            </form>
+                            <div class="alert-head">
+                                <div class="control-label">Alert Status</div>
+                                <div class="kv-value" id="alertStatusText">No alert triggered yet.</div>
+                            </div>
+                            <ul class="alert-list" id="alertList"></ul>
                         </div>
                     </div>
                 </div>
 
-                <!-- Signal & Risk -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Signal & Risk Packet</h3>
-                        <span class="status-badge info">Policy Engine</span>
+                <div class="prediction-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Explainable AI</h3>
+                            <span class="status-badge info">SHAP Signals</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="kv-grid"><div class="kv-key">Summary</div><div class="kv-value" id="explanationSummary">Loading explanation...</div></div>
+                            <h4 style="font-size: 0.88rem; margin-top: 1rem; color: var(--text-secondary);">Top Features</h4>
+                            <ul class="feature-list" id="topFeaturesList"><li class="feature-item">Waiting for model explanation...</li></ul>
+                            <h4 style="font-size: 0.88rem; margin-top: 1rem; color: var(--text-secondary);">Reason Codes</h4>
+                            <ul class="reason-list" id="reasonCodesList"><li class="reason-item">Waiting for reason codes...</li></ul>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        <div class="kv-grid">
-                            <div class="kv-key">Action</div>
-                            <div><span class="signal-pill long" id="actionPill">LONG</span></div>
-                            <div class="kv-key">Position Size</div>
-                            <div class="kv-value" id="positionSize">1.20x</div>
-                            <div class="kv-key">Entry</div>
-                            <div class="kv-value" id="entryPrice">$67,234.50</div>
-                            <div class="kv-key">Stop Loss</div>
-                            <div class="kv-value" id="stopLoss">$65,500.00</div>
-                            <div class="kv-key">Take Profit 1</div>
-                            <div class="kv-value" id="takeProfit1">$68,500.00</div>
-                            <div class="kv-key">Take Profit 2</div>
-                            <div class="kv-value" id="takeProfit2">$70,000.00</div>
-                            <div class="kv-key">R:R (TP1)</div>
-                            <div class="kv-value" id="rrRatio1">1.60</div>
-                            <div class="kv-key">R:R (TP2)</div>
-                            <div class="kv-value" id="rrRatio2">2.35</div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Model Health Snapshot</h3>
+                            <span class="status-badge info" id="healthStatusBadge">IN REVIEW</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="kv-grid">
+                                <div class="kv-key">Drift Alerts</div><div class="kv-value" id="driftAlerts">0</div>
+                                <div class="kv-key">Sharpe Ratio</div><div class="kv-value" id="healthSharpe">0.00</div>
+                                <div class="kv-key">Sharpe Stability (Std)</div><div class="kv-value" id="sharpeStability">0.00</div>
+                                <div class="kv-key">Data Freshness</div><div class="kv-value" id="dataFreshness">--</div>
+                                <div class="kv-key">Last Training</div><div class="kv-value" id="lastTraining">--</div>
+                            </div>
+                            <div class="mini-chart"><canvas id="sharpeChart"></canvas></div>
+                            <p class="sharpe-context" id="sharpeContext">Sharpe context is loading.</p>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="insights-grid">
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Explainable AI</h3>
-                        <span class="status-badge info">SHAP Signals</span>
+                <div class="performance-grid">
+                    <div class="metric-card">
+                        <div class="metric-label">Direction Accuracy</div>
+                        <div class="performance-value" id="directionAccuracy">67.2%</div>
+                        <div class="metric-change positive">30-day paper trading</div>
                     </div>
-                    <div class="card-body">
-                        <div class="kv-grid">
-                            <div class="kv-key">Summary</div>
-                            <div class="kv-value" id="explanationSummary">Loading explanation...</div>
-                        </div>
-                        <h4 style="font-size: 0.9rem; margin-top: 1rem; color: var(--text-secondary);">Top Features</h4>
-                        <ul class="feature-list" id="topFeaturesList">
-                            <li class="feature-item">Waiting for model explanation...</li>
-                        </ul>
-                        <h4 style="font-size: 0.9rem; margin-top: 1rem; color: var(--text-secondary);">Reason Codes</h4>
-                        <ul class="reason-list" id="reasonCodesList">
-                            <li class="reason-item">Waiting for reason codes...</li>
-                        </ul>
+                    <div class="metric-card">
+                        <div class="metric-label">Interval Coverage</div>
+                        <div class="performance-value" id="intervalCoverage">81.3%</div>
+                        <div class="metric-change positive">Target: 80%</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Brier Score</div>
+                        <div class="performance-value" id="brierScore">0.234</div>
+                        <div class="metric-change positive">Lower is better</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Win Rate</div>
+                        <div class="performance-value" id="winRate">54.2%</div>
+                        <div class="metric-change positive">Last 30 days</div>
                     </div>
                 </div>
 
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Model Health Snapshot</h3>
-                        <span class="status-badge info" id="healthStatusBadge">IN REVIEW</span>
-                    </div>
-                    <div class="card-body">
-                        <div class="kv-grid">
-                            <div class="kv-key">Drift Alerts</div>
-                            <div class="kv-value" id="driftAlerts">47</div>
-                            <div class="kv-key">Sharpe Ratio</div>
-                            <div class="kv-value" id="healthSharpe">-0.36</div>
-                            <div class="kv-key">Sharpe Stability (Std)</div>
-                            <div class="kv-value" id="sharpeStability">2.30</div>
-                            <div class="kv-key">Data Freshness</div>
-                            <div class="kv-value" id="dataFreshness">2 hours ago</div>
-                            <div class="kv-key">Last Training</div>
-                            <div class="kv-value" id="lastTraining">2026-02-06</div>
+                <div class="table-container">
+                    <div class="table-header">
+                        <h3 style="font-size: 1.25rem; font-weight: 600;">Top Cryptocurrencies</h3>
+                        <div class="table-controls">
+                            <input type="text" class="search-input" placeholder="Search symbol..." id="searchInput">
+                            <button class="filter-btn" id="filterBtn" type="button">Signal: ALL</button>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <div class="performance-grid">
-                <div class="metric-card">
-                    <div class="metric-label">Direction Accuracy</div>
-                    <div class="performance-value" id="directionAccuracy">67.2%</div>
-                    <div class="metric-change positive">30-day paper trading</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Interval Coverage</div>
-                    <div class="performance-value" id="intervalCoverage">81.3%</div>
-                    <div class="metric-change positive">Target: 80%</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Brier Score</div>
-                    <div class="performance-value" id="brierScore">0.234</div>
-                    <div class="metric-change positive">Lower is better</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Win Rate</div>
-                    <div class="performance-value" id="winRate">54.2%</div>
-                    <div class="metric-change positive">Last 30 days</div>
-                </div>
-            </div>
-
-            <!-- Crypto Table -->
-            <div class="table-container">
-                <div class="table-header">
-                    <h3 style="font-size: 1.25rem; font-weight: 600;">Top Cryptocurrencies</h3>
-                    <div class="table-controls">
-                        <input type="text" class="search-input" placeholder="Search symbol..." id="searchInput">
-                        <button class="filter-btn" id="filterBtn">Signal: ALL</button>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th class="sortable" data-sort-key="symbol">Symbol <span class="sort-indicator">↕</span></th>
+                                <th class="sortable" data-sort-key="price">Price <span class="sort-indicator">↕</span></th>
+                                <th class="sortable" data-sort-key="change">24h Change <span class="sort-indicator">↕</span></th>
+                                <th class="sortable" data-sort-key="pUp" title="Probability of Upward Movement (next interval)">P(UP) <span class="sort-indicator">↕</span></th>
+                                <th class="sortable" data-sort-key="signal">Signal <span class="sort-indicator">↕</span></th>
+                                <th class="sortable" data-sort-key="volume">24h Volume <span class="sort-indicator">↕</span></th>
+                                <th class="sortable" data-sort-key="status">Status <span class="sort-indicator">↕</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="cryptoTableBody"></tbody>
+                    </table>
+                    <div class="load-more-wrap">
+                        <button class="btn btn-secondary btn-sm" id="loadMoreBtn" type="button">Load More</button>
                     </div>
                 </div>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Symbol</th>
-                            <th>Price</th>
-                            <th>24h Change</th>
-                            <th>P(UP)</th>
-                            <th>Signal</th>
-                            <th>24h Volume</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="cryptoTableBody">
-                    </tbody>
-                </table>
-            </div>
             </div>
         </div>
     </main>
 
-    <footer style="background: var(--bg-secondary); border-top: 1px solid var(--border-color); padding: 2rem 0; margin-top: 4rem;">
+    <footer style="background: var(--bg-card); border-top: 1px solid var(--border-default); padding: 2rem 0; margin-top: 3rem;">
         <div class="container">
             <div style="text-align: center;">
-                <p style="color: var(--text-muted); font-size: 0.875rem;">
-                    © 2026 StockandCrypto. AI-powered quantitative trading platform.
-                </p>
+                <p style="color: var(--text-muted); font-size: 0.86rem;">(c) 2026 StockandCrypto. AI-powered quantitative trading platform. v3.2 - Last Update 2026-03-03</p>
             </div>
         </div>
     </footer>
