@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>US Equity Analysis - StockandCrypto</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/components.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="header-container">
+            <div class="logo">
+                <a href="index.html">
+                    <span class="logo-icon">◈</span>
+                    <span class="logo-text">StockandCrypto</span>
+                </a>
+            </div>
+            <nav class="nav">
+                <button class="nav-toggle" id="navToggle">
+                    <span></span><span></span><span></span>
+                </button>
+                <ul class="nav-menu" id="navMenu">
+                    <li><a href="index.html" class="nav-link">Home</a></li>
+                    <li><a href="crypto.html" class="nav-link">Crypto</a></li>
+                    <li><a href="cn-equity.html" class="nav-link">CN Equity</a></li>
+                    <li><a href="us-equity.html" class="nav-link active">US Equity</a></li>
+                    <li><a href="session-crypto.html" class="nav-link">Session Forecast</a></li>
+                    <li><a href="tracking.html" class="nav-link">Tracking</a></li>
+                </ul>
+            </nav>
+            <div class="nav-actions">
+                <a href="login.html" class="btn btn-secondary btn-sm">Login</a>
+            </div>
+        </div>
+    </header>
+
+    <main style="padding-top: 100px; min-height: 100vh;">
+        <div class="container">
+            <div class="section-header" style="text-align: left; margin-bottom: 2rem;">
+                <span class="section-tag">Market Data</span>
+                <h1 class="section-title">US Equity Analysis</h1>
+                <p style="color: var(--text-secondary);">Dow 30, Nasdaq 100 & S&P 500 constituents with AI forecasts</p>
+            </div>
+
+            <!-- Market Stats -->
+            <div class="dashboard-grid" style="margin-bottom: 2rem;">
+                <div class="metric-card">
+                    <div class="metric-label">Dow Jones 30</div>
+                    <div class="metric-value" id="dowIndex">38,654.42</div>
+                    <div class="metric-change positive" id="dowChange">+0.85%</div>
+                    <div style="margin-top: 1rem;">
+                        <span class="status-badge success">Market Open</span>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Nasdaq 100</div>
+                    <div class="metric-value" id="nasdaqIndex">16,789.23</div>
+                    <div class="metric-change positive" id="nasdaqChange">+1.52%</div>
+                    <div style="margin-top: 1rem;">
+                        <span class="status-badge success">Market Open</span>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">S&P 500</div>
+                    <div class="metric-value" id="spIndex">5,234.18</div>
+                    <div class="metric-change positive" id="spChange">+1.12%</div>
+                    <div style="margin-top: 1rem;">
+                        <span class="status-badge success">Market Open</span>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Model Accuracy</div>
+                    <div class="metric-value">0.67</div>
+                    <div class="metric-change positive">
+                        <span>Direction (Daily)</span>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <span class="status-badge warning">Paper Trading</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Index Chart -->
+            <div class="chart-container" style="margin-bottom: 2rem;">
+                <div class="chart-header">
+                    <h3 class="chart-title">S&P 500 Index Movement</h3>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-secondary btn-sm">1D</button>
+                        <button class="btn btn-primary btn-sm">5D</button>
+                        <button class="btn btn-secondary btn-sm">1M</button>
+                    </div>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="indexChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Prediction Cards -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem; margin-bottom: 2rem;">
+                <!-- Direction Prediction -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Direction Forecast</h3>
+                        <span class="status-badge info">Daily Horizon</span>
+                    </div>
+                    <div class="card-body">
+                        <div style="display: flex; justify-content: space-around; margin: 2rem 0;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 3rem; font-weight: 700; color: var(--success);">0.67</div>
+                                <div style="color: var(--text-secondary); margin-top: 0.5rem;">P(UP)</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 3rem; font-weight: 700; color: var(--danger);">0.33</div>
+                                <div style="color: var(--text-secondary); margin-top: 0.5rem;">P(DOWN)</div>
+                            </div>
+                        </div>
+                        <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <span style="color: var(--text-secondary);">Signal:</span>
+                                <span style="color: var(--success); font-weight: 600;">STRONG LONG</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">Short Allowed:</span>
+                                <span style="color: var(--success); font-weight: 600;">Yes</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Magnitude Prediction -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Magnitude Intervals</h3>
+                        <span class="status-badge info">3-Day</span>
+                    </div>
+                    <div class="card-body">
+                        <div style="margin: 1.5rem 0;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+                                <span style="color: var(--text-secondary);">q10:</span>
+                                <span style="color: var(--danger); font-weight: 600;">-1.8%</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+                                <span style="color: var(--text-secondary);">q50:</span>
+                                <span style="color: var(--success); font-weight: 600;">+2.3%</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+                                <span style="color: var(--text-secondary);">q90:</span>
+                                <span style="color: var(--success); font-weight: 600;">+4.5%</span>
+                            </div>
+                        </div>
+                        <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 8px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <span style="color: var(--text-secondary);">Interval Width:</span>
+                                <span style="color: var(--success); font-weight: 600;">6.3%</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">Coverage:</span>
+                                <span style="color: var(--success); font-weight: 600;">81%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Constituent Table -->
+            <div class="table-container">
+                <div class="table-header">
+                    <h3 style="font-size: 1.25rem; font-weight: 600;">Dow Jones 30 Constituents</h3>
+                    <div class="table-controls">
+                        <input type="text" class="search-input" placeholder="Search symbol..." id="searchInput">
+                        <button class="filter-btn">Filter</button>
+                    </div>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Name</th>
+                            <th>Price</th>
+                            <th>Change</th>
+                            <th>P(UP)</th>
+                            <th>Signal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>AAPL</strong></td>
+                            <td>Apple Inc.</td>
+                            <td>$178.72</td>
+                            <td style="color: var(--success);">+2.1%</td>
+                            <td>0.68</td>
+                            <td><span class="status-badge success">LONG</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>MSFT</strong></td>
+                            <td>Microsoft Corp.</td>
+                            <td>$415.50</td>
+                            <td style="color: var(--success);">+1.8%</td>
+                            <td>0.71</td>
+                            <td><span class="status-badge success">LONG</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>JPM</strong></td>
+                            <td>JPMorgan Chase</td>
+                            <td>$198.34</td>
+                            <td style="color: var(--danger);">-0.5%</td>
+                            <td>0.48</td>
+                            <td><span class="status-badge warning">FLAT</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>V</strong></td>
+                            <td>Visa Inc.</td>
+                            <td>$282.15</td>
+                            <td style="color: var(--success);">+0.9%</td>
+                            <td>0.56</td>
+                            <td><span class="status-badge success">LONG</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>GS</strong></td>
+                            <td>Goldman Sachs</td>
+                            <td>$456.78</td>
+                            <td style="color: var(--success);">+1.5%</td>
+                            <td>0.62</td>
+                            <td><span class="status-badge success">LONG</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <footer style="background: var(--bg-secondary); border-top: 1px solid var(--border-color); padding: 2rem 0; margin-top: 4rem;">
+        <div class="container">
+            <div style="text-align: center;">
+                <p style="color: var(--text-muted); font-size: 0.875rem;">
+                    © 2026 StockandCrypto. AI-powered quantitative trading platform.
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/us-equity.js"></script>
+</body>
+</html>
