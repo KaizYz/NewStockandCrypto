@@ -13,6 +13,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Navigation
 function initializeNavigation() {
+    if (window.SiteNav && typeof window.SiteNav.init === 'function') {
+        window.SiteNav.init();
+        return;
+    }
+
     const navToggle = document.getElementById('navToggle');
     const navMenu = document.getElementById('navMenu');
 
