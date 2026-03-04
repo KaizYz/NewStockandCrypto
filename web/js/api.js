@@ -128,6 +128,11 @@ const api = {
         return this.get(`/cn-equity/csi300/quotes${buildQueryString(params)}`);
     },
 
+    // Get CN indices intraday history for mini trends
+    async getCNEquityIndicesHistory(params = {}) {
+        return this.get(`/cn-equity/indices/history${buildQueryString(params)}`);
+    },
+
     // Get US equity prices
     async getUSEquityPrices(params = {}) {
         return this.get(`/us-equity/prices${buildQueryString(params)}`);

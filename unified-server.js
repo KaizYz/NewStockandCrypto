@@ -17,6 +17,11 @@ const WEB_ROOT = path.join(__dirname, 'web');
 const CRYPTO_CACHE_TTL_MS = Number(process.env.CRYPTO_CACHE_TTL_MS || 9000);
 const CN_CACHE_TTL_MS = Number(process.env.CN_CACHE_TTL_MS || 9000);
 const CN_POLL_INTERVAL_SEC = Number(process.env.CN_POLL_INTERVAL_SEC || 10);
+const CN_INDEX_HISTORY_CACHE_TTL_MS = Number(process.env.CN_INDEX_HISTORY_CACHE_TTL_MS || 60000);
+const CN_INDEX_HISTORY_DEFAULT_INTERVAL = '1m';
+const CN_INDEX_HISTORY_INTERVAL_ALLOW = new Set(['1m', '5m']);
+const CN_INDEX_HISTORY_SESSION_ALLOW = new Set(['auto', 'today', 'last']);
+const EASTMONEY_KLINE_BASE = 'https://push2his.eastmoney.com/api/qt/stock/kline/get';
 const US_CACHE_TTL_MS = Number(process.env.US_CACHE_TTL_MS || 9000);
 const US_POLL_INTERVAL_SEC = Number(process.env.US_POLL_INTERVAL_SEC || 10);
 const US_INDEX_FAST_CACHE_TTL_MS = Number(process.env.US_INDEX_FAST_CACHE_TTL_MS || 5000);
@@ -40,6 +45,10 @@ const INDEX_SECIDS = {
 const INDEX_NAME_BY_CODE = {
     '000001.SH': 'SSE Composite',
     '000300.SH': 'CSI 300'
+};
+const CN_INDEX_HISTORY_SYMBOLS = {
+    sse: { key: 'sse', code: '000001.SH', secid: INDEX_SECIDS['000001.SH'], name: 'SSE Composite' },
+    csi300: { key: 'csi300', code: '000300.SH', secid: INDEX_SECIDS['000300.SH'], name: 'CSI 300' }
 };
 const MARKET_SESSION_TIMEZONE = 'Asia/Shanghai';
 const MARKET_SESSION_TIMEZONE_LABEL = 'Beijing Time (CST, UTC+8)';
@@ -75,6 +84,9 @@ let cryptoPriceCache = null;
 let cryptoPriceCacheAt = 0;
 let cnCache = null;
 let cnCacheAt = 0;
+let cnIndicesHistoryCache = null;
+let cnIndicesHistoryCacheAt = 0;
+let cnIndicesHistoryCacheKey = '';
 let usCache = null;
 let usCacheAt = 0;
 let usIndicesCache = null;
@@ -166,6 +178,17 @@ function nextTradingDateKey(currentDate) {
     const date = new Date(currentDate.getTime());
     while (true) {
         date.setUTCDate(date.getUTCDate() + 1);
+        const shanghai = toShanghaiNow(date);
+        if (shanghai.weekday !== 'Sat' && shanghai.weekday !== 'Sun') {
+            return shanghai.dateKey;
+        }
+    }
+}
+
+function previousShanghaiTradingDateKey(currentDate) {
+    const date = new Date(currentDate.getTime());
+    while (true) {
+        date.setUTCDate(date.getUTCDate() - 1);
         const shanghai = toShanghaiNow(date);
         if (shanghai.weekday !== 'Sat' && shanghai.weekday !== 'Sun') {
             return shanghai.dateKey;
@@ -907,6 +930,249 @@ async function fetchEastMoneyQuotes(secids) {
     return bySecid;
 }
 
+function buildEastMoneyKlineUrl(secid, interval) {
+    const klt = interval === '5m' ? 5 : 1;
+    const fields1 = 'f1,f2,f3,f4,f5,f6';
+    const fields2 = 'f51,f52,f53,f54,f55,f56,f57,f58';
+    return `${EASTMONEY_KLINE_BASE}?secid=${encodeURIComponent(secid)}&ut=fa5fd1943c7b386f172d6893dbfba10b&fields1=${fields1}&fields2=${fields2}&klt=${klt}&fqt=1&beg=0&end=20500000`;
+}
+
+function parseEastMoneyKlinePoints(payload) {
+    const rows = payload?.data?.klines;
+    if (!Array.isArray(rows)) {
+        throw new Error('Unexpected EastMoney index history payload');
+    }
+    const points = [];
+    for (const row of rows) {
+        if (typeof row !== 'string') continue;
+        const cells = row.split(',');
+        if (cells.length < 3) continue;
+        const tsRaw = String(cells[0] || '').trim();
+        const close = parseNumber(cells[2]);
+        if (!tsRaw || close === null) continue;
+        const ts = new Date(`${tsRaw.replace(' ', 'T')}+08:00`);
+        if (!Number.isFinite(ts.getTime())) continue;
+        const dateKey = ts.toISOString().slice(0, 10);
+        points.push({
+            ts: ts.toISOString(),
+            dateKey,
+            price: close
+        });
+    }
+    points.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
+    return points;
+}
+
+function parseCnHistorySymbols(rawSymbols) {
+    if (!rawSymbols) return ['sse', 'csi300'];
+    const requested = String(rawSymbols)
+        .split(',')
+        .map((item) => item.trim().toLowerCase())
+        .filter(Boolean);
+    const allowed = requested.filter((item) => item === 'sse' || item === 'csi300');
+    return allowed.length ? Array.from(new Set(allowed)) : ['sse', 'csi300'];
+}
+
+function parseCnIndicesHistoryQuery(parsedUrl) {
+    const sessionCandidate = String(parsedUrl.searchParams.get('session') || 'auto').toLowerCase();
+    const session = CN_INDEX_HISTORY_SESSION_ALLOW.has(sessionCandidate) ? sessionCandidate : 'auto';
+    const intervalCandidate = String(parsedUrl.searchParams.get('interval') || CN_INDEX_HISTORY_DEFAULT_INTERVAL).toLowerCase();
+    const interval = CN_INDEX_HISTORY_INTERVAL_ALLOW.has(intervalCandidate) ? intervalCandidate : CN_INDEX_HISTORY_DEFAULT_INTERVAL;
+    const symbols = parseCnHistorySymbols(parsedUrl.searchParams.get('symbols'));
+    return { session, interval, symbols };
+}
+
+function buildCnRegularSessionWindow(dateKey) {
+    const amStart = makeShanghaiDate(dateKey, 9, 30);
+    const amEnd = makeShanghaiDate(dateKey, 11, 30);
+    const pmStart = makeShanghaiDate(dateKey, 13, 0);
+    const pmEnd = makeShanghaiDate(dateKey, 15, 0);
+    return {
+        dateKey,
+        amStart,
+        amEnd,
+        pmStart,
+        pmEnd,
+        startIso: amStart.toISOString(),
+        endIso: pmEnd.toISOString()
+    };
+}
+
+function filterCnSeriesByWindow(points, window) {
+    if (!Array.isArray(points) || !points.length) return [];
+    const amStartMs = window.amStart.getTime();
+    const amEndMs = window.amEnd.getTime();
+    const pmStartMs = window.pmStart.getTime();
+    const pmEndMs = window.pmEnd.getTime();
+    return points
+        .filter((point) => {
+            const ts = Date.parse(point.ts);
+            if (!Number.isFinite(ts)) return false;
+            const inAm = ts >= amStartMs && ts <= amEndMs;
+            const inPm = ts >= pmStartMs && ts <= pmEndMs;
+            return inAm || inPm;
+        })
+        .map((point) => ({
+            ts: point.ts,
+            price: point.price
+        }));
+}
+
+function isShanghaiTradingDate(shanghaiNow) {
+    return shanghaiNow.weekday !== 'Sat' && shanghaiNow.weekday !== 'Sun';
+}
+
+function resolveCnHistoryTarget(querySession, now = new Date()) {
+    const shanghai = toShanghaiNow(now);
+    const marketSession = computeMarketSession(now);
+    const isTradingDay = isShanghaiTradingDate(shanghai);
+    const marketClose = makeShanghaiDate(shanghai.dateKey, 15, 0);
+    const afterClose = isTradingDay && shanghai.date.getTime() >= marketClose.getTime();
+
+    let selectedType = 'TODAY_REGULAR';
+    let targetDateKey = shanghai.dateKey;
+
+    if (querySession === 'today') {
+        if (!isTradingDay) {
+            selectedType = 'LAST_REGULAR';
+            targetDateKey = previousShanghaiTradingDateKey(shanghai.date);
+        }
+    } else if (querySession === 'last') {
+        selectedType = 'LAST_REGULAR';
+        targetDateKey = afterClose ? shanghai.dateKey : previousShanghaiTradingDateKey(shanghai.date);
+    } else {
+        const inRegularSession = ['CONTINUOUS_AM', 'CONTINUOUS_PM', 'CLOSE_AUCTION'].includes(String(marketSession.phaseCode || '').toUpperCase());
+        if (inRegularSession) {
+            selectedType = 'TODAY_REGULAR';
+            targetDateKey = shanghai.dateKey;
+        } else {
+            selectedType = 'LAST_REGULAR';
+            targetDateKey = afterClose ? shanghai.dateKey : previousShanghaiTradingDateKey(shanghai.date);
+        }
+    }
+
+    const window = buildCnRegularSessionWindow(targetDateKey);
+    return { marketSession, selectedType, targetDateKey, window, shanghaiNow: shanghai };
+}
+
+function buildCnSessionLabel(selectedType) {
+    if (selectedType === 'LAST_REGULAR') return 'Last Regular Session (09:30-15:00 CST)';
+    return 'Regular Session (09:30-15:00 CST)';
+}
+
+function buildCnOpenClose(seriesPoints, isFinalClose) {
+    if (!Array.isArray(seriesPoints) || !seriesPoints.length) {
+        return {
+            open: null,
+            close: null,
+            isFinalClose
+        };
+    }
+    return {
+        open: Number(seriesPoints[0].price.toFixed(2)),
+        close: Number(seriesPoints[seriesPoints.length - 1].price.toFixed(2)),
+        isFinalClose
+    };
+}
+
+async function fetchCnIndicesHistoryPayload(query, preResolved = null) {
+    const resolved = preResolved || resolveCnHistoryTarget(query.session, new Date());
+    const symbols = Array.isArray(query.symbols) && query.symbols.length ? query.symbols : ['sse', 'csi300'];
+    const rawSeries = {};
+
+    await Promise.all(symbols.map(async (symbolKey) => {
+        const symbolMeta = CN_INDEX_HISTORY_SYMBOLS[symbolKey];
+        if (!symbolMeta) return;
+        const payload = await fetchJsonFromHttps(buildEastMoneyKlineUrl(symbolMeta.secid, query.interval), 9000);
+        rawSeries[symbolKey] = parseEastMoneyKlinePoints(payload);
+    }));
+
+    let selectedType = resolved.selectedType;
+    let selectedWindow = resolved.window;
+    let series = {};
+
+    const applyWindow = (window) => {
+        const nextSeries = {};
+        symbols.forEach((symbolKey) => {
+            const points = rawSeries[symbolKey] || [];
+            nextSeries[symbolKey] = filterCnSeriesByWindow(points, window);
+        });
+        return nextSeries;
+    };
+
+    series = applyWindow(selectedWindow);
+
+    const allEmpty = symbols.every((symbolKey) => !series[symbolKey] || series[symbolKey].length === 0);
+    if (selectedType === 'TODAY_REGULAR' && allEmpty) {
+        selectedType = 'LAST_REGULAR';
+        const fallbackDateKey = previousShanghaiTradingDateKey(makeShanghaiDate(resolved.targetDateKey, 12, 0));
+        selectedWindow = buildCnRegularSessionWindow(fallbackDateKey);
+        series = applyWindow(selectedWindow);
+    }
+
+    const nowMs = resolved.shanghaiNow.date.getTime();
+    const isFinalClose = selectedType === 'LAST_REGULAR' || nowMs >= selectedWindow.pmEnd.getTime();
+    const openClose = {};
+    symbols.forEach((symbolKey) => {
+        openClose[symbolKey] = buildCnOpenClose(series[symbolKey] || [], isFinalClose);
+    });
+
+    return {
+        meta: {
+            source: 'eastmoney_trends',
+            timestamp: new Date().toISOString(),
+            stale: false
+        },
+        marketSession: {
+            phaseCode: resolved.marketSession.phaseCode,
+            timezoneLabel: resolved.marketSession.timezoneLabel
+        },
+        selectedSession: {
+            type: selectedType,
+            label: buildCnSessionLabel(selectedType),
+            startCst: selectedWindow.startIso,
+            endCst: selectedWindow.endIso
+        },
+        series,
+        openClose
+    };
+}
+
+function buildCnIndicesHistoryCacheKey(query) {
+    const resolved = resolveCnHistoryTarget(query.session, new Date());
+    const symbolsKey = (query.symbols || ['sse', 'csi300']).join(',');
+    return `${query.session}|${query.interval}|${symbolsKey}|${resolved.selectedType}|${resolved.targetDateKey}`;
+}
+
+async function getCnIndicesHistoryWithCache(query) {
+    const now = Date.now();
+    const cacheKey = buildCnIndicesHistoryCacheKey(query);
+    if (
+        cnIndicesHistoryCache &&
+        cnIndicesHistoryCacheKey === cacheKey &&
+        now - cnIndicesHistoryCacheAt <= CN_INDEX_HISTORY_CACHE_TTL_MS
+    ) {
+        return deepCopy(cnIndicesHistoryCache);
+    }
+
+    try {
+        const payload = await fetchCnIndicesHistoryPayload(query);
+        cnIndicesHistoryCache = payload;
+        cnIndicesHistoryCacheAt = Date.now();
+        cnIndicesHistoryCacheKey = cacheKey;
+        return deepCopy(payload);
+    } catch (error) {
+        if (cnIndicesHistoryCache && cnIndicesHistoryCacheKey === cacheKey) {
+            const stalePayload = deepCopy(cnIndicesHistoryCache);
+            stalePayload.meta.stale = true;
+            stalePayload.meta.staleReason = error.message;
+            stalePayload.meta.timestamp = new Date().toISOString();
+            return stalePayload;
+        }
+        throw error;
+    }
+}
+
 function calculatePrediction(quote) {
     const changePct = quote.changePct ?? 0;
     const prevClose = quote.prevClose || quote.price || 1;
@@ -1351,6 +1617,28 @@ async function handleCnQuotes(req, res, parsedUrl) {
     } catch (error) {
         sendJson(res, 502, {
             error: 'Failed to fetch CN equity quotes',
+            detail: error.message
+        });
+    }
+}
+
+async function handleCnIndicesHistory(req, res, parsedUrl) {
+    if (req.method === 'OPTIONS') {
+        sendJson(res, 200, { ok: true });
+        return;
+    }
+    if (req.method !== 'GET') {
+        sendJson(res, 405, { error: 'Method not allowed' });
+        return;
+    }
+
+    const query = parseCnIndicesHistoryQuery(parsedUrl);
+    try {
+        const payload = await getCnIndicesHistoryWithCache(query);
+        sendJson(res, 200, payload);
+    } catch (error) {
+        sendJson(res, 502, {
+            error: 'Failed to fetch CN index history from EastMoney',
             detail: error.message
         });
     }
@@ -2690,6 +2978,10 @@ const server = http.createServer((req, res) => {
 
     if (parsedUrl.pathname === '/api/cn-equity/prices') {
         handleCnPrices(req, res, parsedUrl);
+        return;
+    }
+    if (parsedUrl.pathname === '/api/cn-equity/indices/history') {
+        handleCnIndicesHistory(req, res, parsedUrl);
         return;
     }
     if (parsedUrl.pathname === '/api/cn-equity/csi300/quotes') {

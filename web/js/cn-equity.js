@@ -4,6 +4,7 @@
 
 const CN_POLL_INTERVAL_MS = 10000;
 const MAX_CHART_POINTS = 48;
+const CN_HISTORY_RESEED_COOLDOWN_MS = 60000;
 const CHART_PHASE_MARKERS = [
     { label: 'Open', ratio: 0.15 },
     { label: 'Lunch', ratio: 0.56 },
@@ -40,6 +41,23 @@ const state = {
         lowerLimit: [],
         predictedOpen: [],
         predictedClose: []
+    },
+    indexSeries: {
+        sse: [],
+        csi300: []
+    },
+    openClose: {
+        sse: null,
+        csi300: null
+    },
+    historySessionLabel: 'Regular Session (09:30-15:00 CST)',
+    historySessionType: 'TODAY_REGULAR',
+    historySessionStartMs: null,
+    historySessionEndMs: null,
+    lastHistoryReseedAttemptAt: 0,
+    sparklineCharts: {
+        sse: null,
+        csi300: null
     },
     pollTimer: null,
     countdownTimer: null,
@@ -96,11 +114,13 @@ if (window.Chart && !window.Chart.registry.plugins.get('cn-phase-markers')) {
     window.Chart.register(phaseMarkerPlugin);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     cacheElements();
     bindEvents();
     initializeChart();
-    refreshAll();
+    initializeMiniCharts();
+    await seedIndexHistory(true);
+    await refreshAll();
     startPolling();
     startCountdownTimer();
 });
@@ -127,9 +147,15 @@ function cacheElements() {
         sseIndexValue: byId('sseIndexValue'),
         sseIndexChange: byId('sseIndexChange'),
         sseIndexStatus: byId('sseIndexStatus'),
+        sseOpenClose: byId('sseOpenClose'),
+        sseMiniTrend: byId('sseMiniTrend'),
+        sseMiniLabel: byId('sseMiniLabel'),
         csi300IndexValue: byId('csi300IndexValue'),
         csi300IndexChange: byId('csi300IndexChange'),
         csi300IndexStatus: byId('csi300IndexStatus'),
+        csiOpenClose: byId('csiOpenClose'),
+        csiMiniTrend: byId('csiMiniTrend'),
+        csiMiniLabel: byId('csiMiniLabel'),
         indexChart: byId('indexChart'),
         refreshNowBtn: byId('refreshNowBtn'),
         indexSelector: byId('indexSelector'),
@@ -315,6 +341,41 @@ function initializeChart() {
     });
 }
 
+function createSparklineChart(canvasEl) {
+    if (!canvasEl || !window.Chart) return null;
+    return new Chart(canvasEl.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                data: [],
+                borderColor: '#00E5FF',
+                borderWidth: 1.8,
+                pointRadius: 0,
+                tension: 0.22,
+                fill: false
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            animation: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: true }
+            },
+            scales: {
+                x: { display: false },
+                y: { display: false }
+            }
+        }
+    });
+}
+
+function initializeMiniCharts() {
+    state.sparklineCharts.sse = createSparklineChart(els.sseMiniTrend);
+    state.sparklineCharts.csi300 = createSparklineChart(els.csiMiniTrend);
+}
+
 function startPolling() {
     if (state.pollTimer) clearInterval(state.pollTimer);
     state.pollTimer = setInterval(() => refreshAll(), CN_POLL_INTERVAL_MS);
@@ -351,13 +412,23 @@ async function refreshAll(manual = false) {
         state.lastUpdated = payload.meta?.timestamp || new Date().toISOString();
         state.tickCount += 1;
         state.mode = payload.meta?.stale ? 'stale' : 'live';
+        const nowMs = Date.parse(state.lastUpdated) || Date.now();
 
         text(els.sourceDelayNote, payload.meta?.delayNote || 'Data Source: EastMoney API | Delay: ~3-10s (Level-1)');
         text(els.disclaimerText, payload.meta?.disclaimer || 'Not for actual trading - Simulation only');
 
+        if (shouldReseedHistory(nowMs)) {
+            const cooldownElapsed = Date.now() - state.lastHistoryReseedAttemptAt > CN_HISTORY_RESEED_COOLDOWN_MS;
+            if (cooldownElapsed) {
+                state.lastHistoryReseedAttemptAt = Date.now();
+                await seedIndexHistory(true);
+            }
+        }
+
         if (state.indices?.sse?.price !== null && state.indices?.sse?.price !== undefined) {
             pushChartPoint(state.indices.sse.price, state.lastUpdated);
         }
+        appendMiniSeriesPoints(state.indices, state.lastUpdated);
 
         await loadPrediction();
         renderAll();
@@ -381,10 +452,176 @@ async function loadPrediction() {
     }
 }
 
+async function seedIndexHistory(silent = false) {
+    try {
+        const payload = await api.getCNEquityIndicesHistory({
+            session: 'auto',
+            interval: '1m',
+            symbols: 'sse,csi300'
+        });
+        applyHistorySessionMetadata(payload?.selectedSession);
+        hydrateIndexSeries(payload?.series || {});
+        applyOpenCloseFromPayload(payload?.openClose || {});
+        updateAllMiniCharts();
+        renderMiniTrendLabels();
+        return true;
+    } catch (error) {
+        if (!silent && window.showToast?.warning) {
+            window.showToast.warning('Unable to preload CN mini trend history.');
+        }
+        return false;
+    }
+}
+
+function applyHistorySessionMetadata(selectedSession) {
+    const startMs = Date.parse(selectedSession?.startCst || '');
+    const endMs = Date.parse(selectedSession?.endCst || '');
+    state.historySessionStartMs = Number.isFinite(startMs) ? startMs : null;
+    state.historySessionEndMs = Number.isFinite(endMs) ? endMs : null;
+    state.historySessionType = String(selectedSession?.type || 'TODAY_REGULAR');
+    state.historySessionLabel = String(selectedSession?.label || 'Regular Session (09:30-15:00 CST)');
+}
+
+function hydrateIndexSeries(series) {
+    ['sse', 'csi300'].forEach((key) => {
+        const raw = Array.isArray(series?.[key]) ? series[key] : [];
+        state.indexSeries[key] = raw
+            .map((point) => {
+                const ts = Date.parse(point?.ts);
+                const price = Number(point?.price);
+                if (!Number.isFinite(ts) || !Number.isFinite(price)) return null;
+                return { ts, price };
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.ts - b.ts);
+    });
+}
+
+function applyOpenCloseFromPayload(openClosePayload) {
+    ['sse', 'csi300'].forEach((key) => {
+        const source = openClosePayload?.[key] || null;
+        if (!source) {
+            state.openClose[key] = deriveOpenCloseFromSeries(key);
+            return;
+        }
+        state.openClose[key] = {
+            open: Number.isFinite(Number(source.open)) ? Number(source.open) : null,
+            close: Number.isFinite(Number(source.close)) ? Number(source.close) : null,
+            isFinalClose: source.isFinalClose === true
+        };
+    });
+}
+
+function deriveOpenCloseFromSeries(key) {
+    const points = state.indexSeries[key] || [];
+    if (!points.length) {
+        return { open: null, close: null, isFinalClose: state.historySessionType === 'LAST_REGULAR' };
+    }
+    const nowMs = Date.parse(state.lastUpdated || '') || Date.now();
+    const isFinalClose = state.historySessionType === 'LAST_REGULAR' || (Number.isFinite(state.historySessionEndMs) && nowMs >= state.historySessionEndMs);
+    return {
+        open: Number(points[0].price.toFixed(2)),
+        close: Number(points[points.length - 1].price.toFixed(2)),
+        isFinalClose
+    };
+}
+
+function appendMiniSeriesPoints(indices, timestampIso) {
+    const nowMs = Date.parse(timestampIso) || Date.now();
+    if (!shouldAppendRealtimeMiniPoint(nowMs)) {
+        return;
+    }
+    appendSingleMiniPoint('sse', indices?.sse?.price, nowMs);
+    appendSingleMiniPoint('csi300', indices?.csi300?.price, nowMs);
+    state.openClose.sse = deriveOpenCloseFromSeries('sse');
+    state.openClose.csi300 = deriveOpenCloseFromSeries('csi300');
+    updateAllMiniCharts();
+}
+
+function appendSingleMiniPoint(key, price, nowMs) {
+    if (!Number.isFinite(price)) return;
+    const points = state.indexSeries[key] || [];
+    if (points.length && Math.abs(points[points.length - 1].price - Number(price)) < 0.000001) {
+        return;
+    }
+    points.push({ ts: nowMs, price: Number(price) });
+    state.indexSeries[key] = trimMiniSeriesToSession(points);
+}
+
+function trimMiniSeriesToSession(points) {
+    const source = Array.isArray(points) ? points : [];
+    if (!source.length) return [];
+    if (!Number.isFinite(state.historySessionStartMs) || !Number.isFinite(state.historySessionEndMs)) {
+        return source.slice();
+    }
+    return source.filter((point) => point.ts >= state.historySessionStartMs && point.ts <= state.historySessionEndMs);
+}
+
+function shouldAppendRealtimeMiniPoint(nowMs) {
+    const phaseCode = String(state.marketSession?.phaseCode || '').toUpperCase();
+    if (!['CONTINUOUS_AM', 'CONTINUOUS_PM', 'CLOSE_AUCTION'].includes(phaseCode)) return false;
+    if (Number.isFinite(state.historySessionStartMs) && nowMs < state.historySessionStartMs) return false;
+    if (Number.isFinite(state.historySessionEndMs) && nowMs > state.historySessionEndMs) return false;
+    return true;
+}
+
+function shouldReseedHistory(nowMs) {
+    if (!Number.isFinite(nowMs)) return false;
+    if (!Number.isFinite(state.historySessionStartMs)) return true;
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+    const currentDay = formatter.format(new Date(nowMs));
+    const historyDay = formatter.format(new Date(state.historySessionStartMs));
+    const phaseCode = String(state.marketSession?.phaseCode || '').toUpperCase();
+    if (!['PRE_OPEN_AUCTION', 'CONTINUOUS_AM', 'CONTINUOUS_PM', 'CLOSE_AUCTION'].includes(phaseCode)) {
+        return false;
+    }
+    return currentDay !== historyDay;
+}
+
+function updateAllMiniCharts() {
+    updateSingleMiniChart('sse', state.sparklineCharts.sse);
+    updateSingleMiniChart('csi300', state.sparklineCharts.csi300);
+}
+
+function updateSingleMiniChart(key, chart) {
+    if (!chart) return;
+    const points = state.indexSeries[key] || [];
+    const labels = points.map((point) => utils.formatTimestamp(new Date(point.ts).toISOString(), 'time'));
+    const values = points.map((point) => Number(point.price.toFixed(4)));
+    const color = chooseMiniChartColor(points);
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = values;
+    chart.data.datasets[0].borderColor = color;
+    chart.update('none');
+}
+
+function chooseMiniChartColor(points) {
+    if (state.mode === 'stale') return 'rgba(245,158,11,0.95)';
+    if (state.mode === 'error') return 'rgba(148,163,184,0.85)';
+    if (!points.length) return 'rgba(0,229,255,0.9)';
+    const first = points[0].price;
+    const last = points[points.length - 1].price;
+    if (last > first) return 'rgba(0,255,170,0.95)';
+    if (last < first) return 'rgba(255,77,79,0.95)';
+    return 'rgba(0,229,255,0.95)';
+}
+
+function renderMiniTrendLabels() {
+    text(els.sseMiniLabel, state.historySessionLabel || 'Regular Session (09:30-15:00 CST)');
+    text(els.csiMiniLabel, state.historySessionLabel || 'Regular Session (09:30-15:00 CST)');
+}
+
 function renderAll() {
     renderModeBanner();
     renderSession();
     renderIndices();
+    renderMiniTrendLabels();
+    updateAllMiniCharts();
     renderPrediction();
     renderTable();
     renderSortIndicators();
@@ -448,11 +685,13 @@ function renderSession() {
 }
 
 function renderIndices() {
-    renderIndexCard(state.indices?.sse, els.sseIndexValue, els.sseIndexChange, els.sseIndexStatus);
-    renderIndexCard(state.indices?.csi300, els.csi300IndexValue, els.csi300IndexChange, els.csi300IndexStatus);
+    if (!state.openClose.sse) state.openClose.sse = deriveOpenCloseFromSeries('sse');
+    if (!state.openClose.csi300) state.openClose.csi300 = deriveOpenCloseFromSeries('csi300');
+    renderIndexCard('sse', state.indices?.sse, els.sseIndexValue, els.sseIndexChange, els.sseIndexStatus, els.sseOpenClose);
+    renderIndexCard('csi300', state.indices?.csi300, els.csi300IndexValue, els.csi300IndexChange, els.csi300IndexStatus, els.csiOpenClose);
 }
 
-function renderIndexCard(data, valueEl, changeEl, statusEl) {
+function renderIndexCard(seriesKey, data, valueEl, changeEl, statusEl, openCloseEl) {
     if (!data) return;
     text(valueEl, data.price === null ? '--' : utils.formatNumber(data.price, 2));
     if (changeEl) {
@@ -464,6 +703,14 @@ function renderIndexCard(data, valueEl, changeEl, statusEl) {
         statusEl.textContent = state.mode === 'live' ? 'LIVE' : state.mode === 'stale' ? 'STALE' : 'ERROR';
         statusEl.className = `status-badge ${state.mode === 'live' ? 'success' : state.mode === 'stale' ? 'warning' : 'danger'}`;
     }
+    const derived = deriveOpenCloseFromSeries(seriesKey);
+    const seeded = state.openClose[seriesKey] || {};
+    const openClose = {
+        open: Number.isFinite(derived.open) ? derived.open : (Number.isFinite(seeded.open) ? seeded.open : null),
+        close: Number.isFinite(derived.close) ? derived.close : (Number.isFinite(seeded.close) ? seeded.close : null),
+        isFinalClose: derived.isFinalClose === true || seeded.isFinalClose === true
+    };
+    text(openCloseEl, formatOpenCloseLine(openClose));
 }
 
 function renderPrediction() {
@@ -621,6 +868,14 @@ function syncChartDatasets() {
     state.chart.data.datasets[3].data = state.chartSeries.predictedOpen;
     state.chart.data.datasets[4].data = state.chartSeries.predictedClose;
     state.chart.update('none');
+}
+
+function formatOpenCloseLine(packet) {
+    if (!packet) return 'Open: -- | Close: --';
+    const openText = Number.isFinite(packet.open) ? utils.formatNumber(packet.open, 2) : '--';
+    const closeText = Number.isFinite(packet.close) ? utils.formatNumber(packet.close, 2) : '--';
+    const suffix = packet.isFinalClose ? '' : ' (Provisional)';
+    return `Open: ${openText} | Close: ${closeText}${suffix}`;
 }
 
 function formatRate(value) {

@@ -142,6 +142,11 @@
             color: var(--text-muted);
             font-size: 0.73rem;
         }
+        .us-open-close-note {
+            margin-top: 0.3rem;
+            color: var(--text-secondary);
+            font-size: 0.73rem;
+        }
         .us-sparkline-wrap {
             height: 72px;
             margin-top: 0.6rem;
@@ -229,6 +234,7 @@
                     <div class="metric-value" id="dowIndexValue">--</div>
                     <div class="metric-change" id="dowIndexChange">--</div>
                     <div class="us-quote-note" id="dowQuoteTime">Quote: -- ET</div>
+                    <div class="us-open-close-note us-mono" id="dowOpenClose">Open: -- | Close: --</div>
                     <div class="us-sparkline-wrap"><canvas id="dowSparkline"></canvas></div>
                     <div style="margin-top:0.7rem;"><span class="status-badge info" id="dowIndexStatus">WAITING</span></div>
                 </div>
@@ -237,6 +243,7 @@
                     <div class="metric-value" id="ndxIndexValue">--</div>
                     <div class="metric-change" id="ndxIndexChange">--</div>
                     <div class="us-quote-note" id="ndxQuoteTime">Quote: -- ET</div>
+                    <div class="us-open-close-note us-mono" id="ndxOpenClose">Open: -- | Close: --</div>
                     <div class="us-sparkline-wrap"><canvas id="ndxSparkline"></canvas></div>
                     <div style="margin-top:0.7rem;"><span class="status-badge info" id="ndxIndexStatus">WAITING</span></div>
                 </div>
@@ -245,6 +252,7 @@
                     <div class="metric-value" id="spxIndexValue">--</div>
                     <div class="metric-change" id="spxIndexChange">--</div>
                     <div class="us-quote-note" id="spxQuoteTime">Quote: -- ET</div>
+                    <div class="us-open-close-note us-mono" id="spxOpenClose">Open: -- | Close: --</div>
                     <div class="us-sparkline-wrap"><canvas id="spxSparkline"></canvas></div>
                     <div style="margin-top:0.7rem;"><span class="status-badge info" id="spxIndexStatus">WAITING</span></div>
                 </div>
@@ -266,14 +274,17 @@
                             <button type="button" class="us-control-chip" data-axis-mode="absolute">Absolute Points</button>
                         </div>
                     </div>
+                    <div class="us-open-close-note us-mono" id="dowMiniOpenClose">Open: -- | Close: --</div>
                     <div class="us-mini-canvas"><canvas id="dowMiniTrend"></canvas></div>
                 </div>
                 <div class="us-mini-card">
                     <div class="us-mini-head"><span>Nasdaq 100 Mini Trend</span><span class="us-mono" id="ndxMiniLabel">Regular Session (09:30-16:00 ET)</span></div>
+                    <div class="us-open-close-note us-mono" id="ndxMiniOpenClose">Open: -- | Close: --</div>
                     <div class="us-mini-canvas"><canvas id="ndxMiniTrend"></canvas></div>
                 </div>
                 <div class="us-mini-card">
                     <div class="us-mini-head"><span>S&amp;P 500 Mini Trend</span><span class="us-mono" id="spxMiniLabel">Regular Session (09:30-16:00 ET)</span></div>
+                    <div class="us-open-close-note us-mono" id="spxMiniOpenClose">Open: -- | Close: --</div>
                     <div class="us-mini-canvas"><canvas id="spxMiniTrend"></canvas></div>
                 </div>
             </section>

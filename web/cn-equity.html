@@ -140,6 +140,20 @@
             font-size: 0.75rem;
             color: var(--text-secondary);
         }
+        .cn-open-close-note {
+            margin-top: 0.45rem;
+            color: var(--text-muted);
+            font-size: 0.73rem;
+        }
+        .cn-sparkline-wrap {
+            height: 72px;
+            margin-top: 0.5rem;
+        }
+        .cn-mini-caption {
+            margin-top: 0.35rem;
+            color: var(--text-secondary);
+            font-size: 0.72rem;
+        }
         .cn-limit-badge {
             border-radius: var(--radius-sm);
             padding: 0.18rem 0.5rem;
@@ -240,6 +254,9 @@
                     <div class="metric-label">SSE Composite</div>
                     <div class="metric-value" id="sseIndexValue">--</div>
                     <div class="metric-change" id="sseIndexChange">--</div>
+                    <div class="cn-open-close-note cn-mono" id="sseOpenClose">Open: -- | Close: --</div>
+                    <div class="cn-sparkline-wrap"><canvas id="sseMiniTrend"></canvas></div>
+                    <div class="cn-mini-caption cn-mono" id="sseMiniLabel">Regular Session (09:30-15:00 CST)</div>
                     <div style="margin-top:0.7rem;">
                         <span class="status-badge info" id="sseIndexStatus">WAITING</span>
                     </div>
@@ -252,6 +269,9 @@
                     <div class="metric-label">CSI 300</div>
                     <div class="metric-value" id="csi300IndexValue">--</div>
                     <div class="metric-change" id="csi300IndexChange">--</div>
+                    <div class="cn-open-close-note cn-mono" id="csiOpenClose">Open: -- | Close: --</div>
+                    <div class="cn-sparkline-wrap"><canvas id="csiMiniTrend"></canvas></div>
+                    <div class="cn-mini-caption cn-mono" id="csiMiniLabel">Regular Session (09:30-15:00 CST)</div>
                     <div style="margin-top:0.7rem;">
                         <span class="status-badge info" id="csi300IndexStatus">WAITING</span>
                     </div>

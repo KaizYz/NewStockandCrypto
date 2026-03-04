@@ -143,6 +143,9 @@ function cacheElements() {
         dowQuoteTime: byId('dowQuoteTime'),
         ndxQuoteTime: byId('ndxQuoteTime'),
         spxQuoteTime: byId('spxQuoteTime'),
+        dowOpenClose: byId('dowOpenClose'),
+        ndxOpenClose: byId('ndxOpenClose'),
+        spxOpenClose: byId('spxOpenClose'),
         refreshNowBtn: byId('refreshNowBtn'),
         indexSelector: byId('indexSelector'),
         indexChart: byId('indexChart'),
@@ -182,6 +185,9 @@ function cacheElements() {
         dowMiniLabel: byId('dowMiniLabel'),
         ndxMiniLabel: byId('ndxMiniLabel'),
         spxMiniLabel: byId('spxMiniLabel'),
+        dowMiniOpenClose: byId('dowMiniOpenClose'),
+        ndxMiniOpenClose: byId('ndxMiniOpenClose'),
+        spxMiniOpenClose: byId('spxMiniOpenClose'),
         mainChartRangeLabel: byId('mainChartRangeLabel')
     });
 }
@@ -645,12 +651,13 @@ function renderSession() {
 }
 
 function renderIndices() {
-    renderIndexCard('dow', state.indices?.dow, els.dowIndexValue, els.dowIndexChange, els.dowIndexStatus, els.dowQuoteTime);
-    renderIndexCard('nasdaq100', state.indices?.nasdaq100, els.ndxIndexValue, els.ndxIndexChange, els.ndxIndexStatus, els.ndxQuoteTime);
-    renderIndexCard('sp500', state.indices?.sp500, els.spxIndexValue, els.spxIndexChange, els.spxIndexStatus, els.spxQuoteTime);
+    renderIndexCard('dow', state.indices?.dow, els.dowIndexValue, els.dowIndexChange, els.dowIndexStatus, els.dowQuoteTime, els.dowOpenClose);
+    renderIndexCard('nasdaq100', state.indices?.nasdaq100, els.ndxIndexValue, els.ndxIndexChange, els.ndxIndexStatus, els.ndxQuoteTime, els.ndxOpenClose);
+    renderIndexCard('sp500', state.indices?.sp500, els.spxIndexValue, els.spxIndexChange, els.spxIndexStatus, els.spxQuoteTime, els.spxOpenClose);
+    renderMiniOpenCloseLines();
 }
 
-function renderIndexCard(seriesKey, data, valueEl, changeEl, statusEl, quoteEl) {
+function renderIndexCard(seriesKey, data, valueEl, changeEl, statusEl, quoteEl, openCloseEl) {
     if (!data) return;
     text(valueEl, data.price === null ? '--' : utils.formatNumber(data.price, 2));
     if (changeEl) {
@@ -666,12 +673,45 @@ function renderIndexCard(seriesKey, data, valueEl, changeEl, statusEl, quoteEl) 
     const quoteText = formatQuoteLabel(data);
     state.lastQuoteStampByIndex[seriesKey] = quoteText;
     text(quoteEl, quoteText);
+    text(openCloseEl, formatOpenCloseText(getOpenClosePacket(seriesKey, data)));
 }
 
 function formatQuoteLabel(indexData) {
     const time = String(indexData?.quoteTime || '--').trim();
     const tz = String(indexData?.quoteTimezone || 'ET').trim();
     return `Quote: ${time} ${tz}`;
+}
+
+function getOpenClosePacket(seriesKey, indexData) {
+    const points = state.indexSeries[seriesKey] || [];
+    const phaseCode = String(state.marketSession?.phaseCode || '').toUpperCase();
+    const isFinalClose = phaseCode !== 'REGULAR';
+    if (points.length) {
+        return {
+            open: Number(points[0].price.toFixed(2)),
+            close: Number(points[points.length - 1].price.toFixed(2)),
+            isFinalClose
+        };
+    }
+    return {
+        open: Number.isFinite(Number(indexData?.open)) ? Number(indexData.open) : null,
+        close: Number.isFinite(Number(indexData?.price)) ? Number(indexData.price) : null,
+        isFinalClose
+    };
+}
+
+function formatOpenCloseText(packet) {
+    if (!packet) return 'Open: -- | Close: --';
+    const openText = Number.isFinite(packet.open) ? utils.formatNumber(packet.open, 2) : '--';
+    const closeText = Number.isFinite(packet.close) ? utils.formatNumber(packet.close, 2) : '--';
+    const suffix = packet.isFinalClose ? '' : ' (Provisional)';
+    return `Open: ${openText} | Close: ${closeText}${suffix}`;
+}
+
+function renderMiniOpenCloseLines() {
+    text(els.dowMiniOpenClose, formatOpenCloseText(getOpenClosePacket('dow', state.indices?.dow)));
+    text(els.ndxMiniOpenClose, formatOpenCloseText(getOpenClosePacket('nasdaq100', state.indices?.nasdaq100)));
+    text(els.spxMiniOpenClose, formatOpenCloseText(getOpenClosePacket('sp500', state.indices?.sp500)));
 }
 
 function renderPrediction() {
@@ -888,6 +928,7 @@ function updateAllSparklines() {
     updateSparklinePair('dow', state.sparklineCharts.dowCard, state.sparklineCharts.dowMini);
     updateSparklinePair('nasdaq100', state.sparklineCharts.ndxCard, state.sparklineCharts.ndxMini);
     updateSparklinePair('sp500', state.sparklineCharts.spxCard, state.sparklineCharts.spxMini);
+    renderMiniOpenCloseLines();
 }
 
 function updateSparklinePair(key, cardChart, miniChart) {
