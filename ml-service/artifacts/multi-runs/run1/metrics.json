@@ -1,0 +1,106 @@
+{
+  "ensemble": {
+    "1H": {
+      "directionAccuracy": 0.0,
+      "brierScore": 1.0,
+      "ece": 1.0,
+      "intervalCoverage": 0.0
+    },
+    "4H": {
+      "directionAccuracy": 0.0,
+      "brierScore": 1.0,
+      "ece": 1.0,
+      "intervalCoverage": 0.0
+    },
+    "1D": {
+      "directionAccuracy": 0.0,
+      "brierScore": 1.0,
+      "ece": 1.0,
+      "intervalCoverage": 0.0
+    },
+    "3D": {
+      "directionAccuracy": 0.0,
+      "brierScore": 1.0,
+      "ece": 1.0,
+      "intervalCoverage": 0.0
+    }
+  },
+  "lstm": {
+    "1H": {
+      "directionAccuracy": 0.0,
+      "brierScore": 1.0,
+      "ece": 1.0,
+      "intervalCoverage": 0.0
+    },
+    "4H": {
+      "directionAccuracy": 0.0,
+      "brierScore": 1.0,
+      "ece": 1.0,
+      "intervalCoverage": 0.0
+    },
+    "1D": {
+      "directionAccuracy": 0.0,
+      "brierScore": 1.0,
+      "ece": 1.0,
+      "intervalCoverage": 0.0
+    },
+    "3D": {
+      "directionAccuracy": 0.0,
+      "brierScore": 1.0,
+      "ece": 1.0,
+      "intervalCoverage": 0.0
+    }
+  },
+  "transformer": {
+    "1H": {
+      "directionAccuracy": 0.0,
+      "brierScore": 1.0,
+      "ece": 1.0,
+      "intervalCoverage": 0.0
+    },
+    "4H": {
+      "directionAccuracy": 0.0,
+      "brierScore": 1.0,
+      "ece": 1.0,
+      "intervalCoverage": 0.0
+    },
+    "1D": {
+      "directionAccuracy": 0.0,
+      "brierScore": 1.0,
+      "ece": 1.0,
+      "intervalCoverage": 0.0
+    },
+    "3D": {
+      "directionAccuracy": 0.0,
+      "brierScore": 1.0,
+      "ece": 1.0,
+      "intervalCoverage": 0.0
+    }
+  },
+  "tcn": {
+    "1H": {
+      "directionAccuracy": 0.0,
+      "brierScore": 1.0,
+      "ece": 1.0,
+      "intervalCoverage": 0.0
+    },
+    "4H": {
+      "directionAccuracy": 0.0,
+      "brierScore": 1.0,
+      "ece": 1.0,
+      "intervalCoverage": 0.0
+    },
+    "1D": {
+      "directionAccuracy": 0.0,
+      "brierScore": 1.0,
+      "ece": 1.0,
+      "intervalCoverage": 0.0
+    },
+    "3D": {
+      "directionAccuracy": 0.0,
+      "brierScore": 1.0,
+      "ece": 1.0,
+      "intervalCoverage": 0.0
+    }
+  }
+}
