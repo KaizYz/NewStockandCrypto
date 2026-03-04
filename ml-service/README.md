@@ -2,6 +2,12 @@
 
 This service powers the `model-explorer.html` page.
 
+## Full Runbook
+
+For full setup, GPU training, service startup, monitoring, and troubleshooting:
+
+- [Model Explorer Training and Service Runbook](../docs/MODEL_EXPLORER_TRAINING_RUNBOOK.md)
+
 ## Modes
 - `MODEL_EXPLORER_MODE=mock` (default): deterministic mock outputs for UI validation.
 - `MODEL_EXPLORER_MODE=live`: load artifacts from `MODEL_ARTIFACT_DIR`.
