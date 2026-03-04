@@ -30,6 +30,7 @@ const US_INDEX_HISTORY_CACHE_TTL_MS = Number(process.env.US_INDEX_HISTORY_CACHE_
 const US_INDEX_HISTORY_DEFAULT_RANGE = '2d';
 const US_INDEX_HISTORY_DEFAULT_INTERVAL = '5m';
 const BINANCE_US_URL = 'https://api.binance.us/api/v3/ticker/24hr?symbols=%5B%22BTCUSDT%22,%22ETHUSDT%22,%22SOLUSDT%22%5D';
+const BINANCE_US_KLINES_BASE = 'https://api.binance.us/api/v3/klines';
 const EASTMONEY_ULIST_FIELDS = 'f2,f3,f4,f12,f13,f14,f15,f16,f17,f18,f20,f21,f47,f48,f100,f103,f115';
 const EASTMONEY_ULIST_BASE = 'https://push2.eastmoney.com/api/qt/ulist.np/get';
 const STOOQ_BATCH_BASE = 'https://stooq.com/q/l/?f=sd2t2ohlcv&h&e=csv&s=';
@@ -43,6 +44,12 @@ const SP500_SNAPSHOT_PATH = path.join(WEB_ROOT, 'assets', 'sp500-constituents.js
 const ALPHA_VANTAGE_API_KEY = process.env.ALPHA_VANTAGE_API_KEY || '';
 const US_ENABLE_ALPHA_FALLBACK = String(process.env.US_ENABLE_ALPHA_FALLBACK || 'true').toLowerCase() !== 'false';
 const CSI300_SNAPSHOT_PATH = path.join(WEB_ROOT, 'assets', 'csi300-constituents.json');
+const CRYPTO_SUPPORTED_SYMBOLS = new Set(['BTCUSDT', 'ETHUSDT', 'SOLUSDT']);
+const CRYPTO_HISTORY_RANGE_CONFIG = {
+    '1h': { interval: '1m', limit: 60, ttlMs: 30000 },
+    '24h': { interval: '5m', limit: 288, ttlMs: 60000 },
+    '7d': { interval: '1h', limit: 168, ttlMs: 120000 }
+};
 const INDEX_SECIDS = {
     '000001.SH': '1.000001',
     '000300.SH': '1.000300'
@@ -87,6 +94,11 @@ const LIMIT_STATUS_ORDER = {
 
 let cryptoPriceCache = null;
 let cryptoPriceCacheAt = 0;
+const cryptoHistoryCache = new Map();
+const cryptoPredictionCache = new Map();
+const cryptoPerformanceCache = new Map();
+const cryptoLastPriceBySymbol = new Map();
+const cryptoReturnHistoryBySymbol = new Map();
 let cnCache = null;
 let cnCacheAt = 0;
 let cnIndicesHistoryCache = null;
@@ -591,6 +603,373 @@ function fetchBinanceUS() {
     return fetchJsonFromHttps(BINANCE_US_URL, 5000).then(normalizeTickerRows);
 }
 
+function resolveCryptoHistoryRange(rawRange) {
+    const normalized = String(rawRange || '24h').trim().toLowerCase();
+    return Object.prototype.hasOwnProperty.call(CRYPTO_HISTORY_RANGE_CONFIG, normalized) ? normalized : null;
+}
+
+function buildBinanceKlinesUrl(symbol, interval, limit) {
+    const query = new URLSearchParams({
+        symbol,
+        interval,
+        limit: String(limit)
+    });
+    return `${BINANCE_US_KLINES_BASE}?${query.toString()}`;
+}
+
+function normalizeKlineRows(rows) {
+    if (!Array.isArray(rows)) {
+        throw new Error('Unexpected Binance US kline payload');
+    }
+
+    const series = rows
+        .map((row) => {
+            if (!Array.isArray(row) || row.length < 7) return null;
+
+            const openTime = Number(row[0]);
+            const open = parseNumber(row[1]);
+            const high = parseNumber(row[2]);
+            const low = parseNumber(row[3]);
+            const close = parseNumber(row[4]);
+            const volume = parseNumber(row[5]);
+
+            if (
+                !Number.isFinite(openTime)
+                || open === null
+                || high === null
+                || low === null
+                || close === null
+                || volume === null
+            ) {
+                return null;
+            }
+
+            return {
+                ts: new Date(openTime).toISOString(),
+                open,
+                high,
+                low,
+                close,
+                volume
+            };
+        })
+        .filter((row) => row !== null)
+        .sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
+
+    if (!series.length) {
+        throw new Error('No valid kline points from Binance US');
+    }
+
+    return series;
+}
+
+async function getCryptoHistoryWithCache(symbol, range) {
+    const config = CRYPTO_HISTORY_RANGE_CONFIG[range];
+    if (!config) {
+        throw new Error(`Unsupported crypto history range: ${range}`);
+    }
+
+    const cacheKey = `${symbol}:${range}`;
+    const cacheEntry = cryptoHistoryCache.get(cacheKey);
+    const now = Date.now();
+    if (cacheEntry && now - cacheEntry.at <= config.ttlMs) {
+        return deepCopy(cacheEntry.payload);
+    }
+
+    try {
+        const endpoint = buildBinanceKlinesUrl(symbol, config.interval, config.limit);
+        const rawRows = await fetchJsonFromHttps(endpoint, 7000);
+        const series = normalizeKlineRows(rawRows);
+        const payload = {
+            meta: {
+                source: 'binance_us_klines',
+                timestamp: new Date().toISOString(),
+                stale: false,
+                range,
+                interval: config.interval
+            },
+            symbol,
+            series
+        };
+        cryptoHistoryCache.set(cacheKey, { payload, at: Date.now() });
+        return deepCopy(payload);
+    } catch (error) {
+        if (cacheEntry) {
+            const stalePayload = deepCopy(cacheEntry.payload);
+            stalePayload.meta = {
+                ...stalePayload.meta,
+                stale: true,
+                stale_reason: error.message,
+                timestamp: new Date().toISOString()
+            };
+            return stalePayload;
+        }
+        throw error;
+    }
+}
+
+function resolveCryptoSymbol(rawSymbol) {
+    const normalized = String(rawSymbol || '').trim().toUpperCase();
+    return CRYPTO_SUPPORTED_SYMBOLS.has(normalized) ? normalized : null;
+}
+
+function listCryptoRows(payload) {
+    return [payload?.btc, payload?.eth, payload?.sol].filter((row) => row && row.symbol);
+}
+
+function getCryptoRowBySymbol(payload, symbol) {
+    const rows = listCryptoRows(payload);
+    return rows.find((row) => row.symbol === symbol) || null;
+}
+
+function updateCryptoReturnHistory(payload) {
+    listCryptoRows(payload).forEach((row) => {
+        const prevPrice = cryptoLastPriceBySymbol.get(row.symbol);
+        if (Number.isFinite(prevPrice) && prevPrice > 0 && Number.isFinite(row.price)) {
+            const ret = (row.price - prevPrice) / prevPrice;
+            const history = cryptoReturnHistoryBySymbol.get(row.symbol) || [];
+            history.push(clamp(ret, -0.2, 0.2));
+            if (history.length > 240) history.shift();
+            cryptoReturnHistoryBySymbol.set(row.symbol, history);
+        }
+        cryptoLastPriceBySymbol.set(row.symbol, row.price);
+    });
+}
+
+async function getCryptoPricesWithCache() {
+    const now = Date.now();
+    if (cryptoPriceCache && now - cryptoPriceCacheAt <= CRYPTO_CACHE_TTL_MS) {
+        return deepCopy(cryptoPriceCache);
+    }
+
+    try {
+        const payload = await fetchBinanceUS();
+        updateCryptoReturnHistory(payload);
+        cryptoPriceCache = payload;
+        cryptoPriceCacheAt = Date.now();
+        return deepCopy(payload);
+    } catch (error) {
+        if (cryptoPriceCache) {
+            const stalePayload = deepCopy(cryptoPriceCache);
+            stalePayload.meta = {
+                ...stalePayload.meta,
+                stale: true,
+                stale_reason: error.message,
+                timestamp: new Date().toISOString()
+            };
+            return stalePayload;
+        }
+        throw error;
+    }
+}
+
+function normalizeWindow(w0, w1, w2, w3) {
+    const total = w0 + w1 + w2 + w3;
+    if (!Number.isFinite(total) || total <= 0) {
+        return { w0: 0.25, w1: 0.35, w2: 0.25, w3: 0.15 };
+    }
+    return {
+        w0: w0 / total,
+        w1: w1 / total,
+        w2: w2 / total,
+        w3: w3 / total
+    };
+}
+
+function calculateRiskReward(entryPrice, stopLoss, takeProfit) {
+    const risk = Math.abs(entryPrice - stopLoss);
+    const reward = Math.abs(takeProfit - entryPrice);
+    if (!Number.isFinite(risk) || risk <= 0) return 0;
+    return reward / risk;
+}
+
+function buildCryptoPredictionPayload(symbol, row, stale = false, staleReason = null) {
+    const changePct = Number.isFinite(row.change) ? row.change : 0;
+    const volume = Math.max(Number.isFinite(row.volume) ? row.volume : 0, 1);
+
+    const trendComponent = clamp(changePct / 8, -1, 1);
+    const volumeComponent = clamp((Math.log10(volume) - 6.2) / 3.2, -1, 1);
+    const pUp = clamp(0.5 + trendComponent * 0.24 + volumeComponent * 0.06, 0.05, 0.95);
+    const pDown = clamp(1 - pUp, 0.05, 0.95);
+
+    const distance = Math.abs(pUp - 0.5) * 2;
+    const volatilityProxy = clamp(Math.abs(changePct) / 100 * 0.55 + 0.006, 0.004, 0.06);
+    const confidence = clamp(
+        0.42 + distance * 0.44 + clamp(Math.abs(changePct) / 18, 0, 0.2) - volatilityProxy * 1.4,
+        0.25,
+        0.98
+    );
+
+    const center = clamp((changePct / 100) * 0.22 + (pUp - 0.5) * 0.04, -0.08, 0.08);
+    const spread = clamp(volatilityProxy * (0.8 + (1 - confidence) * 0.9), 0.008, 0.075);
+    let q10 = clamp(center - spread * 0.9, -0.1, 0.1);
+    let q50 = clamp(center, -0.09, 0.09);
+    let q90 = clamp(center + spread * 0.9, -0.1, 0.1);
+    [q10, q50, q90] = [q10, q50, q90].sort((a, b) => a - b);
+
+    const w0Raw = clamp(0.22 + trendComponent * 0.06 + (1 - confidence) * 0.05, 0.05, 0.55);
+    const w1Raw = clamp(0.30 + trendComponent * 0.09 + confidence * 0.16, 0.08, 0.64);
+    const w2Raw = clamp(0.28 - trendComponent * 0.04 + (1 - confidence) * 0.08, 0.08, 0.5);
+    const w3Raw = Math.max(0.05, 1 - (w0Raw + w1Raw + w2Raw));
+    const window = normalizeWindow(w0Raw, w1Raw, w2Raw, w3Raw);
+
+    const mostLikely = Object.entries({
+        W0: window.w0,
+        W1: window.w1,
+        W2: window.w2,
+        W3: window.w3
+    }).sort((a, b) => b[1] - a[1])[0][0];
+    const expectedStart = mostLikely === 'W0'
+        ? 'Immediate'
+        : mostLikely === 'W1'
+            ? 'Within 1 hour'
+            : mostLikely === 'W2'
+                ? 'Within 2 hours'
+                : 'Within 3 hours';
+
+    const action = pUp >= 0.55 ? 'LONG' : pUp <= 0.45 ? 'SHORT' : 'FLAT';
+    const positionSize = action === 'FLAT'
+        ? 0
+        : clamp((confidence - 0.45) / 0.55, 0, 1) * 2;
+    const entryPrice = row.price;
+
+    let stopLoss = entryPrice;
+    let takeProfit1 = entryPrice;
+    let takeProfit2 = entryPrice;
+    if (action === 'LONG') {
+        stopLoss = entryPrice * (1 + q10 * 0.8);
+        takeProfit1 = entryPrice * (1 + q50 * 0.8);
+        takeProfit2 = entryPrice * (1 + q90 * 0.8);
+    } else if (action === 'SHORT') {
+        stopLoss = entryPrice * (1 + Math.abs(q90) * 0.8);
+        takeProfit1 = entryPrice * (1 - Math.abs(q50) * 0.8);
+        takeProfit2 = entryPrice * (1 - Math.abs(q10) * 0.8);
+    }
+
+    const sharpeRatio = clamp((q50 / Math.max(spread, 0.001)) * 0.9, -2.5, 2.5);
+    const driftAlerts = Math.max(0, Math.round((0.65 - confidence) * 40));
+    const healthStatus = stale ? 'IN REVIEW' : (driftAlerts > 12 ? 'IN REVIEW' : 'MONITORED');
+
+    const trendShap = Number((trendComponent * 0.32).toFixed(3));
+    const volumeShap = Number((volumeComponent * 0.14).toFixed(3));
+    const volatilityShap = Number((-(volatilityProxy - 0.02) * 7).toFixed(3));
+    const reasonCodes = action === 'LONG'
+        ? ['p_bull_gate', 'momentum_gate', 'volume_gate']
+        : action === 'SHORT'
+            ? ['p_bear_gate', 'volatility_gate', 'risk_cap']
+            : ['risk_cap'];
+
+    const payload = {
+        meta: {
+            source: 'binance_us_derived',
+            timestamp: new Date().toISOString(),
+            stale: Boolean(stale)
+        },
+        prediction: {
+            symbol,
+            p_up: Number(pUp.toFixed(4)),
+            p_down: Number(pDown.toFixed(4)),
+            confidence: Number(confidence.toFixed(4)),
+            signal: action,
+            start_window: {
+                w0: Number(window.w0.toFixed(4)),
+                w1: Number(window.w1.toFixed(4)),
+                w2: Number(window.w2.toFixed(4)),
+                w3: Number(window.w3.toFixed(4)),
+                most_likely: mostLikely,
+                expected_start: expectedStart
+            },
+            magnitude: {
+                q10: Number(q10.toFixed(4)),
+                q50: Number(q50.toFixed(4)),
+                q90: Number(q90.toFixed(4))
+            }
+        },
+        signal: {
+            action,
+            position_size: Number(positionSize.toFixed(4)),
+            entry_price: Number(entryPrice.toFixed(4)),
+            stop_loss: Number(stopLoss.toFixed(4)),
+            take_profit_1: Number(takeProfit1.toFixed(4)),
+            take_profit_2: Number(takeProfit2.toFixed(4)),
+            rr_1: Number(calculateRiskReward(entryPrice, stopLoss, takeProfit1).toFixed(4)),
+            rr_2: Number(calculateRiskReward(entryPrice, stopLoss, takeProfit2).toFixed(4))
+        },
+        explanation: {
+            summary: 'Generated from live market regime and momentum factors.',
+            top_features: [
+                { feature: 'momentum_24h', shap_value: trendShap, contribution: '24h momentum contribution to direction bias.' },
+                { feature: 'volume_regime', shap_value: volumeShap, contribution: 'Volume regime adjusts confidence and direction weight.' },
+                { feature: 'volatility_proxy', shap_value: volatilityShap, contribution: 'Volatility proxy penalizes unstable regimes.' }
+            ],
+            reason_codes: reasonCodes
+        },
+        health: {
+            status: healthStatus,
+            drift_alerts: driftAlerts,
+            sharpe_ratio: Number(sharpeRatio.toFixed(4)),
+            sharpe_stability: Number((spread * 100).toFixed(4)),
+            data_freshness: stale ? 'stale cache' : 'live',
+            last_training: 'N/A (live derived)'
+        },
+        symbol,
+        timestamp: new Date().toISOString()
+    };
+
+    if (staleReason) {
+        payload.meta.stale_reason = staleReason;
+    }
+    return payload;
+}
+
+function getReturnHistoryStats(symbol) {
+    const history = cryptoReturnHistoryBySymbol.get(symbol) || [];
+    if (!history.length) {
+        return { mean: 0, std: 0, winRate: 0.5 };
+    }
+    const mean = history.reduce((acc, value) => acc + value, 0) / history.length;
+    const variance = history.reduce((acc, value) => acc + ((value - mean) ** 2), 0) / history.length;
+    const std = Math.sqrt(variance);
+    const winRate = history.filter((value) => value > 0).length / history.length;
+    return { mean, std, winRate };
+}
+
+function buildCryptoPerformancePayload(symbol, predictionPayload, stale = false, staleReason = null) {
+    const pUp = predictionPayload?.prediction?.p_up ?? 0.5;
+    const confidence = predictionPayload?.prediction?.confidence ?? 0.5;
+    const q10 = predictionPayload?.prediction?.magnitude?.q10 ?? -0.01;
+    const q50 = predictionPayload?.prediction?.magnitude?.q50 ?? 0;
+    const q90 = predictionPayload?.prediction?.magnitude?.q90 ?? 0.01;
+    const { mean, std, winRate } = getReturnHistoryStats(symbol);
+
+    const directionAccuracy = clamp(0.5 + (pUp - 0.5) * 0.5 + (winRate - 0.5) * 0.25, 0.45, 0.9);
+    const intervalCoverage = clamp(0.78 + confidence * 0.15 - std * 4, 0.6, 0.95);
+    const sharpeRatio = std > 1e-6
+        ? clamp((mean / std) * Math.sqrt(24), -3, 3)
+        : clamp((q50 / Math.max(Math.abs(q90 - q10), 0.001)) * 0.9, -3, 3);
+    const brierScore = clamp(0.30 - Math.abs(pUp - 0.5) * 0.22 + std * 1.5, 0.12, 0.42);
+
+    const payload = {
+        meta: {
+            source: 'prediction_derived',
+            timestamp: new Date().toISOString(),
+            estimated: true,
+            stale: Boolean(stale)
+        },
+        metrics: {
+            direction_accuracy: Number(directionAccuracy.toFixed(4)),
+            interval_coverage: Number(intervalCoverage.toFixed(4)),
+            sharpe_ratio: Number(sharpeRatio.toFixed(4)),
+            win_rate: Number(clamp(winRate, 0.01, 0.99).toFixed(4)),
+            brier_score: Number(brierScore.toFixed(4))
+        }
+    };
+    if (staleReason) {
+        payload.meta.stale_reason = staleReason;
+    }
+    return payload;
+}
+
 function fetchTextFromHttps(url, timeoutMs = 5000, redirectCount = 0) {
     return new Promise((resolve, reject) => {
         const request = https.request(
@@ -1015,31 +1394,167 @@ async function handleCryptoPrices(req, res) {
         return;
     }
 
-    const now = Date.now();
-    if (cryptoPriceCache && now - cryptoPriceCacheAt <= CRYPTO_CACHE_TTL_MS) {
-        sendJson(res, 200, cryptoPriceCache);
+    try {
+        const payload = await getCryptoPricesWithCache();
+        sendJson(res, 200, payload);
+    } catch (error) {
+        sendJson(res, 502, {
+            error: 'Failed to fetch crypto prices from Binance US',
+            detail: error.message
+        });
+    }
+}
+
+async function handleCryptoHistory(req, res, parsedUrl, rawSymbol) {
+    if (req.method === 'OPTIONS') {
+        sendJson(res, 200, { ok: true });
+        return;
+    }
+    if (req.method !== 'GET') {
+        sendJson(res, 405, { error: 'Method not allowed' });
+        return;
+    }
+
+    const symbol = resolveCryptoSymbol(rawSymbol);
+    if (!symbol) {
+        sendJson(res, 404, { error: `Unsupported crypto symbol: ${rawSymbol}` });
+        return;
+    }
+
+    const range = resolveCryptoHistoryRange(parsedUrl.searchParams.get('range') || '24h');
+    if (!range) {
+        sendJson(res, 400, { error: 'Invalid range. Allowed values: 1h, 24h, 7d.' });
         return;
     }
 
     try {
-        const payload = await fetchBinanceUS();
-        cryptoPriceCache = payload;
-        cryptoPriceCacheAt = Date.now();
+        const payload = await getCryptoHistoryWithCache(symbol, range);
         sendJson(res, 200, payload);
     } catch (error) {
-        if (cryptoPriceCache) {
-            sendJson(res, 200, {
-                ...cryptoPriceCache,
-                meta: {
-                    ...cryptoPriceCache.meta,
-                    stale: true,
-                    stale_reason: error.message
-                }
-            });
+        sendJson(res, 502, {
+            error: 'Failed to fetch crypto history from Binance US',
+            detail: error.message
+        });
+    }
+}
+
+async function handleCryptoPrediction(req, res, rawSymbol) {
+    if (req.method === 'OPTIONS') {
+        sendJson(res, 200, { ok: true });
+        return;
+    }
+    if (req.method !== 'GET') {
+        sendJson(res, 405, { error: 'Method not allowed' });
+        return;
+    }
+
+    const symbol = resolveCryptoSymbol(rawSymbol);
+    if (!symbol) {
+        sendJson(res, 404, { error: `Unsupported crypto symbol: ${rawSymbol}` });
+        return;
+    }
+
+    const cacheEntry = cryptoPredictionCache.get(symbol);
+    const now = Date.now();
+    if (cacheEntry && now - cacheEntry.at <= CRYPTO_CACHE_TTL_MS) {
+        sendJson(res, 200, deepCopy(cacheEntry.payload));
+        return;
+    }
+
+    try {
+        const pricePayload = await getCryptoPricesWithCache();
+        const quote = getCryptoRowBySymbol(pricePayload, symbol);
+        if (!quote) {
+            sendJson(res, 404, { error: `Quote unavailable for ${symbol}` });
+            return;
+        }
+
+        const payload = buildCryptoPredictionPayload(
+            symbol,
+            quote,
+            Boolean(pricePayload?.meta?.stale),
+            pricePayload?.meta?.stale_reason || null
+        );
+        cryptoPredictionCache.set(symbol, { payload, at: Date.now() });
+        sendJson(res, 200, payload);
+    } catch (error) {
+        if (cacheEntry) {
+            const stalePayload = deepCopy(cacheEntry.payload);
+            stalePayload.meta = {
+                ...stalePayload.meta,
+                stale: true,
+                stale_reason: error.message,
+                timestamp: new Date().toISOString()
+            };
+            sendJson(res, 200, stalePayload);
             return;
         }
         sendJson(res, 502, {
-            error: 'Failed to fetch crypto prices from Binance US',
+            error: 'Failed to build crypto prediction',
+            detail: error.message
+        });
+    }
+}
+
+async function handleCryptoPerformance(req, res, rawSymbol) {
+    if (req.method === 'OPTIONS') {
+        sendJson(res, 200, { ok: true });
+        return;
+    }
+    if (req.method !== 'GET') {
+        sendJson(res, 405, { error: 'Method not allowed' });
+        return;
+    }
+
+    const symbol = resolveCryptoSymbol(rawSymbol);
+    if (!symbol) {
+        sendJson(res, 404, { error: `Unsupported crypto symbol: ${rawSymbol}` });
+        return;
+    }
+
+    const cacheEntry = cryptoPerformanceCache.get(symbol);
+    const now = Date.now();
+    if (cacheEntry && now - cacheEntry.at <= CRYPTO_CACHE_TTL_MS) {
+        sendJson(res, 200, deepCopy(cacheEntry.payload));
+        return;
+    }
+
+    try {
+        const pricePayload = await getCryptoPricesWithCache();
+        const quote = getCryptoRowBySymbol(pricePayload, symbol);
+        if (!quote) {
+            sendJson(res, 404, { error: `Quote unavailable for ${symbol}` });
+            return;
+        }
+
+        const predictionPayload = buildCryptoPredictionPayload(
+            symbol,
+            quote,
+            Boolean(pricePayload?.meta?.stale),
+            pricePayload?.meta?.stale_reason || null
+        );
+        const payload = buildCryptoPerformancePayload(
+            symbol,
+            predictionPayload,
+            Boolean(pricePayload?.meta?.stale),
+            pricePayload?.meta?.stale_reason || null
+        );
+        cryptoPerformanceCache.set(symbol, { payload, at: Date.now() });
+        sendJson(res, 200, payload);
+    } catch (error) {
+        if (cacheEntry) {
+            const stalePayload = deepCopy(cacheEntry.payload);
+            stalePayload.meta = {
+                ...stalePayload.meta,
+                stale: true,
+                stale_reason: error.message,
+                timestamp: new Date().toISOString()
+            };
+            sendJson(res, 200, stalePayload);
+            return;
+        }
+        sendJson(res, 502, {
+            error: 'Failed to build crypto performance metrics',
             detail: error.message
         });
     }
@@ -3266,6 +3781,21 @@ const server = http.createServer((req, res) => {
 
     if (parsedUrl.pathname === '/api/crypto/prices') {
         handleCryptoPrices(req, res);
+        return;
+    }
+    if (parsedUrl.pathname.startsWith('/api/crypto/history/')) {
+        const symbol = decodeURIComponent(parsedUrl.pathname.replace('/api/crypto/history/', ''));
+        handleCryptoHistory(req, res, parsedUrl, symbol);
+        return;
+    }
+    if (parsedUrl.pathname.startsWith('/api/crypto/prediction/')) {
+        const symbol = decodeURIComponent(parsedUrl.pathname.replace('/api/crypto/prediction/', ''));
+        handleCryptoPrediction(req, res, symbol);
+        return;
+    }
+    if (parsedUrl.pathname.startsWith('/api/crypto/performance/')) {
+        const symbol = decodeURIComponent(parsedUrl.pathname.replace('/api/crypto/performance/', ''));
+        handleCryptoPerformance(req, res, symbol);
         return;
     }
 

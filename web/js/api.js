@@ -88,6 +88,11 @@ const api = {
         return this.get(`/crypto/predictions?symbol=${symbol}`);
     },
 
+    // Get crypto history for chart seeding
+    async getCryptoHistory(symbol = 'BTCUSDT', params = {}) {
+        return this.get(`/crypto/history/${encodeURIComponent(symbol)}${buildQueryString(params)}`);
+    },
+
     // Get current crypto prediction packet
     async getCryptoPrediction(symbol = 'BTCUSDT') {
         return this.get(`/crypto/prediction/${symbol}`);

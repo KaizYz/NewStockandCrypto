@@ -3,7 +3,6 @@
 // ========================================
 
 const CRYPTO_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'];
-const TABLE_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'AVAXUSDT', 'LINKUSDT', 'LTCUSDT', 'DOTUSDT', 'MATICUSDT'];
 const SIGNAL_FILTERS = ['ALL', 'LONG', 'SHORT', 'FLAT'];
 const ALERT_STORAGE_KEY = 'crypto_alerts_v1';
 const PRESET_STORAGE_KEY = 'crypto_ui_preset_v1';
@@ -11,6 +10,16 @@ const MAX_LEVERAGE = 2.0;
 const POLL_INTERVAL_MS = 10000;
 const ALERT_COOLDOWN_MS = 60000;
 const COMPARISON_HISTORY_LIMIT = 30;
+const CHART_RANGE_WINDOW_MS = {
+    '1h': 60 * 60 * 1000,
+    '24h': 24 * 60 * 60 * 1000,
+    '7d': 7 * 24 * 60 * 60 * 1000
+};
+const CHART_RESEED_INTERVAL_MS = {
+    '1h': 60 * 1000,
+    '24h': 5 * 60 * 1000,
+    '7d': 5 * 60 * 1000
+};
 
 const ACTION_COLORS = {
     LONG: '#00FFAA',
@@ -33,7 +42,7 @@ const state = {
     timeframe: '7d',
     signalFilter: 'ALL',
     query: '',
-    dataMode: 'Simulated Feed',
+    dataMode: 'Unavailable',
     autoRefreshEnabled: true,
     tickCount: 0,
     lastTickAt: null,
@@ -41,6 +50,7 @@ const state = {
     prediction: null,
     symbolPredictions: {},
     performance: null,
+    performanceEstimated: false,
     health: null,
     universe: [],
     chartSeries: {},
@@ -141,6 +151,7 @@ function cacheElements() {
         bannerTransport: byId('bannerTransport'),
         lastTickAt: byId('lastTickAt'),
         priceChartTitle: byId('priceChartTitle'),
+        chartSourceNote: byId('chartSourceNote'),
         modelAccuracy: byId('modelAccuracy'),
         btcPrice: byId('btcPrice'),
         btcChange: byId('btcChange'),
@@ -153,6 +164,7 @@ function cacheElements() {
         solStatus: byId('solStatus'),
         pUpValue: byId('pUpValue'),
         pDownValue: byId('pDownValue'),
+        predictionDataNote: byId('predictionDataNote'),
         signalPill: byId('signalPill'),
         directionConfidence: byId('directionConfidence'),
         confidenceRing: byId('confidenceRing'),
@@ -195,6 +207,7 @@ function cacheElements() {
         intervalCoverage: byId('intervalCoverage'),
         brierScore: byId('brierScore'),
         winRate: byId('winRate'),
+        performanceDataNote: byId('performanceDataNote'),
         searchInput: byId('searchInput'),
         filterBtn: byId('filterBtn'),
         cryptoTableBody: byId('cryptoTableBody'),
@@ -215,6 +228,7 @@ function cacheElements() {
         sizerTp: byId('sizerTp'),
         sizerSl: byId('sizerSl'),
         sizerRr: byId('sizerRr'),
+        sizerAvailabilityNote: byId('sizerAvailabilityNote'),
         applyToLiveBtn: byId('applyToLiveBtn'),
         momentumDelta: byId('momentumDelta'),
         momentumDeltaValue: byId('momentumDeltaValue'),
@@ -223,6 +237,7 @@ function cacheElements() {
         whatIfPUp: byId('whatIfPUp'),
         whatIfAction: byId('whatIfAction'),
         whatIfConfidence: byId('whatIfConfidence'),
+        whatIfAvailabilityNote: byId('whatIfAvailabilityNote'),
         alertForm: byId('alertForm'),
         alertSymbol: byId('alertSymbol'),
         alertThreshold: byId('alertThreshold'),
@@ -248,11 +263,14 @@ function bindEvents() {
     }
 
     els.timeframeButtons.forEach((button) => {
-        button.addEventListener('click', () => {
+        button.addEventListener('click', async () => {
             state.timeframe = button.dataset.timeframe;
             updateTimeframeButtons();
+            await loadChartHistory(state.selectedSymbol, state.timeframe, true);
+            pushLatestPriceToSeries();
             renderPriceChart();
             renderVolatilityStrip();
+            renderChartSourceNote();
         });
     });
 
@@ -359,7 +377,7 @@ function bindEvents() {
     if (els.applyToLiveBtn) {
         els.applyToLiveBtn.addEventListener('click', () => {
             if (window.showToast?.info) {
-                window.showToast.info('Simulated execution submitted.', 2500);
+                window.showToast.info('Execution preview submitted.', 2500);
             }
         });
     }
@@ -591,11 +609,12 @@ function initializeCharts() {
 
 async function refreshData(loadFullPrediction = false, manual = false) {
     await loadPrices();
+    syncSelectedSymbolWithLivePrices();
     if (loadFullPrediction || !state.prediction || state.tickCount % 3 === 0 || manual) {
         await loadPredictionAndPerformance(loadFullPrediction);
     }
 
-    ensureChartSeries();
+    await ensureSelectedChartHistory(loadFullPrediction);
     pushLatestPriceToSeries();
     buildUniverseRows();
     updateComparisonHistory();
@@ -608,6 +627,20 @@ async function refreshData(loadFullPrediction = false, manual = false) {
 
     if (manual && window.showToast?.info) {
         window.showToast.info('Manual refresh completed.', 2000);
+    }
+}
+
+function syncSelectedSymbolWithLivePrices() {
+    const liveSymbols = Object.keys(state.prices);
+    if (liveSymbols.length === 0) return;
+    if (liveSymbols.includes(state.selectedSymbol)) {
+        if (els.symbolSelect) els.symbolSelect.value = state.selectedSymbol;
+        return;
+    }
+    state.selectedSymbol = liveSymbols[0];
+    state.sizerEdited = false;
+    if (els.symbolSelect) {
+        els.symbolSelect.value = state.selectedSymbol;
     }
 }
 
@@ -636,8 +669,10 @@ async function loadPrices() {
         state.prices = normalized;
         state.dataMode = payload?.meta?.stale ? 'Stale Feed' : 'Live Feed';
     } catch (error) {
-        state.prices = simulatedPrices();
-        state.dataMode = 'Simulated Feed';
+        if (Object.keys(state.prices).length === 0) {
+            state.prices = {};
+        }
+        state.dataMode = 'Unavailable';
     }
 }
 
@@ -649,15 +684,30 @@ async function loadPredictionAndPerformance(loadAllSymbols = false) {
     ]);
 
     state.prediction = prediction;
-    state.symbolPredictions[selectedSymbol] = prediction;
-    state.performance = performance;
-    state.health = prediction.health || defaultHealth();
+    if (prediction) {
+        state.symbolPredictions[selectedSymbol] = prediction;
+    } else {
+        delete state.symbolPredictions[selectedSymbol];
+    }
+
+    if (performance) {
+        state.performance = performance;
+        state.performanceEstimated = Boolean(performance.estimated);
+    } else if (prediction) {
+        state.performance = deriveEstimatedPerformanceFromPrediction(prediction);
+        state.performanceEstimated = true;
+    } else {
+        state.performance = null;
+        state.performanceEstimated = false;
+    }
+
+    state.health = prediction?.health || deriveHealthFromPrediction(prediction, state.performance, state.dataMode);
 
     if (loadAllSymbols) {
         const missingSymbols = CRYPTO_SYMBOLS.filter((symbol) => symbol !== selectedSymbol);
         const results = await Promise.allSettled(missingSymbols.map((symbol) => fetchPrediction(symbol)));
         results.forEach((result, index) => {
-            if (result.status === 'fulfilled') {
+            if (result.status === 'fulfilled' && result.value) {
                 state.symbolPredictions[missingSymbols[index]] = result.value;
             }
         });
@@ -678,7 +728,7 @@ async function fetchPrediction(symbol) {
         // Fallback below.
     }
 
-    return simulatedPrediction(symbol);
+    return null;
 }
 
 async function fetchPerformance(symbol) {
@@ -691,7 +741,7 @@ async function fetchPerformance(symbol) {
         // Fallback below.
     }
 
-    return defaultPerformance();
+    return null;
 }
 
 function normalizePrices(payload) {
@@ -719,50 +769,64 @@ function normalizePrices(payload) {
 }
 
 function normalizePrediction(payload, symbol) {
-    const fallback = simulatedPrediction(symbol);
-    if (!payload || typeof payload !== 'object') return fallback;
+    if (!payload || typeof payload !== 'object') return null;
 
-    const packet = payload.prediction ? payload : { prediction: payload };
-    const directionRaw = packet.prediction.direction || packet.prediction;
+    const predictionRaw = payload.prediction && typeof payload.prediction === 'object' ? payload.prediction : payload;
+    const signalRaw = payload.signal && typeof payload.signal === 'object' ? payload.signal : {};
 
-    const pUp = normalizeProbability(asNumber(directionRaw.p_up ?? directionRaw.pUp, fallback.direction.pUp));
-    const pDown = normalizeProbability(asNumber(directionRaw.p_down ?? directionRaw.pDown, 1 - pUp));
-    const confidence = normalizeProbability(asNumber(directionRaw.confidence, fallback.direction.confidence));
-    const signal = (directionRaw.signal || packet.signal?.action || inferSignal(pUp)).toUpperCase();
+    const pUpRaw = asNumber(
+        predictionRaw.p_up
+        ?? predictionRaw.pUp
+        ?? predictionRaw.prob_up
+        ?? predictionRaw.direction?.p_up
+        ?? predictionRaw.direction?.pUp
+    );
+    if (!Number.isFinite(pUpRaw)) return null;
 
-    const startRaw = packet.prediction.start_window || packet.prediction.startWindow || {};
-    const window = {
-        w0: normalizeProbability(asNumber(startRaw.w0 ?? startRaw.w0_prob, fallback.window.w0)),
-        w1: normalizeProbability(asNumber(startRaw.w1 ?? startRaw.w1_prob, fallback.window.w1)),
-        w2: normalizeProbability(asNumber(startRaw.w2 ?? startRaw.w2_prob, fallback.window.w2)),
-        w3: normalizeProbability(asNumber(startRaw.w3 ?? startRaw.w3_prob, fallback.window.w3)),
-        mostLikely: startRaw.most_likely || startRaw.mostLikely || fallback.window.mostLikely,
-        expectedStart: startRaw.expected_start || startRaw.expectedStart || fallback.window.expectedStart
-    };
+    const pUp = normalizeProbability(pUpRaw);
+    const pDownCandidate = asNumber(
+        predictionRaw.p_down
+        ?? predictionRaw.pDown
+        ?? predictionRaw.direction?.p_down
+        ?? predictionRaw.direction?.pDown
+    );
+    const pDown = Number.isFinite(pDownCandidate) ? normalizeProbability(pDownCandidate) : normalizeProbability(1 - pUp);
+    const confidence = normalizeProbability(asNumber(
+        predictionRaw.confidence
+        ?? predictionRaw.confidence_score
+        ?? predictionRaw.direction?.confidence,
+        Math.abs(pUp - 0.5) * 2
+    ));
+    const signal = String(predictionRaw.signal ?? signalRaw.action ?? inferSignal(pUp)).toUpperCase();
 
-    const magnitudeRaw = packet.prediction.magnitude || packet.prediction;
-    const q10 = normalizeReturn(asNumber(magnitudeRaw.q10, fallback.magnitude.q10));
-    const q50 = normalizeReturn(asNumber(magnitudeRaw.q50, fallback.magnitude.q50));
-    const q90 = normalizeReturn(asNumber(magnitudeRaw.q90, fallback.magnitude.q90));
-    const sorted = [q10, q50, q90].sort((a, b) => a - b);
+    const startRaw = predictionRaw.start_window || predictionRaw.startWindow || {};
+    const window = normalizeWindowFromPayload(startRaw, pUp, confidence);
 
-    const entryPrice = asNumber(packet.signal?.entry_price ?? packet.signal?.entryPrice, currentPrice(symbol) || fallback.signal.entryPrice);
-    const action = (packet.signal?.action || signal).toUpperCase();
-    const stopLoss = asNumber(packet.signal?.stop_loss, estimateStopLoss(entryPrice, sorted[0], action));
-    const takeProfit1 = asNumber(packet.signal?.take_profit_1, estimateTakeProfit(entryPrice, sorted[1], action));
-    const takeProfit2 = asNumber(packet.signal?.take_profit_2, estimateTakeProfit(entryPrice, sorted[2], action));
+    const magnitudeRaw = predictionRaw.magnitude || predictionRaw;
+    const q10Raw = asNumber(magnitudeRaw.q10 ?? magnitudeRaw.q10_change_pct ?? predictionRaw.q10_change_pct);
+    const q50Raw = asNumber(magnitudeRaw.q50 ?? magnitudeRaw.q50_change_pct ?? predictionRaw.q50_change_pct);
+    const q90Raw = asNumber(magnitudeRaw.q90 ?? magnitudeRaw.q90_change_pct ?? predictionRaw.q90_change_pct);
+    if (!Number.isFinite(q10Raw) || !Number.isFinite(q50Raw) || !Number.isFinite(q90Raw)) return null;
+    const sorted = [normalizeReturn(q10Raw), normalizeReturn(q50Raw), normalizeReturn(q90Raw)].sort((a, b) => a - b);
 
-    const topFeatures = Array.isArray(packet.explanation?.top_features)
-        ? packet.explanation.top_features
-        : fallback.explanation.topFeatures;
+    const entryPrice = asNumber(
+        signalRaw.entry_price
+        ?? signalRaw.entryPrice
+        ?? predictionRaw.current_price
+        ?? currentPrice(symbol)
+    );
+    if (!Number.isFinite(entryPrice) || entryPrice <= 0) return null;
+    const action = String(signalRaw.action ?? signal).toUpperCase();
+    const stopLoss = asNumber(signalRaw.stop_loss ?? signalRaw.stopLoss, estimateStopLoss(entryPrice, sorted[0], action));
+    const takeProfit1 = asNumber(signalRaw.take_profit_1 ?? signalRaw.takeProfit1, estimateTakeProfit(entryPrice, sorted[1], action));
+    const takeProfit2 = asNumber(signalRaw.take_profit_2 ?? signalRaw.takeProfit2, estimateTakeProfit(entryPrice, sorted[2], action));
 
-    const reasonCodes = Array.isArray(packet.explanation?.reason_codes)
-        ? packet.explanation.reason_codes
-        : fallback.explanation.reasonCodes;
+    const topFeatures = normalizeTopFeatures(payload.explanation?.top_features ?? payload.explanation?.topFeatures);
+    const reasonCodes = normalizeReasonCodes(payload.explanation?.reason_codes ?? payload.explanation?.reasonCodes, signal);
 
     return {
         symbol,
-        timestamp: packet.timestamp || new Date().toISOString(),
+        timestamp: payload.timestamp || payload.meta?.timestamp || new Date().toISOString(),
         direction: { pUp, pDown, confidence, signal },
         window,
         magnitude: {
@@ -774,7 +838,7 @@ function normalizePrediction(payload, symbol) {
         },
         signal: {
             action,
-            positionSize: asNumber(packet.signal?.position_size, fallback.signal.positionSize),
+            positionSize: asNumber(signalRaw.position_size ?? signalRaw.positionSize, action === 'FLAT' ? 0 : clamp((confidence - 0.45) / 0.55, 0, 1) * MAX_LEVERAGE),
             entryPrice,
             stopLoss,
             takeProfit1,
@@ -783,121 +847,178 @@ function normalizePrediction(payload, symbol) {
             rr2: calculateRiskReward(entryPrice, stopLoss, takeProfit2)
         },
         explanation: {
-            summary: packet.explanation?.summary || fallback.explanation.summary,
+            summary: String(payload.explanation?.summary || `Live ${signal} signal derived from current market regime.`),
             topFeatures,
             reasonCodes
         },
-        health: normalizeHealth(packet.health)
+        health: normalizeHealth(payload.health, {
+            confidence,
+            q10: sorted[0],
+            q50: sorted[1],
+            q90: sorted[2],
+            stale: Boolean(payload?.meta?.stale)
+        })
     };
 }
 
 function normalizePerformance(payload) {
+    if (!payload || typeof payload !== 'object') return null;
     const metrics = payload?.metrics || payload || {};
-    const fallback = defaultPerformance();
+    const directionAccuracy = asNumber(metrics.direction_accuracy ?? metrics.directionAccuracy);
+    const intervalCoverage = asNumber(metrics.interval_coverage ?? metrics.intervalCoverage);
+    const sharpeRatio = asNumber(metrics.sharpe_ratio ?? metrics.sharpeRatio);
+    const winRate = asNumber(metrics.win_rate ?? metrics.winRate);
+    const brierScore = asNumber(metrics.brier_score ?? metrics.brierScore);
+    if (
+        !Number.isFinite(directionAccuracy)
+        || !Number.isFinite(intervalCoverage)
+        || !Number.isFinite(sharpeRatio)
+        || !Number.isFinite(winRate)
+        || !Number.isFinite(brierScore)
+    ) {
+        return null;
+    }
 
     return {
-        directionAccuracy: normalizeProbability(asNumber(metrics.direction_accuracy, fallback.directionAccuracy)),
-        intervalCoverage: normalizeProbability(asNumber(metrics.interval_coverage, fallback.intervalCoverage)),
-        sharpeRatio: asNumber(metrics.sharpe_ratio, fallback.sharpeRatio),
-        winRate: normalizeProbability(asNumber(metrics.win_rate, fallback.winRate)),
-        brierScore: asNumber(metrics.brier_score, fallback.brierScore)
+        directionAccuracy: normalizeProbability(directionAccuracy),
+        intervalCoverage: normalizeProbability(intervalCoverage),
+        sharpeRatio,
+        winRate: normalizeProbability(winRate),
+        brierScore,
+        estimated: Boolean(payload?.meta?.estimated)
     };
 }
 
-function normalizeHealth(payload) {
-    const fallback = defaultHealth();
-    if (!payload || typeof payload !== 'object') return fallback;
+function normalizeHealth(payload, context = null) {
+    if (!payload || typeof payload !== 'object') {
+        if (!context) return null;
+        return deriveHealthFromPrediction(
+            {
+                direction: { confidence: context.confidence || 0.5 },
+                magnitude: {
+                    q10: context.q10 || -0.01,
+                    q50: context.q50 || 0,
+                    q90: context.q90 || 0.01
+                }
+            },
+            null,
+            context.stale ? 'Stale Feed' : state.dataMode
+        );
+    }
 
     return {
-        status: payload.status || fallback.status,
-        driftAlerts: asNumber(payload.driftAlerts ?? payload.drift_alerts, fallback.driftAlerts),
-        sharpeRatio: asNumber(payload.sharpeRatio ?? payload.sharpe_ratio, fallback.sharpeRatio),
-        sharpeStability: asNumber(payload.sharpeStability ?? payload.sharpe_stability, fallback.sharpeStability),
-        dataFreshness: payload.dataFreshness || payload.data_freshness || fallback.dataFreshness,
-        lastTraining: payload.lastTraining || payload.last_training || fallback.lastTraining
+        status: payload.status || 'IN REVIEW',
+        driftAlerts: asNumber(payload.driftAlerts ?? payload.drift_alerts, 0),
+        sharpeRatio: asNumber(payload.sharpeRatio ?? payload.sharpe_ratio, 0),
+        sharpeStability: asNumber(payload.sharpeStability ?? payload.sharpe_stability, 0),
+        dataFreshness: payload.dataFreshness || payload.data_freshness || 'live',
+        lastTraining: payload.lastTraining || payload.last_training || 'N/A (live derived)'
     };
 }
 
-function simulatedPrices() {
-    const base = {
-        BTCUSDT: { price: 68078, change: 1.6, volume: 14200000000 },
-        ETHUSDT: { price: 1974, change: 1.1, volume: 6100000000 },
-        SOLUSDT: { price: 84.79, change: -0.8, volume: 1230000000 }
-    };
+function normalizeWindowFromPayload(windowRaw, pUp, confidence) {
+    const w0 = normalizeProbability(asNumber(windowRaw.w0 ?? windowRaw.w0_prob, 0.22 + (1 - confidence) * 0.12));
+    const w1 = normalizeProbability(asNumber(windowRaw.w1 ?? windowRaw.w1_prob, 0.30 + Math.max(0, pUp - 0.5) * 0.4));
+    const w2 = normalizeProbability(asNumber(windowRaw.w2 ?? windowRaw.w2_prob, 0.28));
+    const w3 = normalizeProbability(asNumber(windowRaw.w3 ?? windowRaw.w3_prob, 0.20));
+    const total = w0 + w1 + w2 + w3;
+    const normalized = total > 0
+        ? { w0: w0 / total, w1: w1 / total, w2: w2 / total, w3: w3 / total }
+        : { w0: 0.25, w1: 0.35, w2: 0.25, w3: 0.15 };
 
-    const output = {};
-    Object.entries(base).forEach(([symbol, row]) => {
-        const drift = 1 + (Math.random() - 0.5) * 0.003;
-        output[symbol] = {
-            symbol,
-            price: row.price * drift,
-            change: row.change + (Math.random() - 0.5) * 0.24,
-            volume: row.volume * (1 + (Math.random() - 0.5) * 0.02)
+    const mostLikely = windowRaw.most_likely || windowRaw.mostLikely || Object.entries({
+        W0: normalized.w0,
+        W1: normalized.w1,
+        W2: normalized.w2,
+        W3: normalized.w3
+    }).sort((a, b) => b[1] - a[1])[0][0];
+
+    const expectedStart = windowRaw.expected_start || windowRaw.expectedStart || (
+        mostLikely === 'W0' ? 'Immediate'
+            : mostLikely === 'W1' ? 'Within 1 hour'
+                : mostLikely === 'W2' ? 'Within 2 hours'
+                    : 'Within 3 hours'
+    );
+
+    return {
+        w0: normalized.w0,
+        w1: normalized.w1,
+        w2: normalized.w2,
+        w3: normalized.w3,
+        mostLikely,
+        expectedStart
+    };
+}
+
+function normalizeTopFeatures(featuresRaw) {
+    if (!Array.isArray(featuresRaw)) return [];
+    return featuresRaw
+        .filter((item) => item && typeof item === 'object')
+        .map((item) => ({
+            feature: String(item.feature || item.name || 'feature'),
+            shap_value: asNumber(item.shap_value ?? item.value ?? item.weight, 0),
+            contribution: String(item.contribution || item.reason || 'Live contribution signal.')
+        }));
+}
+
+function normalizeReasonCodes(reasonCodesRaw, signal) {
+    if (Array.isArray(reasonCodesRaw) && reasonCodesRaw.length > 0) {
+        return reasonCodesRaw.map((value) => String(value));
+    }
+    if (signal === 'LONG') return ['p_bull_gate', 'momentum_gate', 'volume_gate'];
+    if (signal === 'SHORT') return ['p_bear_gate', 'volatility_gate', 'risk_cap'];
+    return ['risk_cap'];
+}
+
+function deriveEstimatedPerformanceFromPrediction(packet) {
+    if (!packet) return null;
+    const pUp = packet.direction.pUp;
+    const confidence = packet.direction.confidence;
+    const spread = Math.max(packet.magnitude.intervalWidth, 0.0001);
+    const directionAccuracy = clamp(0.52 + Math.abs(pUp - 0.5) * 0.28 + confidence * 0.16, 0.45, 0.9);
+    const intervalCoverage = clamp(0.72 + confidence * 0.16, 0.6, 0.94);
+    const brierScore = clamp(0.33 - Math.abs(pUp - 0.5) * 0.20 + (1 - confidence) * 0.06, 0.12, 0.42);
+    const winRate = clamp(0.5 + (pUp - 0.5) * 0.6, 0.05, 0.95);
+    const sharpeRatio = clamp(packet.magnitude.expectedReturn / spread * 0.65, -3, 3);
+
+    return {
+        directionAccuracy,
+        intervalCoverage,
+        sharpeRatio,
+        winRate,
+        brierScore,
+        estimated: true
+    };
+}
+
+function deriveHealthFromPrediction(packet, performance, dataMode) {
+    if (!packet) {
+        return {
+            status: 'Unavailable',
+            driftAlerts: 0,
+            sharpeRatio: 0,
+            sharpeStability: 0,
+            dataFreshness: dataMode === 'Unavailable' ? 'unavailable' : 'unknown',
+            lastTraining: 'N/A'
         };
-    });
-    return output;
-}
-
-function simulatedPrediction(symbol) {
-    const preset = {
-        BTCUSDT: { pUp: 0.62, confidence: 0.91, q10: -0.012, q50: 0.008, q90: 0.021 },
-        ETHUSDT: { pUp: 0.57, confidence: 0.88, q10: -0.014, q50: 0.007, q90: 0.019 },
-        SOLUSDT: { pUp: 0.49, confidence: 0.84, q10: -0.021, q50: 0.003, q90: 0.028 }
-    }[symbol] || { pUp: 0.54, confidence: 0.82, q10: -0.016, q50: 0.006, q90: 0.018 };
-
-    const signal = inferSignal(preset.pUp);
-    const entry = currentPrice(symbol) || 100;
-    const stopLoss = estimateStopLoss(entry, preset.q10, signal);
-    const takeProfit1 = estimateTakeProfit(entry, preset.q50, signal);
-    const takeProfit2 = estimateTakeProfit(entry, preset.q90, signal);
+    }
+    const spread = Math.max(packet.magnitude.intervalWidth, 0);
+    const confidence = packet.direction.confidence;
+    const sharpeRatio = Number((performance?.sharpeRatio ?? clamp(packet.magnitude.expectedReturn / Math.max(spread, 0.0001) * 0.65, -3, 3)).toFixed(3));
+    const driftAlerts = Math.max(0, Math.round((0.65 - confidence) * 40));
+    const status = dataMode === 'Unavailable'
+        ? 'Unavailable'
+        : driftAlerts > 10
+            ? 'IN REVIEW'
+            : 'MONITORED';
 
     return {
-        symbol,
-        timestamp: new Date().toISOString(),
-        direction: { pUp: preset.pUp, pDown: 1 - preset.pUp, confidence: preset.confidence, signal },
-        window: { w0: 0.24, w1: 0.37, w2: 0.26, w3: 0.13, mostLikely: 'W1', expectedStart: 'Within 1 hour' },
-        magnitude: {
-            q10: preset.q10,
-            q50: preset.q50,
-            q90: preset.q90,
-            intervalWidth: preset.q90 - preset.q10,
-            expectedReturn: preset.q50
-        },
-        signal: {
-            action: signal,
-            positionSize: 1.2,
-            entryPrice: entry,
-            stopLoss,
-            takeProfit1,
-            takeProfit2,
-            rr1: calculateRiskReward(entry, stopLoss, takeProfit1),
-            rr2: calculateRiskReward(entry, stopLoss, takeProfit2)
-        },
-        explanation: {
-            summary: 'Signal is driven by momentum, volatility regime, and volume alignment.',
-            topFeatures: [
-                { feature: 'momentum_20d', shap_value: 0.341, contribution: 'Momentum confirms trend continuation.' },
-                { feature: 'volatility_score', shap_value: 0.214, contribution: 'Volatility remains in stable regime.' },
-                { feature: 'volume_ratio', shap_value: 0.183, contribution: 'Volume supports move quality.' }
-            ],
-            reasonCodes: signal === 'SHORT' ? ['p_bear_gate', 'volatility_gate', 'risk_cap'] : ['p_bull_gate', 'momentum_gate', 'volume_gate']
-        },
-        health: defaultHealth()
-    };
-}
-
-function defaultPerformance() {
-    return { directionAccuracy: 0.672, intervalCoverage: 0.813, sharpeRatio: -0.36, winRate: 0.542, brierScore: 0.234 };
-}
-
-function defaultHealth() {
-    return {
-        status: 'IN REVIEW',
-        driftAlerts: 47,
-        sharpeRatio: -0.36,
-        sharpeStability: 2.3,
-        dataFreshness: '2 hours ago',
-        lastTraining: '2026-02-06'
+        status,
+        driftAlerts,
+        sharpeRatio,
+        sharpeStability: Number((spread * 100).toFixed(3)),
+        dataFreshness: dataMode === 'Stale Feed' ? 'stale cache' : 'live',
+        lastTraining: 'N/A (live derived)'
     };
 }
 
@@ -911,6 +1032,7 @@ function renderAll() {
     renderSizer();
     renderWhatIf();
     renderPriceChart();
+    renderChartSourceNote();
     renderComparisonChart();
     renderVolatilityStrip();
     renderUniverseTable();
@@ -922,7 +1044,7 @@ function renderAll() {
 function renderModeAndBanner() {
     const modeClass = state.dataMode === 'Live Feed'
         ? 'status-live'
-        : state.dataMode === 'Stale Feed' ? 'status-stale' : 'status-simulated';
+        : state.dataMode === 'Stale Feed' ? 'status-stale' : 'status-unavailable';
     if (els.dataModeBadge) {
         els.dataModeBadge.textContent = state.dataMode;
         els.dataModeBadge.className = `status-badge ${modeClass}`;
@@ -946,7 +1068,7 @@ function renderModeAndBanner() {
         els.liveBannerMode.textContent = state.dataMode;
         els.liveBannerMode.className = state.dataMode === 'Live Feed'
             ? 'status-live'
-            : state.dataMode === 'Stale Feed' ? 'status-stale' : 'status-sim';
+            : state.dataMode === 'Stale Feed' ? 'status-stale' : 'status-unavailable';
     }
 
     updateAutoRefreshButton();
@@ -978,7 +1100,18 @@ function renderPriceCards() {
 
 function renderPriceCard(symbol, priceEl, changeEl, statusEl) {
     const item = state.prices[symbol];
-    if (!item) return;
+    if (!item) {
+        text(priceEl, '--');
+        if (changeEl) {
+            changeEl.textContent = '--';
+            changeEl.className = 'metric-change';
+        }
+        if (statusEl) {
+            statusEl.textContent = 'Unavailable';
+            statusEl.className = `status-badge ${statusBadgeClass('Unavailable')}`;
+        }
+        return;
+    }
 
     text(priceEl, utils.formatCurrency(item.price));
     if (changeEl) {
@@ -987,14 +1120,44 @@ function renderPriceCard(symbol, priceEl, changeEl, statusEl) {
     }
 
     if (statusEl) {
-        const statusText = state.dataMode === 'Live Feed' ? 'Live' : state.dataMode === 'Stale Feed' ? 'Stale' : 'Simulated';
+        const statusText = state.dataMode === 'Live Feed' ? 'Live' : state.dataMode === 'Stale Feed' ? 'Stale' : 'Unavailable';
         statusEl.textContent = statusText;
         statusEl.className = `status-badge ${statusBadgeClass(statusText)}`;
     }
 }
 
 function renderPredictionPanel() {
-    const packet = state.prediction || simulatedPrediction(state.selectedSymbol);
+    const packet = state.prediction;
+    if (!packet) {
+        text(els.pUpValue, '--');
+        text(els.pDownValue, '--');
+        text(els.directionConfidence, '--');
+        setSignalPill(els.signalPill, 'FLAT');
+        updateConfidenceRing(0, 'FLAT');
+        renderWindow(els.w0Fill, els.w0Prob, 0);
+        renderWindow(els.w1Fill, els.w1Prob, 0);
+        renderWindow(els.w2Fill, els.w2Prob, 0);
+        renderWindow(els.w3Fill, els.w3Prob, 0);
+        text(els.mostLikelyWindow, '--');
+        text(els.expectedStart, '--');
+        text(els.q10Value, '--');
+        text(els.q50Value, '--');
+        text(els.q90Value, '--');
+        text(els.intervalWidth, '--');
+        text(els.expectedReturn, '--');
+        setSignalPill(els.actionPill, 'FLAT');
+        text(els.positionSize, '--');
+        text(els.entryPrice, '--');
+        text(els.stopLoss, '--');
+        text(els.takeProfit1, '--');
+        text(els.takeProfit2, '--');
+        text(els.rrRatio1, '--');
+        text(els.rrRatio2, '--');
+        if (els.predictionDataNote) {
+            els.predictionDataNote.textContent = 'Live prediction data unavailable.';
+        }
+        return;
+    }
 
     text(els.pUpValue, packet.direction.pUp.toFixed(2));
     text(els.pDownValue, packet.direction.pDown.toFixed(2));
@@ -1023,6 +1186,11 @@ function renderPredictionPanel() {
     text(els.takeProfit2, utils.formatCurrency(packet.signal.takeProfit2));
     text(els.rrRatio1, packet.signal.rr1.toFixed(2));
     text(els.rrRatio2, packet.signal.rr2.toFixed(2));
+    if (els.predictionDataNote) {
+        els.predictionDataNote.textContent = state.dataMode === 'Stale Feed'
+            ? 'Prediction derived from stale cache.'
+            : 'Prediction sourced from live derived feed.';
+    }
 }
 
 function updateConfidenceRing(confidence, signal) {
@@ -1041,27 +1209,52 @@ function updateConfidenceRing(confidence, signal) {
 
 function renderExplanation() {
     const explanation = state.prediction?.explanation;
-    if (!explanation) return;
+    if (!explanation) {
+        text(els.explanationSummary, 'Live prediction explanation unavailable.');
+        if (els.topFeaturesList) {
+            els.topFeaturesList.innerHTML = '<li class="feature-item">No live feature contribution data.</li>';
+        }
+        if (els.reasonCodesList) {
+            els.reasonCodesList.innerHTML = '<li class="reason-item">No live reason code data.</li>';
+        }
+        return;
+    }
 
     text(els.explanationSummary, explanation.summary || 'No explanation available.');
 
     if (els.topFeaturesList) {
-        els.topFeaturesList.innerHTML = explanation.topFeatures.map((item) => {
+        const topFeatureMarkup = explanation.topFeatures.map((item) => {
             const value = asNumber(item.shap_value, 0);
             return `<li class="feature-item"><strong>${escapeHtml(item.feature || 'feature')}</strong> (${value.toFixed(3)}) - ${escapeHtml(item.contribution || 'n/a')}</li>`;
         }).join('');
+        els.topFeaturesList.innerHTML = topFeatureMarkup || '<li class="feature-item">No live feature contribution data.</li>';
     }
 
     if (els.reasonCodesList) {
-        els.reasonCodesList.innerHTML = explanation.reasonCodes.map((code) => {
+        const reasonMarkup = explanation.reasonCodes.map((code) => {
             const key = String(code);
             return `<li class="reason-item"><strong>${escapeHtml(key)}</strong> - ${escapeHtml(REASON_CODE_TEXT[key] || key)}</li>`;
         }).join('');
+        els.reasonCodesList.innerHTML = reasonMarkup || '<li class="reason-item">No live reason code data.</li>';
     }
 }
 
 function renderPerformance() {
-    const perf = state.performance || defaultPerformance();
+    const perf = state.performance;
+    if (!perf) {
+        text(els.directionAccuracy, '--');
+        text(els.intervalCoverage, '--');
+        text(els.brierScore, '--');
+        text(els.winRate, '--');
+        if (els.modelAccuracy) {
+            els.modelAccuracy.textContent = '--';
+        }
+        if (els.performanceDataNote) {
+            els.performanceDataNote.textContent = 'Performance data unavailable.';
+        }
+        return;
+    }
+
     text(els.directionAccuracy, formatRate(perf.directionAccuracy));
     text(els.intervalCoverage, formatRate(perf.intervalCoverage));
     text(els.brierScore, perf.brierScore.toFixed(3));
@@ -1070,11 +1263,42 @@ function renderPerformance() {
     if (els.modelAccuracy) {
         els.modelAccuracy.textContent = perf.directionAccuracy.toFixed(2);
     }
+    if (els.performanceDataNote) {
+        els.performanceDataNote.textContent = state.performanceEstimated
+            ? 'Performance estimated from live prediction packet.'
+            : 'Performance sourced from live endpoint.';
+    }
 }
 
 function renderHealth() {
-    const health = state.health || defaultHealth();
-    text(els.healthStatusBadge, health.status);
+    const health = state.health;
+    if (!health) {
+        if (els.healthStatusBadge) {
+            els.healthStatusBadge.textContent = 'Unavailable';
+            els.healthStatusBadge.className = 'status-badge status-unavailable';
+        }
+        text(els.driftAlerts, '--');
+        text(els.healthSharpe, '--');
+        text(els.sharpeStability, '--');
+        text(els.dataFreshness, 'unavailable');
+        text(els.lastTraining, '--');
+        if (els.sharpeContext) {
+            els.sharpeContext.textContent = 'Live health metrics unavailable.';
+        }
+        renderRegimeChip(null);
+        updateSharpeChart(null);
+        return;
+    }
+
+    if (els.healthStatusBadge) {
+        const badgeClass = health.status === 'Unavailable'
+            ? 'status-unavailable'
+            : health.status === 'MONITORED'
+                ? 'status-live'
+                : 'info';
+        els.healthStatusBadge.textContent = health.status;
+        els.healthStatusBadge.className = `status-badge ${badgeClass}`;
+    }
     text(els.driftAlerts, String(health.driftAlerts));
     text(els.healthSharpe, health.sharpeRatio.toFixed(2));
     text(els.sharpeStability, health.sharpeStability.toFixed(2));
@@ -1101,6 +1325,11 @@ function renderHealth() {
 
 function renderRegimeChip(sharpeRatio) {
     if (!els.regimeChip) return;
+    if (!Number.isFinite(sharpeRatio)) {
+        els.regimeChip.textContent = 'Current Regime: Unavailable';
+        els.regimeChip.className = 'regime-chip defensive';
+        return;
+    }
     const regime = computeRegimeFromSharpe(sharpeRatio);
     els.regimeChip.textContent = `Current Regime: ${regime.label}`;
     els.regimeChip.className = `regime-chip ${regime.className}`;
@@ -1108,6 +1337,12 @@ function renderRegimeChip(sharpeRatio) {
 
 function updateSharpeChart(currentSharpe) {
     if (!state.sharpeChart) return;
+    if (!Number.isFinite(currentSharpe)) {
+        state.sharpeChart.data.labels = [];
+        state.sharpeChart.data.datasets[0].data = [];
+        state.sharpeChart.update('none');
+        return;
+    }
 
     const labels = Array.from({ length: 24 }, (_, index) => `${index + 1}`);
     let anchor = currentSharpe;
@@ -1125,8 +1360,25 @@ function updateSharpeChart(currentSharpe) {
 
 function renderSizer() {
     const packet = state.prediction;
+    const hasPrediction = Boolean(packet);
+    setPredictionDependentControlsEnabled(hasPrediction);
 
-    if (packet && !state.sizerEdited) {
+    if (!hasPrediction) {
+        setSignalPill(els.sizerAction, 'FLAT');
+        text(els.sizerSize, '--');
+        text(els.sizerTp, '--');
+        text(els.sizerSl, '--');
+        text(els.sizerRr, '--');
+        if (els.sizerAvailabilityNote) {
+            els.sizerAvailabilityNote.textContent = 'Requires live prediction.';
+        }
+        return;
+    }
+    if (els.sizerAvailabilityNote) {
+        els.sizerAvailabilityNote.textContent = '';
+    }
+
+    if (!state.sizerEdited) {
         if (els.sizerConfidence) els.sizerConfidence.value = packet.direction.confidence.toFixed(2);
         if (els.sizerPUp) els.sizerPUp.value = packet.direction.pUp.toFixed(2);
         if (els.sizerEntry) els.sizerEntry.value = packet.signal.entryPrice.toFixed(2);
@@ -1188,7 +1440,18 @@ function calculateSizer(confidence, pUp, entry, q10, q50, q90) {
 }
 
 function renderWhatIf() {
-    const basePrediction = state.prediction || simulatedPrediction(state.selectedSymbol);
+    const basePrediction = state.prediction;
+    if (!basePrediction) {
+        text(els.momentumDeltaValue, '--');
+        text(els.volatilityMultiplierValue, '--');
+        text(els.whatIfPUp, '--');
+        setSignalPill(els.whatIfAction, 'FLAT');
+        text(els.whatIfConfidence, '--');
+        if (els.whatIfAvailabilityNote) {
+            els.whatIfAvailabilityNote.textContent = 'Requires live prediction.';
+        }
+        return;
+    }
     const momentumDelta = asNumber(els.momentumDelta?.value, 0);
     const volatilityMultiplier = asNumber(els.volatilityMultiplier?.value, 1);
 
@@ -1202,18 +1465,35 @@ function renderWhatIf() {
     text(els.whatIfPUp, adjustedPUp.toFixed(2));
     setSignalPill(els.whatIfAction, action);
     text(els.whatIfConfidence, `${(adjustedConfidence - basePrediction.direction.confidence).toFixed(2)}`);
+    if (els.whatIfAvailabilityNote) {
+        els.whatIfAvailabilityNote.textContent = '';
+    }
+}
+
+function setPredictionDependentControlsEnabled(enabled) {
+    [
+        els.sizerConfidence,
+        els.sizerPUp,
+        els.sizerEntry,
+        els.sizerQ10,
+        els.sizerQ50,
+        els.sizerQ90,
+        els.applyToLiveBtn,
+        els.momentumDelta,
+        els.volatilityMultiplier
+    ].forEach((element) => {
+        if (!element) return;
+        element.disabled = !enabled;
+    });
 }
 
 function buildUniverseRows() {
-    state.universe = TABLE_SYMBOLS.map((symbol, index) => {
-        const prev = state.universe.find((row) => row.symbol === symbol);
-        const seedPrediction = state.symbolPredictions[symbol] || simulatedPrediction(symbol);
-
-        const live = state.prices[symbol] || simulatedUniversePrice(index, symbol);
-        const pUpBase = seedPrediction.direction.pUp;
-        const pUp = clamp((prev?.pUp ?? pUpBase) + (Math.random() - 0.5) * 0.015, 0, 1);
-        const signal = inferSignal(pUp);
-
+    const liveRows = Object.values(state.prices).filter((row) => Number.isFinite(row?.price));
+    state.universe = liveRows.map((live) => {
+        const symbol = live.symbol;
+        const packet = state.symbolPredictions[symbol] || (symbol === state.selectedSymbol ? state.prediction : null);
+        const pUp = Number.isFinite(packet?.direction?.pUp) ? packet.direction.pUp : 0.5;
+        const signal = packet?.direction?.signal || inferSignal(pUp);
         return {
             symbol,
             price: live.price,
@@ -1221,13 +1501,11 @@ function buildUniverseRows() {
             volume: live.volume,
             pUp,
             signal,
-            status: CRYPTO_SYMBOLS.includes(symbol)
-                ? (state.dataMode === 'Live Feed' ? 'Live' : state.dataMode === 'Stale Feed' ? 'Stale' : 'Simulated')
-                : 'Simulated',
+            status: state.dataMode === 'Live Feed' ? 'Live' : state.dataMode === 'Stale Feed' ? 'Stale' : 'Unavailable',
             detail: {
-                summary: seedPrediction.explanation.summary,
-                topFeatures: seedPrediction.explanation.topFeatures,
-                reasonCodes: seedPrediction.explanation.reasonCodes
+                summary: packet?.explanation?.summary || 'Live explanation unavailable.',
+                topFeatures: packet?.explanation?.topFeatures || [],
+                reasonCodes: packet?.explanation?.reasonCodes || []
             }
         };
     });
@@ -1249,6 +1527,21 @@ function renderUniverseTable() {
 
     const rows = getSortedFilteredRows();
     const visibleRows = rows.slice(0, state.visibleRows);
+
+    if (visibleRows.length === 0) {
+        els.cryptoTableBody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align:center; color: var(--text-secondary); padding: 1rem;">
+                    No live quote rows available.
+                </td>
+            </tr>
+        `;
+        if (els.loadMoreBtn) {
+            els.loadMoreBtn.style.display = 'none';
+        }
+        updateSortIndicators();
+        return;
+    }
 
     els.cryptoTableBody.innerHTML = visibleRows.map((row) => {
         const signalBadge = signalBadgeClass(row.signal);
@@ -1273,11 +1566,11 @@ function renderUniverseTable() {
         const featureText = row.detail.topFeatures.slice(0, 3).map((item) => {
             const shap = asNumber(item.shap_value, 0).toFixed(3);
             return `<li>${escapeHtml(item.feature)} (${shap})</li>`;
-        }).join('');
+        }).join('') || '<li>No live feature data.</li>';
 
         const reasonText = row.detail.reasonCodes.map((code) => {
             return `<li>${escapeHtml(REASON_CODE_TEXT[code] || code)}</li>`;
-        }).join('');
+        }).join('') || '<li>No live reason code data.</li>';
 
         return `${base}
             <tr class="detail-row">
@@ -1344,7 +1637,14 @@ function renderPriceChart() {
     if (!state.priceChart) return;
 
     const bucket = state.chartSeries[state.selectedSymbol]?.[state.timeframe];
-    if (!bucket) return;
+    if (!bucket || !Array.isArray(bucket.values) || bucket.values.length === 0) {
+        state.priceChart.data.labels = [];
+        state.priceChart.data.datasets.forEach((dataset) => {
+            dataset.data = [];
+        });
+        state.priceChart.update('none');
+        return;
+    }
 
     const projection = buildProjection(bucket.values);
     const labels = bucket.labels.concat(projection.labels);
@@ -1370,8 +1670,23 @@ function renderPriceChart() {
     state.priceChart.update('none');
 }
 
+function renderChartSourceNote() {
+    if (!els.chartSourceNote) return;
+    const bucket = state.chartSeries[state.selectedSymbol]?.[state.timeframe];
+    if (!bucket || bucket.values.length === 0) {
+        els.chartSourceNote.textContent = 'Live history unavailable. Waiting for Binance US candles.';
+        return;
+    }
+
+    const freshness = bucket.stale ? 'Stale history cache.' : 'Live history.';
+    els.chartSourceNote.textContent = `${freshness} Actual: Binance US candles | Projection: live prediction q10/q50/q90.`;
+}
+
 function buildProjection(values) {
-    const packet = state.prediction || simulatedPrediction(state.selectedSymbol);
+    const packet = state.prediction;
+    if (!packet) {
+        return { labels: [], predicted: [], low: [], high: [] };
+    }
     const q10 = packet.magnitude.q10;
     const q50 = packet.magnitude.q50;
     const q90 = packet.magnitude.q90;
@@ -1405,7 +1720,6 @@ function renderComparisonChart() {
 }
 
 function updateComparisonHistory() {
-    const lookup = Object.fromEntries(state.universe.map((row) => [row.symbol, row]));
     const label = `T${state.tickCount + 1}`;
     state.comparisonLabels.push(label);
     if (state.comparisonLabels.length > COMPARISON_HISTORY_LIMIT) {
@@ -1413,8 +1727,10 @@ function updateComparisonHistory() {
     }
 
     ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'].forEach((symbol) => {
-        const pUpValue = clamp(asNumber(lookup[symbol]?.pUp, 0.5), 0, 1) * 100;
-        state.comparisonHistory[symbol].push(Number(pUpValue.toFixed(2)));
+        const packet = state.symbolPredictions[symbol] || (symbol === state.selectedSymbol ? state.prediction : null);
+        const pUpRaw = asNumber(packet?.direction?.pUp, null);
+        const pUpValue = Number.isFinite(pUpRaw) ? clamp(pUpRaw, 0, 1) * 100 : null;
+        state.comparisonHistory[symbol].push(Number.isFinite(pUpValue) ? Number(pUpValue.toFixed(2)) : null);
         if (state.comparisonHistory[symbol].length > COMPARISON_HISTORY_LIMIT) {
             state.comparisonHistory[symbol].shift();
         }
@@ -1425,7 +1741,11 @@ function renderVolatilityStrip() {
     if (!els.volatilityStrip) return;
 
     const bucket = state.chartSeries[state.selectedSymbol]?.[state.timeframe];
-    if (!bucket || bucket.values.length < 8) return;
+    if (!bucket || bucket.values.length < 8) {
+        els.volatilityStrip.innerHTML = '';
+        text(els.regimeSummary, 'Regime: unavailable (insufficient live points).');
+        return;
+    }
 
     const segments = 18;
     const segmentSize = Math.max(3, Math.floor(bucket.values.length / segments));
@@ -1457,50 +1777,148 @@ function renderVolatilityStrip() {
     text(els.regimeSummary, `Regime: ${summary} volatility.`);
 }
 
-function ensureChartSeries() {
-    Object.entries(state.prices).forEach(([symbol, row]) => {
-        if (!state.chartSeries[symbol]) {
-            state.chartSeries[symbol] = createSeries(row.price);
-        }
-    });
+function getChartHistoryConfig(timeframe) {
+    if (timeframe === '1h') {
+        return { range: '1h', reseedMs: CHART_RESEED_INTERVAL_MS['1h'], windowMs: CHART_RANGE_WINDOW_MS['1h'] };
+    }
+    if (timeframe === '24h') {
+        return { range: '24h', reseedMs: CHART_RESEED_INTERVAL_MS['24h'], windowMs: CHART_RANGE_WINDOW_MS['24h'] };
+    }
+    return { range: '7d', reseedMs: CHART_RESEED_INTERVAL_MS['7d'], windowMs: CHART_RANGE_WINDOW_MS['7d'] };
+}
 
-    if (!state.chartSeries[state.selectedSymbol]) {
-        state.chartSeries[state.selectedSymbol] = createSeries(currentPrice(state.selectedSymbol) || 100);
+function createEmptyChartBucket() {
+    return {
+        labels: [],
+        values: [],
+        timestamps: [],
+        stale: false,
+        lastSeedAt: 0,
+        lastAppendAt: 0
+    };
+}
+
+function ensureSymbolChartSeries(symbol) {
+    if (!symbol) return null;
+    if (!state.chartSeries[symbol]) {
+        state.chartSeries[symbol] = {
+            '1h': createEmptyChartBucket(),
+            '24h': createEmptyChartBucket(),
+            '7d': createEmptyChartBucket()
+        };
+    }
+    return state.chartSeries[symbol];
+}
+
+function formatChartLabelFromTs(timestamp, timeframe) {
+    const date = new Date(timestamp);
+    if (!Number.isFinite(date.getTime())) return '--';
+
+    if (timeframe === '1h') {
+        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    }
+    if (timeframe === '24h') {
+        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+    }
+    return date.toLocaleString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+}
+
+function pruneChartBucket(bucket, timeframe) {
+    if (!bucket || !Array.isArray(bucket.timestamps)) return;
+    const config = getChartHistoryConfig(timeframe);
+    const now = Date.now();
+    const threshold = now - config.windowMs;
+    while (bucket.timestamps.length > 1 && bucket.timestamps[0] < threshold) {
+        bucket.timestamps.shift();
+        bucket.labels.shift();
+        bucket.values.shift();
     }
 }
 
-function createSeries(anchor) {
-    const build = (count, volatility) => {
-        const labels = [];
-        const values = [];
-        let value = anchor;
-        for (let i = count - 1; i >= 0; i -= 1) {
-            value *= 1 + ((Math.random() - 0.5) * volatility);
-            labels.push(timeLabel(i));
-            values.push(value);
-        }
-        return { labels, values };
-    };
+async function loadChartHistory(symbol, timeframe, force = false) {
+    const canonical = toCanonicalSymbol(symbol);
+    if (!canonical || !api.getCryptoHistory) return false;
 
-    return {
-        '1h': build(60, 0.0012),
-        '24h': build(96, 0.0024),
-        '7d': build(168, 0.0045)
-    };
+    const config = getChartHistoryConfig(timeframe);
+    const seriesGroup = ensureSymbolChartSeries(canonical);
+    const bucket = seriesGroup?.[timeframe];
+    if (!bucket) return false;
+
+    const now = Date.now();
+    if (!force && bucket.lastSeedAt > 0 && now - bucket.lastSeedAt < config.reseedMs) {
+        return true;
+    }
+
+    try {
+        const payload = await api.getCryptoHistory(canonical, { range: config.range });
+        const rawSeries = Array.isArray(payload?.series) ? payload.series : [];
+        const points = rawSeries
+            .map((point) => {
+                const ts = new Date(point.ts).getTime();
+                const price = asNumber(point.close);
+                if (!Number.isFinite(ts) || !Number.isFinite(price)) return null;
+                return { ts, price };
+            })
+            .filter((point) => point !== null)
+            .sort((a, b) => a.ts - b.ts);
+
+        if (!points.length) {
+            bucket.lastSeedAt = now;
+            bucket.stale = true;
+            return false;
+        }
+
+        bucket.timestamps = points.map((point) => point.ts);
+        bucket.values = points.map((point) => point.price);
+        bucket.labels = points.map((point) => formatChartLabelFromTs(point.ts, timeframe));
+        bucket.lastSeedAt = now;
+        bucket.stale = Boolean(payload?.meta?.stale);
+        pruneChartBucket(bucket, timeframe);
+        return true;
+    } catch (error) {
+        bucket.lastSeedAt = now;
+        bucket.stale = true;
+        return false;
+    }
+}
+
+async function ensureSelectedChartHistory(force = false) {
+    const symbol = state.selectedSymbol;
+    if (!symbol) return;
+    ensureSymbolChartSeries(symbol);
+    const bucket = state.chartSeries[symbol]?.[state.timeframe];
+    if (!bucket) return;
+
+    const config = getChartHistoryConfig(state.timeframe);
+    const shouldSeed = force || bucket.values.length === 0 || (Date.now() - bucket.lastSeedAt >= config.reseedMs);
+    if (shouldSeed) {
+        await loadChartHistory(symbol, state.timeframe, true);
+    }
 }
 
 function pushLatestPriceToSeries() {
     const symbol = state.selectedSymbol;
     const latest = currentPrice(symbol);
-    const bucket = state.chartSeries[symbol];
+    const seriesGroup = ensureSymbolChartSeries(symbol);
+    const bucket = seriesGroup?.[state.timeframe];
     if (!Number.isFinite(latest) || !bucket) return;
 
-    [['1h', 60], ['24h', 96], ['7d', 168]].forEach(([tf, limit]) => {
-        bucket[tf].labels.push(timeLabel(0));
-        bucket[tf].values.push(latest);
-        if (bucket[tf].labels.length > limit) bucket[tf].labels.shift();
-        if (bucket[tf].values.length > limit) bucket[tf].values.shift();
-    });
+    const now = Date.now();
+    if (bucket.timestamps.length && now - bucket.timestamps[bucket.timestamps.length - 1] < 5000) {
+        return;
+    }
+
+    bucket.timestamps.push(now);
+    bucket.labels.push(formatChartLabelFromTs(now, state.timeframe));
+    bucket.values.push(latest);
+    bucket.lastAppendAt = now;
+    pruneChartBucket(bucket, state.timeframe);
 }
 
 function updateChartTitle() {
@@ -1539,7 +1957,7 @@ function signalBadgeClass(signal) {
 function statusBadgeClass(status) {
     if (status === 'Live') return 'status-live';
     if (status === 'Stale') return 'status-stale';
-    return 'status-simulated';
+    return 'status-unavailable';
 }
 
 function computeRegimeFromSharpe(sharpeRatio) {
@@ -1740,17 +2158,6 @@ function setLastUpdated(timestamp) {
     text(els.lastUpdated, `Updated ${utils.formatTimestamp(timestamp, 'time')}`);
 }
 
-function simulatedUniversePrice(index) {
-    const anchors = [68078, 1974, 84.79, 420, 0.61, 0.77, 0.12, 42, 18, 91, 8, 1.2];
-    const base = anchors[index % anchors.length];
-
-    return {
-        price: base * (1 + (Math.random() - 0.5) * (base > 100 ? 0.012 : 0.07)),
-        change: (Math.random() - 0.5) * 5,
-        volume: Math.max(1000000, Math.random() * 4500000000)
-    };
-}
-
 function inferSignal(pUp) {
     if (pUp >= 0.55) return 'LONG';
     if (pUp <= 0.45) return 'SHORT';
@@ -1834,12 +2241,6 @@ function stdDev(values) {
     const mean = values.reduce((acc, value) => acc + value, 0) / values.length;
     const variance = values.reduce((acc, value) => acc + ((value - mean) ** 2), 0) / values.length;
     return Math.sqrt(Math.max(variance, 0));
-}
-
-function timeLabel(offsetMinutes) {
-    const date = new Date();
-    date.setMinutes(date.getMinutes() - offsetMinutes);
-    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 function timeStampLabel(timestamp) {
