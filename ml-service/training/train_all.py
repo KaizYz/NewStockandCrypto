@@ -377,7 +377,27 @@ def train_and_export(
                     outputs[model_id][asset][horizon] = _fallback_output_payload(horizon, global_metrics, model_id, asset)
             continue
 
-        dataset = build_training_dataset(frames, horizon_steps)
+        try:
+            dataset = build_training_dataset(frames, horizon_steps)
+        except ValueError as exc:
+            all_training_warnings.append(f"Horizon {horizon}: {exc}. Using fallback outputs.")
+            for model_id in MODEL_IDS:
+                global_metrics[model_id][horizon] = {
+                    "directionAccuracy": 0.0,
+                    "brierScore": 1.0,
+                    "ece": 1.0,
+                    "intervalCoverage": 0.0,
+                }
+                for asset in SERVE_ASSETS:
+                    outputs[model_id][asset][horizon] = _fallback_output_payload(horizon, global_metrics, model_id, asset)
+            evaluation_horizon_map[horizon] = {
+                "generatedAt": datetime.now(timezone.utc).isoformat(),
+                "horizon": horizon,
+                "skipped": True,
+                "reason": str(exc),
+            }
+            continue
+
         train_df, test_df = split_train_test(dataset.table, train_ratio=0.8)
         x_train = train_df[dataset.feature_columns].to_numpy(dtype=np.float32)
         x_test = test_df[dataset.feature_columns].to_numpy(dtype=np.float32)
@@ -418,59 +438,77 @@ def train_and_export(
             horizon_dir / "ensemble.joblib",
         )
 
-        seq_dataset = build_sequence_dataset(frames, horizon_steps=horizon_steps, sequence_length=sequence_length)
-        x_seq_train, x_seq_test, y_seq_train, y_seq_test = split_sequence_train_test(seq_dataset.x, seq_dataset.y, train_ratio=0.8)
-        input_dim = x_seq_train.shape[-1]
-        lstm_result = train_torch_model(
-            LSTMClassifier(input_dim=input_dim),
-            x_seq_train,
-            y_seq_train,
-            x_seq_test,
-            y_seq_test,
-            gpu_id=gpu_id,
-            epochs=epochs,
-        )
-        transformer_result = train_torch_model(
-            TransformerClassifier(input_dim=input_dim),
-            x_seq_train,
-            y_seq_train,
-            x_seq_test,
-            y_seq_test,
-            gpu_id=gpu_id,
-            epochs=epochs,
-        )
-        tcn_result = train_torch_model(
-            TCNClassifier(input_dim=input_dim),
-            x_seq_train,
-            y_seq_train,
-            x_seq_test,
-            y_seq_test,
-            gpu_id=gpu_id,
-            epochs=epochs,
-        )
+        deep_models_available = True
+        lstm_result = None
+        transformer_result = None
+        tcn_result = None
+        try:
+            seq_dataset = build_sequence_dataset(frames, horizon_steps=horizon_steps, sequence_length=sequence_length)
+            if len(seq_dataset.x) < 2:
+                raise ValueError("Sequence dataset has fewer than 2 samples.")
+            x_seq_train, x_seq_test, y_seq_train, y_seq_test = split_sequence_train_test(seq_dataset.x, seq_dataset.y, train_ratio=0.8)
+            if len(x_seq_train) == 0 or len(x_seq_test) == 0:
+                raise ValueError("Sequence train/test split is empty.")
+            input_dim = x_seq_train.shape[-1]
+            lstm_result = train_torch_model(
+                LSTMClassifier(input_dim=input_dim),
+                x_seq_train,
+                y_seq_train,
+                x_seq_test,
+                y_seq_test,
+                gpu_id=gpu_id,
+                epochs=epochs,
+            )
+            transformer_result = train_torch_model(
+                TransformerClassifier(input_dim=input_dim),
+                x_seq_train,
+                y_seq_train,
+                x_seq_test,
+                y_seq_test,
+                gpu_id=gpu_id,
+                epochs=epochs,
+            )
+            tcn_result = train_torch_model(
+                TCNClassifier(input_dim=input_dim),
+                x_seq_train,
+                y_seq_train,
+                x_seq_test,
+                y_seq_test,
+                gpu_id=gpu_id,
+                epochs=epochs,
+            )
 
-        torch.save(lstm_result.model.state_dict(), horizon_dir / "lstm.pt")
-        torch.save(transformer_result.model.state_dict(), horizon_dir / "transformer.pt")
-        torch.save(tcn_result.model.state_dict(), horizon_dir / "tcn.pt")
+            torch.save(lstm_result.model.state_dict(), horizon_dir / "lstm.pt")
+            torch.save(transformer_result.model.state_dict(), horizon_dir / "transformer.pt")
+            torch.save(tcn_result.model.state_dict(), horizon_dir / "tcn.pt")
+        except Exception as exc:  # pragma: no cover - defensive fallback for sparse horizons
+            deep_models_available = False
+            all_training_warnings.append(
+                f"Horizon {horizon}: deep model training unavailable ({exc}). Deep outputs fallback to ensemble."
+            )
 
-        global_metrics["lstm"][horizon] = {
-            "directionAccuracy": round(lstm_result.accuracy, 3),
-            "brierScore": round(lstm_result.brier, 3),
-            "ece": round(max(0.02, min(0.15, lstm_result.brier * 0.35)), 3),
-            "intervalCoverage": round(global_metrics["ensemble"][horizon]["intervalCoverage"], 3),
-        }
-        global_metrics["transformer"][horizon] = {
-            "directionAccuracy": round(transformer_result.accuracy, 3),
-            "brierScore": round(transformer_result.brier, 3),
-            "ece": round(max(0.02, min(0.15, transformer_result.brier * 0.35)), 3),
-            "intervalCoverage": round(global_metrics["ensemble"][horizon]["intervalCoverage"], 3),
-        }
-        global_metrics["tcn"][horizon] = {
-            "directionAccuracy": round(tcn_result.accuracy, 3),
-            "brierScore": round(tcn_result.brier, 3),
-            "ece": round(max(0.02, min(0.15, tcn_result.brier * 0.35)), 3),
-            "intervalCoverage": round(global_metrics["ensemble"][horizon]["intervalCoverage"], 3),
-        }
+        if deep_models_available and lstm_result is not None and transformer_result is not None and tcn_result is not None:
+            global_metrics["lstm"][horizon] = {
+                "directionAccuracy": round(lstm_result.accuracy, 3),
+                "brierScore": round(lstm_result.brier, 3),
+                "ece": round(max(0.02, min(0.15, lstm_result.brier * 0.35)), 3),
+                "intervalCoverage": round(global_metrics["ensemble"][horizon]["intervalCoverage"], 3),
+            }
+            global_metrics["transformer"][horizon] = {
+                "directionAccuracy": round(transformer_result.accuracy, 3),
+                "brierScore": round(transformer_result.brier, 3),
+                "ece": round(max(0.02, min(0.15, transformer_result.brier * 0.35)), 3),
+                "intervalCoverage": round(global_metrics["ensemble"][horizon]["intervalCoverage"], 3),
+            }
+            global_metrics["tcn"][horizon] = {
+                "directionAccuracy": round(tcn_result.accuracy, 3),
+                "brierScore": round(tcn_result.brier, 3),
+                "ece": round(max(0.02, min(0.15, tcn_result.brier * 0.35)), 3),
+                "intervalCoverage": round(global_metrics["ensemble"][horizon]["intervalCoverage"], 3),
+            }
+        else:
+            for model_id in ("lstm", "transformer", "tcn"):
+                global_metrics[model_id][horizon] = dict(global_metrics["ensemble"][horizon])
 
         feature_importance = _feature_importance(ensemble_pack.direction_model, dataset.feature_columns)
         seq_map = _sequence_map_for_asset(frames, horizon_steps=horizon_steps, sequence_length=sequence_length)
@@ -492,7 +530,7 @@ def train_and_export(
             q10, q50, q90 = sorted([q10, q50, q90])
 
             sequence = seq_map.get(asset)
-            if sequence is not None:
+            if deep_models_available and sequence is not None and lstm_result is not None and transformer_result is not None and tcn_result is not None:
                 p_up_lstm = _torch_predict_prob(lstm_result.model, sequence)
                 p_up_transformer = _torch_predict_prob(transformer_result.model, sequence)
                 p_up_tcn = _torch_predict_prob(tcn_result.model, sequence)

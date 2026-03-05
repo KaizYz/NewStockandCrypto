@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-04T02:46:16.462629+00:00",
+  "generatedAt": "2026-03-05T16:58:03.739785+00:00",
   "outputs": {
     "ensemble": {
       "BTCUSDT": {
@@ -24,10 +24,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.568,
+            "brierScore": 0.239,
+            "ece": 0.016,
+            "intervalCoverage": 0.779
           },
           "heatmap": {
             "xLabels": [
@@ -133,10 +133,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.559,
+            "brierScore": 0.244,
+            "ece": 0.014,
+            "intervalCoverage": 0.776
           },
           "heatmap": {
             "xLabels": [
@@ -242,10 +242,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.517,
+            "brierScore": 0.415,
+            "ece": 0.448,
+            "intervalCoverage": 0.172
           },
           "heatmap": {
             "xLabels": [
@@ -462,10 +462,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.568,
+            "brierScore": 0.239,
+            "ece": 0.016,
+            "intervalCoverage": 0.779
           },
           "heatmap": {
             "xLabels": [
@@ -571,10 +571,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.559,
+            "brierScore": 0.244,
+            "ece": 0.014,
+            "intervalCoverage": 0.776
           },
           "heatmap": {
             "xLabels": [
@@ -680,10 +680,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.517,
+            "brierScore": 0.415,
+            "ece": 0.448,
+            "intervalCoverage": 0.172
           },
           "heatmap": {
             "xLabels": [
@@ -900,10 +900,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.568,
+            "brierScore": 0.239,
+            "ece": 0.016,
+            "intervalCoverage": 0.779
           },
           "heatmap": {
             "xLabels": [
@@ -1009,10 +1009,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.559,
+            "brierScore": 0.244,
+            "ece": 0.014,
+            "intervalCoverage": 0.776
           },
           "heatmap": {
             "xLabels": [
@@ -1118,10 +1118,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.517,
+            "brierScore": 0.415,
+            "ece": 0.448,
+            "intervalCoverage": 0.172
           },
           "heatmap": {
             "xLabels": [
@@ -1318,30 +1318,50 @@
       },
       "000001.SS": {
         "1H": {
-          "referencePrice": 0.0,
+          "referencePrice": 4109.233887,
           "prediction": {
-            "pUp": 0.5,
-            "q10": -0.01,
-            "q50": 0.0,
-            "q90": 0.01,
-            "intervalWidth": 0.02,
-            "confidence": 0.5,
+            "pUp": 0.475,
+            "q10": -0.0067,
+            "q50": -0.0002,
+            "q90": 0.018,
+            "intervalWidth": 0.0247,
+            "confidence": 0.545,
             "signal": "FLAT"
           },
           "explanation": {
-            "summary": "ENSEMBLE fallback forecast for 000001.SS at 1H. Missing asset coverage in this horizon run.",
+            "summary": "ENSEMBLE live artifact forecast for 000001.SS at 1H. P(UP)=0.48, median move=-0.015%.",
             "topFeatures": [
               {
-                "name": "missing_coverage",
-                "value": 0.0
+                "name": "volume_z",
+                "value": 1.0
+              },
+              {
+                "name": "asset_id",
+                "value": 0.887
+              },
+              {
+                "name": "return_3",
+                "value": 0.807
+              },
+              {
+                "name": "vol_12",
+                "value": 0.769
+              },
+              {
+                "name": "oc_spread",
+                "value": 0.759
+              },
+              {
+                "name": "hl_spread",
+                "value": 0.755
               }
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.568,
+            "brierScore": 0.239,
+            "ece": 0.016,
+            "intervalCoverage": 0.779
           },
           "heatmap": {
             "xLabels": [
@@ -1364,93 +1384,113 @@
             ],
             "matrix": [
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.207,
+                0.265,
+                -0.102,
+                1.913,
+                0.167,
+                -0.5,
+                0.035,
+                -1.985
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.693,
+                0.02,
+                0.183,
+                1.13,
+                1.075,
+                0.853,
+                -0.188,
+                -1.38
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.782,
+                -1.084,
+                -0.776,
+                0.337,
+                0.983,
+                0.961,
+                0.924,
+                0.438
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.782,
+                -1.084,
+                -0.776,
+                0.337,
+                0.983,
+                0.961,
+                0.924,
+                0.438
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.513,
+                -1.087,
+                -1.034,
+                1.023,
+                0.277,
+                0.239,
+                0.841,
+                1.254
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.731,
+                0.927,
+                1.103,
+                0.895,
+                -1.283,
+                -1.224,
+                -1.2,
+                0.051
               ]
             ]
           }
         },
         "4H": {
-          "referencePrice": 0.0,
+          "referencePrice": 4109.233887,
           "prediction": {
-            "pUp": 0.5,
-            "q10": -0.01,
-            "q50": 0.0,
-            "q90": 0.01,
-            "intervalWidth": 0.02,
-            "confidence": 0.5,
-            "signal": "FLAT"
+            "pUp": 0.417,
+            "q10": -0.0138,
+            "q50": -0.0014,
+            "q90": 0.015,
+            "intervalWidth": 0.0288,
+            "confidence": 0.65,
+            "signal": "SHORT"
           },
           "explanation": {
-            "summary": "ENSEMBLE fallback forecast for 000001.SS at 4H. Missing asset coverage in this horizon run.",
+            "summary": "ENSEMBLE live artifact forecast for 000001.SS at 4H. P(UP)=0.42, median move=-0.141%.",
             "topFeatures": [
               {
-                "name": "missing_coverage",
-                "value": 0.0
+                "name": "asset_id",
+                "value": 1.0
+              },
+              {
+                "name": "vol_12",
+                "value": 0.867
+              },
+              {
+                "name": "volume_z",
+                "value": 0.862
+              },
+              {
+                "name": "vol_6",
+                "value": 0.782
+              },
+              {
+                "name": "hl_spread",
+                "value": 0.623
+              },
+              {
+                "name": "return_3",
+                "value": 0.62
               }
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.559,
+            "brierScore": 0.244,
+            "ece": 0.014,
+            "intervalCoverage": 0.776
           },
           "heatmap": {
             "xLabels": [
@@ -1473,93 +1513,113 @@
             ],
             "matrix": [
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.733,
+                -1.437,
+                0.07,
+                0.445,
+                0.48,
+                0.253,
+                1.503,
+                0.419
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.329,
+                -1.272,
+                -0.986,
+                -0.113,
+                0.662,
+                0.736,
+                1.164,
+                1.139
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.137,
+                -1.113,
+                -1.111,
+                -0.769,
+                -0.111,
+                0.179,
+                1.226,
+                1.835
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.137,
+                -1.113,
+                -1.111,
+                -0.769,
+                -0.111,
+                0.179,
+                1.226,
+                1.835
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.181,
+                -0.606,
+                -0.586,
+                -1.186,
+                -0.702,
+                -0.641,
+                1.694,
+                0.846
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.72,
+                -0.801,
+                -0.796,
+                0.226,
+                0.418,
+                0.59,
+                0.387,
+                -1.745
               ]
             ]
           }
         },
         "1D": {
-          "referencePrice": 0.0,
+          "referencePrice": 4108.566895,
           "prediction": {
-            "pUp": 0.5,
-            "q10": -0.01,
-            "q50": 0.0,
-            "q90": 0.01,
-            "intervalWidth": 0.02,
-            "confidence": 0.5,
-            "signal": "FLAT"
+            "pUp": 0.943,
+            "q10": 0.0113,
+            "q50": 0.0341,
+            "q90": 0.053,
+            "intervalWidth": 0.0417,
+            "confidence": 0.99,
+            "signal": "LONG"
           },
           "explanation": {
-            "summary": "ENSEMBLE fallback forecast for 000001.SS at 1D. Missing asset coverage in this horizon run.",
+            "summary": "ENSEMBLE live artifact forecast for 000001.SS at 1D. P(UP)=0.94, median move=+3.406%.",
             "topFeatures": [
               {
-                "name": "missing_coverage",
-                "value": 0.0
+                "name": "asset_id",
+                "value": 1.0
+              },
+              {
+                "name": "vol_6",
+                "value": 0.634
+              },
+              {
+                "name": "return_6",
+                "value": 0.634
+              },
+              {
+                "name": "return_12",
+                "value": 0.617
+              },
+              {
+                "name": "volume_z",
+                "value": 0.585
+              },
+              {
+                "name": "oc_spread",
+                "value": 0.536
               }
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.517,
+            "brierScore": 0.415,
+            "ece": 0.448,
+            "intervalCoverage": 0.172
           },
           "heatmap": {
             "xLabels": [
@@ -1582,64 +1642,64 @@
             ],
             "matrix": [
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.779,
+                -0.621,
+                -0.695,
+                -0.46,
+                1.479,
+                0.419,
+                0.729,
+                0.928
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.873,
+                0.24,
+                -1.624,
+                -1.126,
+                -0.332,
+                0.091,
+                0.544,
+                0.334
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                2.157,
+                0.573,
+                0.242,
+                0.075,
+                -0.462,
+                -1.401,
+                -0.784,
+                -0.401
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                2.157,
+                0.573,
+                0.242,
+                0.075,
+                -0.462,
+                -1.401,
+                -0.784,
+                -0.401
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.408,
+                0.704,
+                0.318,
+                0.049,
+                0.316,
+                0.225,
+                -0.919,
+                -2.103
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.21,
+                0.623,
+                0.76,
+                0.822,
+                0.343,
+                -1.036,
+                -1.333,
+                -1.388
               ]
             ]
           }
@@ -1756,30 +1816,50 @@
       },
       "^GSPC": {
         "1H": {
-          "referencePrice": 0.0,
+          "referencePrice": 6817.339844,
           "prediction": {
-            "pUp": 0.5,
-            "q10": -0.01,
-            "q50": 0.0,
-            "q90": 0.01,
-            "intervalWidth": 0.02,
-            "confidence": 0.5,
-            "signal": "FLAT"
+            "pUp": 0.595,
+            "q10": -0.004,
+            "q50": 0.0002,
+            "q90": 0.0045,
+            "intervalWidth": 0.0085,
+            "confidence": 0.672,
+            "signal": "LONG"
           },
           "explanation": {
-            "summary": "ENSEMBLE fallback forecast for ^GSPC at 1H. Missing asset coverage in this horizon run.",
+            "summary": "ENSEMBLE live artifact forecast for ^GSPC at 1H. P(UP)=0.60, median move=+0.015%.",
             "topFeatures": [
               {
-                "name": "missing_coverage",
-                "value": 0.0
+                "name": "volume_z",
+                "value": 1.0
+              },
+              {
+                "name": "asset_id",
+                "value": 0.887
+              },
+              {
+                "name": "return_3",
+                "value": 0.807
+              },
+              {
+                "name": "vol_12",
+                "value": 0.769
+              },
+              {
+                "name": "oc_spread",
+                "value": 0.759
+              },
+              {
+                "name": "hl_spread",
+                "value": 0.755
               }
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.568,
+            "brierScore": 0.239,
+            "ece": 0.016,
+            "intervalCoverage": 0.779
           },
           "heatmap": {
             "xLabels": [
@@ -1802,93 +1882,113 @@
             ],
             "matrix": [
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                2.141,
+                -0.376,
+                0.079,
+                0.237,
+                0.155,
+                -0.158,
+                -0.331,
+                -1.747
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.044,
+                1.006,
+                1.087,
+                -0.378,
+                0.032,
+                -0.151,
+                -0.589,
+                -2.05
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.019,
+                0.382,
+                0.289,
+                0.332,
+                0.675,
+                0.58,
+                -1.157,
+                -2.12
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.019,
+                0.382,
+                0.289,
+                0.332,
+                0.675,
+                0.58,
+                -1.157,
+                -2.12
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.932,
+                -0.651,
+                -0.779,
+                -0.693,
+                2.05,
+                0.977,
+                0.494,
+                -0.466
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.294,
+                0.57,
+                0.588,
+                0.584,
+                0.382,
+                0.443,
+                -2.5,
+                -0.32
               ]
             ]
           }
         },
         "4H": {
-          "referencePrice": 0.0,
+          "referencePrice": 6811.089844,
           "prediction": {
-            "pUp": 0.5,
-            "q10": -0.01,
-            "q50": 0.0,
-            "q90": 0.01,
-            "intervalWidth": 0.02,
-            "confidence": 0.5,
+            "pUp": 0.469,
+            "q10": -0.009,
+            "q50": -0.001,
+            "q90": 0.0074,
+            "intervalWidth": 0.0164,
+            "confidence": 0.556,
             "signal": "FLAT"
           },
           "explanation": {
-            "summary": "ENSEMBLE fallback forecast for ^GSPC at 4H. Missing asset coverage in this horizon run.",
+            "summary": "ENSEMBLE live artifact forecast for ^GSPC at 4H. P(UP)=0.47, median move=-0.100%.",
             "topFeatures": [
               {
-                "name": "missing_coverage",
-                "value": 0.0
+                "name": "asset_id",
+                "value": 1.0
+              },
+              {
+                "name": "vol_12",
+                "value": 0.867
+              },
+              {
+                "name": "volume_z",
+                "value": 0.862
+              },
+              {
+                "name": "vol_6",
+                "value": 0.782
+              },
+              {
+                "name": "hl_spread",
+                "value": 0.623
+              },
+              {
+                "name": "return_3",
+                "value": 0.62
               }
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.559,
+            "brierScore": 0.244,
+            "ece": 0.014,
+            "intervalCoverage": 0.776
           },
           "heatmap": {
             "xLabels": [
@@ -1911,93 +2011,113 @@
             ],
             "matrix": [
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.11,
+                -0.787,
+                -0.379,
+                2.5,
+                -0.852,
+                -0.24,
+                -0.027,
+                -0.138
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.109,
+                -0.938,
+                -1.227,
+                1.186,
+                1.126,
+                1.254,
+                -1.083,
+                -0.429
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -2.376,
+                1.318,
+                -0.16,
+                0.665,
+                0.105,
+                0.024,
+                0.062,
+                0.362
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -2.376,
+                1.318,
+                -0.16,
+                0.665,
+                0.105,
+                0.024,
+                0.062,
+                0.362
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.3,
+                -0.868,
+                -0.897,
+                -0.266,
+                -0.005,
+                -0.124,
+                -0.044,
+                2.5
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                2.5,
+                -0.248,
+                -0.979,
+                -0.325,
+                -0.243,
+                -0.238,
+                -0.239,
+                -0.299
               ]
             ]
           }
         },
         "1D": {
-          "referencePrice": 0.0,
+          "referencePrice": 6869.5,
           "prediction": {
-            "pUp": 0.5,
-            "q10": -0.01,
-            "q50": 0.0,
-            "q90": 0.01,
-            "intervalWidth": 0.02,
-            "confidence": 0.5,
-            "signal": "FLAT"
+            "pUp": 0.134,
+            "q10": -0.0091,
+            "q50": -0.003,
+            "q90": 0.0068,
+            "intervalWidth": 0.0159,
+            "confidence": 0.99,
+            "signal": "SHORT"
           },
           "explanation": {
-            "summary": "ENSEMBLE fallback forecast for ^GSPC at 1D. Missing asset coverage in this horizon run.",
+            "summary": "ENSEMBLE live artifact forecast for ^GSPC at 1D. P(UP)=0.13, median move=-0.302%.",
             "topFeatures": [
               {
-                "name": "missing_coverage",
-                "value": 0.0
+                "name": "asset_id",
+                "value": 1.0
+              },
+              {
+                "name": "vol_6",
+                "value": 0.634
+              },
+              {
+                "name": "return_6",
+                "value": 0.634
+              },
+              {
+                "name": "return_12",
+                "value": 0.617
+              },
+              {
+                "name": "volume_z",
+                "value": 0.585
+              },
+              {
+                "name": "oc_spread",
+                "value": 0.536
               }
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.517,
+            "brierScore": 0.415,
+            "ece": 0.448,
+            "intervalCoverage": 0.172
           },
           "heatmap": {
             "xLabels": [
@@ -2020,64 +2140,64 @@
             ],
             "matrix": [
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.145,
+                -2.399,
+                1.235,
+                0.547,
+                -0.036,
+                0.492,
+                0.388,
+                -0.082
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.415,
+                -1.75,
+                -0.982,
+                -0.453,
+                1.403,
+                0.827,
+                0.704,
+                0.668
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.296,
+                -1.619,
+                -0.927,
+                -0.407,
+                -0.006,
+                0.165,
+                0.501,
+                1.997
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.296,
+                -1.619,
+                -0.927,
+                -0.407,
+                -0.006,
+                0.165,
+                0.501,
+                1.997
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.975,
+                -1.829,
+                0.173,
+                -0.007,
+                -1.225,
+                0.535,
+                1.373,
+                0.004
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.697,
+                -0.137,
+                0.569,
+                0.736,
+                0.672,
+                0.73,
+                0.763,
+                -1.634
               ]
             ]
           }
@@ -2216,10 +2336,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.532,
+            "brierScore": 0.248,
+            "ece": 0.087,
+            "intervalCoverage": 0.779
           },
           "heatmap": {
             "xLabels": [
@@ -2325,10 +2445,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.5,
+            "brierScore": 0.25,
+            "ece": 0.088,
+            "intervalCoverage": 0.776
           },
           "heatmap": {
             "xLabels": [
@@ -2434,10 +2554,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.25,
+            "brierScore": 0.27,
+            "ece": 0.095,
+            "intervalCoverage": 0.172
           },
           "heatmap": {
             "xLabels": [
@@ -2654,10 +2774,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.532,
+            "brierScore": 0.248,
+            "ece": 0.087,
+            "intervalCoverage": 0.779
           },
           "heatmap": {
             "xLabels": [
@@ -2763,10 +2883,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.5,
+            "brierScore": 0.25,
+            "ece": 0.088,
+            "intervalCoverage": 0.776
           },
           "heatmap": {
             "xLabels": [
@@ -2872,10 +2992,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.25,
+            "brierScore": 0.27,
+            "ece": 0.095,
+            "intervalCoverage": 0.172
           },
           "heatmap": {
             "xLabels": [
@@ -3092,10 +3212,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.532,
+            "brierScore": 0.248,
+            "ece": 0.087,
+            "intervalCoverage": 0.779
           },
           "heatmap": {
             "xLabels": [
@@ -3201,10 +3321,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.5,
+            "brierScore": 0.25,
+            "ece": 0.088,
+            "intervalCoverage": 0.776
           },
           "heatmap": {
             "xLabels": [
@@ -3310,10 +3430,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.25,
+            "brierScore": 0.27,
+            "ece": 0.095,
+            "intervalCoverage": 0.172
           },
           "heatmap": {
             "xLabels": [
@@ -3510,30 +3630,50 @@
       },
       "000001.SS": {
         "1H": {
-          "referencePrice": 0.0,
+          "referencePrice": 4109.233887,
           "prediction": {
-            "pUp": 0.5,
-            "q10": -0.01,
-            "q50": 0.0,
-            "q90": 0.01,
-            "intervalWidth": 0.02,
-            "confidence": 0.5,
-            "signal": "FLAT"
+            "pUp": 0.444,
+            "q10": -0.0073,
+            "q50": -0.0007,
+            "q90": 0.0175,
+            "intervalWidth": 0.0247,
+            "confidence": 0.601,
+            "signal": "SHORT"
           },
           "explanation": {
-            "summary": "LSTM fallback forecast for 000001.SS at 1H. Missing asset coverage in this horizon run.",
+            "summary": "LSTM live artifact forecast for 000001.SS at 1H. P(UP)=0.44, median move=-0.071%.",
             "topFeatures": [
               {
-                "name": "missing_coverage",
-                "value": 0.0
+                "name": "volume_z",
+                "value": 1.0
+              },
+              {
+                "name": "asset_id",
+                "value": 0.887
+              },
+              {
+                "name": "return_3",
+                "value": 0.807
+              },
+              {
+                "name": "vol_12",
+                "value": 0.769
+              },
+              {
+                "name": "oc_spread",
+                "value": 0.759
+              },
+              {
+                "name": "hl_spread",
+                "value": 0.755
               }
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.532,
+            "brierScore": 0.248,
+            "ece": 0.087,
+            "intervalCoverage": 0.779
           },
           "heatmap": {
             "xLabels": [
@@ -3556,93 +3696,113 @@
             ],
             "matrix": [
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.207,
+                0.265,
+                -0.102,
+                1.913,
+                0.167,
+                -0.5,
+                0.035,
+                -1.985
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.693,
+                0.02,
+                0.183,
+                1.13,
+                1.075,
+                0.853,
+                -0.188,
+                -1.38
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.782,
+                -1.084,
+                -0.776,
+                0.337,
+                0.983,
+                0.961,
+                0.924,
+                0.438
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.782,
+                -1.084,
+                -0.776,
+                0.337,
+                0.983,
+                0.961,
+                0.924,
+                0.438
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.513,
+                -1.087,
+                -1.034,
+                1.023,
+                0.277,
+                0.239,
+                0.841,
+                1.254
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.731,
+                0.927,
+                1.103,
+                0.895,
+                -1.283,
+                -1.224,
+                -1.2,
+                0.051
               ]
             ]
           }
         },
         "4H": {
-          "referencePrice": 0.0,
+          "referencePrice": 4109.233887,
           "prediction": {
-            "pUp": 0.5,
-            "q10": -0.01,
-            "q50": 0.0,
-            "q90": 0.01,
-            "intervalWidth": 0.02,
-            "confidence": 0.5,
+            "pUp": 0.497,
+            "q10": -0.0138,
+            "q50": -0.0014,
+            "q90": 0.0149,
+            "intervalWidth": 0.0288,
+            "confidence": 0.506,
             "signal": "FLAT"
           },
           "explanation": {
-            "summary": "LSTM fallback forecast for 000001.SS at 4H. Missing asset coverage in this horizon run.",
+            "summary": "LSTM live artifact forecast for 000001.SS at 4H. P(UP)=0.50, median move=-0.144%.",
             "topFeatures": [
               {
-                "name": "missing_coverage",
-                "value": 0.0
+                "name": "asset_id",
+                "value": 1.0
+              },
+              {
+                "name": "vol_12",
+                "value": 0.867
+              },
+              {
+                "name": "volume_z",
+                "value": 0.862
+              },
+              {
+                "name": "vol_6",
+                "value": 0.782
+              },
+              {
+                "name": "hl_spread",
+                "value": 0.623
+              },
+              {
+                "name": "return_3",
+                "value": 0.62
               }
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.5,
+            "brierScore": 0.25,
+            "ece": 0.088,
+            "intervalCoverage": 0.776
           },
           "heatmap": {
             "xLabels": [
@@ -3665,93 +3825,113 @@
             ],
             "matrix": [
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.733,
+                -1.437,
+                0.07,
+                0.445,
+                0.48,
+                0.253,
+                1.503,
+                0.419
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.329,
+                -1.272,
+                -0.986,
+                -0.113,
+                0.662,
+                0.736,
+                1.164,
+                1.139
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.137,
+                -1.113,
+                -1.111,
+                -0.769,
+                -0.111,
+                0.179,
+                1.226,
+                1.835
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.137,
+                -1.113,
+                -1.111,
+                -0.769,
+                -0.111,
+                0.179,
+                1.226,
+                1.835
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.181,
+                -0.606,
+                -0.586,
+                -1.186,
+                -0.702,
+                -0.641,
+                1.694,
+                0.846
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.72,
+                -0.801,
+                -0.796,
+                0.226,
+                0.418,
+                0.59,
+                0.387,
+                -1.745
               ]
             ]
           }
         },
         "1D": {
-          "referencePrice": 0.0,
+          "referencePrice": 4108.566895,
           "prediction": {
-            "pUp": 0.5,
-            "q10": -0.01,
-            "q50": 0.0,
-            "q90": 0.01,
-            "intervalWidth": 0.02,
-            "confidence": 0.5,
+            "pUp": 0.464,
+            "q10": 0.0109,
+            "q50": 0.0337,
+            "q90": 0.0526,
+            "intervalWidth": 0.0417,
+            "confidence": 0.565,
             "signal": "FLAT"
           },
           "explanation": {
-            "summary": "LSTM fallback forecast for 000001.SS at 1D. Missing asset coverage in this horizon run.",
+            "summary": "LSTM live artifact forecast for 000001.SS at 1D. P(UP)=0.46, median move=+3.370%.",
             "topFeatures": [
               {
-                "name": "missing_coverage",
-                "value": 0.0
+                "name": "asset_id",
+                "value": 1.0
+              },
+              {
+                "name": "vol_6",
+                "value": 0.634
+              },
+              {
+                "name": "return_6",
+                "value": 0.634
+              },
+              {
+                "name": "return_12",
+                "value": 0.617
+              },
+              {
+                "name": "volume_z",
+                "value": 0.585
+              },
+              {
+                "name": "oc_spread",
+                "value": 0.536
               }
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.25,
+            "brierScore": 0.27,
+            "ece": 0.095,
+            "intervalCoverage": 0.172
           },
           "heatmap": {
             "xLabels": [
@@ -3774,64 +3954,64 @@
             ],
             "matrix": [
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.779,
+                -0.621,
+                -0.695,
+                -0.46,
+                1.479,
+                0.419,
+                0.729,
+                0.928
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.873,
+                0.24,
+                -1.624,
+                -1.126,
+                -0.332,
+                0.091,
+                0.544,
+                0.334
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                2.157,
+                0.573,
+                0.242,
+                0.075,
+                -0.462,
+                -1.401,
+                -0.784,
+                -0.401
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                2.157,
+                0.573,
+                0.242,
+                0.075,
+                -0.462,
+                -1.401,
+                -0.784,
+                -0.401
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.408,
+                0.704,
+                0.318,
+                0.049,
+                0.316,
+                0.225,
+                -0.919,
+                -2.103
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.21,
+                0.623,
+                0.76,
+                0.822,
+                0.343,
+                -1.036,
+                -1.333,
+                -1.388
               ]
             ]
           }
@@ -3948,30 +4128,50 @@
       },
       "^GSPC": {
         "1H": {
-          "referencePrice": 0.0,
+          "referencePrice": 6817.339844,
           "prediction": {
-            "pUp": 0.5,
-            "q10": -0.01,
-            "q50": 0.0,
-            "q90": 0.01,
-            "intervalWidth": 0.02,
-            "confidence": 0.5,
+            "pUp": 0.502,
+            "q10": -0.004,
+            "q50": 0.0002,
+            "q90": 0.0045,
+            "intervalWidth": 0.0085,
+            "confidence": 0.504,
             "signal": "FLAT"
           },
           "explanation": {
-            "summary": "LSTM fallback forecast for ^GSPC at 1H. Missing asset coverage in this horizon run.",
+            "summary": "LSTM live artifact forecast for ^GSPC at 1H. P(UP)=0.50, median move=+0.018%.",
             "topFeatures": [
               {
-                "name": "missing_coverage",
-                "value": 0.0
+                "name": "volume_z",
+                "value": 1.0
+              },
+              {
+                "name": "asset_id",
+                "value": 0.887
+              },
+              {
+                "name": "return_3",
+                "value": 0.807
+              },
+              {
+                "name": "vol_12",
+                "value": 0.769
+              },
+              {
+                "name": "oc_spread",
+                "value": 0.759
+              },
+              {
+                "name": "hl_spread",
+                "value": 0.755
               }
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.532,
+            "brierScore": 0.248,
+            "ece": 0.087,
+            "intervalCoverage": 0.779
           },
           "heatmap": {
             "xLabels": [
@@ -3994,93 +4194,113 @@
             ],
             "matrix": [
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                2.141,
+                -0.376,
+                0.079,
+                0.237,
+                0.155,
+                -0.158,
+                -0.331,
+                -1.747
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.044,
+                1.006,
+                1.087,
+                -0.378,
+                0.032,
+                -0.151,
+                -0.589,
+                -2.05
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.019,
+                0.382,
+                0.289,
+                0.332,
+                0.675,
+                0.58,
+                -1.157,
+                -2.12
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.019,
+                0.382,
+                0.289,
+                0.332,
+                0.675,
+                0.58,
+                -1.157,
+                -2.12
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.932,
+                -0.651,
+                -0.779,
+                -0.693,
+                2.05,
+                0.977,
+                0.494,
+                -0.466
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.294,
+                0.57,
+                0.588,
+                0.584,
+                0.382,
+                0.443,
+                -2.5,
+                -0.32
               ]
             ]
           }
         },
         "4H": {
-          "referencePrice": 0.0,
+          "referencePrice": 6811.089844,
           "prediction": {
-            "pUp": 0.5,
-            "q10": -0.01,
-            "q50": 0.0,
-            "q90": 0.01,
-            "intervalWidth": 0.02,
-            "confidence": 0.5,
+            "pUp": 0.51,
+            "q10": -0.0089,
+            "q50": -0.0009,
+            "q90": 0.0075,
+            "intervalWidth": 0.0164,
+            "confidence": 0.518,
             "signal": "FLAT"
           },
           "explanation": {
-            "summary": "LSTM fallback forecast for ^GSPC at 4H. Missing asset coverage in this horizon run.",
+            "summary": "LSTM live artifact forecast for ^GSPC at 4H. P(UP)=0.51, median move=-0.090%.",
             "topFeatures": [
               {
-                "name": "missing_coverage",
-                "value": 0.0
+                "name": "asset_id",
+                "value": 1.0
+              },
+              {
+                "name": "vol_12",
+                "value": 0.867
+              },
+              {
+                "name": "volume_z",
+                "value": 0.862
+              },
+              {
+                "name": "vol_6",
+                "value": 0.782
+              },
+              {
+                "name": "hl_spread",
+                "value": 0.623
+              },
+              {
+                "name": "return_3",
+                "value": 0.62
               }
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.5,
+            "brierScore": 0.25,
+            "ece": 0.088,
+            "intervalCoverage": 0.776
           },
           "heatmap": {
             "xLabels": [
@@ -4103,93 +4323,113 @@
             ],
             "matrix": [
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.11,
+                -0.787,
+                -0.379,
+                2.5,
+                -0.852,
+                -0.24,
+                -0.027,
+                -0.138
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.109,
+                -0.938,
+                -1.227,
+                1.186,
+                1.126,
+                1.254,
+                -1.083,
+                -0.429
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -2.376,
+                1.318,
+                -0.16,
+                0.665,
+                0.105,
+                0.024,
+                0.062,
+                0.362
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -2.376,
+                1.318,
+                -0.16,
+                0.665,
+                0.105,
+                0.024,
+                0.062,
+                0.362
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.3,
+                -0.868,
+                -0.897,
+                -0.266,
+                -0.005,
+                -0.124,
+                -0.044,
+                2.5
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                2.5,
+                -0.248,
+                -0.979,
+                -0.325,
+                -0.243,
+                -0.238,
+                -0.239,
+                -0.299
               ]
             ]
           }
         },
         "1D": {
-          "referencePrice": 0.0,
+          "referencePrice": 6869.5,
           "prediction": {
-            "pUp": 0.5,
-            "q10": -0.01,
-            "q50": 0.0,
-            "q90": 0.01,
-            "intervalWidth": 0.02,
-            "confidence": 0.5,
+            "pUp": 0.463,
+            "q10": -0.0095,
+            "q50": -0.0034,
+            "q90": 0.0064,
+            "intervalWidth": 0.0159,
+            "confidence": 0.566,
             "signal": "FLAT"
           },
           "explanation": {
-            "summary": "LSTM fallback forecast for ^GSPC at 1D. Missing asset coverage in this horizon run.",
+            "summary": "LSTM live artifact forecast for ^GSPC at 1D. P(UP)=0.46, median move=-0.339%.",
             "topFeatures": [
               {
-                "name": "missing_coverage",
-                "value": 0.0
+                "name": "asset_id",
+                "value": 1.0
+              },
+              {
+                "name": "vol_6",
+                "value": 0.634
+              },
+              {
+                "name": "return_6",
+                "value": 0.634
+              },
+              {
+                "name": "return_12",
+                "value": 0.617
+              },
+              {
+                "name": "volume_z",
+                "value": 0.585
+              },
+              {
+                "name": "oc_spread",
+                "value": 0.536
               }
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.25,
+            "brierScore": 0.27,
+            "ece": 0.095,
+            "intervalCoverage": 0.172
           },
           "heatmap": {
             "xLabels": [
@@ -4212,64 +4452,64 @@
             ],
             "matrix": [
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.145,
+                -2.399,
+                1.235,
+                0.547,
+                -0.036,
+                0.492,
+                0.388,
+                -0.082
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.415,
+                -1.75,
+                -0.982,
+                -0.453,
+                1.403,
+                0.827,
+                0.704,
+                0.668
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.296,
+                -1.619,
+                -0.927,
+                -0.407,
+                -0.006,
+                0.165,
+                0.501,
+                1.997
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.296,
+                -1.619,
+                -0.927,
+                -0.407,
+                -0.006,
+                0.165,
+                0.501,
+                1.997
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.975,
+                -1.829,
+                0.173,
+                -0.007,
+                -1.225,
+                0.535,
+                1.373,
+                0.004
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.697,
+                -0.137,
+                0.569,
+                0.736,
+                0.672,
+                0.73,
+                0.763,
+                -1.634
               ]
             ]
           }
@@ -4408,10 +4648,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.547,
+            "brierScore": 0.248,
+            "ece": 0.087,
+            "intervalCoverage": 0.779
           },
           "heatmap": {
             "xLabels": [
@@ -4517,10 +4757,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.518,
+            "brierScore": 0.25,
+            "ece": 0.087,
+            "intervalCoverage": 0.776
           },
           "heatmap": {
             "xLabels": [
@@ -4626,10 +4866,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.25,
+            "brierScore": 0.31,
+            "ece": 0.109,
+            "intervalCoverage": 0.172
           },
           "heatmap": {
             "xLabels": [
@@ -4846,10 +5086,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.547,
+            "brierScore": 0.248,
+            "ece": 0.087,
+            "intervalCoverage": 0.779
           },
           "heatmap": {
             "xLabels": [
@@ -4955,10 +5195,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.518,
+            "brierScore": 0.25,
+            "ece": 0.087,
+            "intervalCoverage": 0.776
           },
           "heatmap": {
             "xLabels": [
@@ -5064,10 +5304,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.25,
+            "brierScore": 0.31,
+            "ece": 0.109,
+            "intervalCoverage": 0.172
           },
           "heatmap": {
             "xLabels": [
@@ -5284,10 +5524,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.547,
+            "brierScore": 0.248,
+            "ece": 0.087,
+            "intervalCoverage": 0.779
           },
           "heatmap": {
             "xLabels": [
@@ -5393,10 +5633,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.518,
+            "brierScore": 0.25,
+            "ece": 0.087,
+            "intervalCoverage": 0.776
           },
           "heatmap": {
             "xLabels": [
@@ -5502,10 +5742,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.25,
+            "brierScore": 0.31,
+            "ece": 0.109,
+            "intervalCoverage": 0.172
           },
           "heatmap": {
             "xLabels": [
@@ -5702,30 +5942,50 @@
       },
       "000001.SS": {
         "1H": {
-          "referencePrice": 0.0,
+          "referencePrice": 4109.233887,
           "prediction": {
-            "pUp": 0.5,
-            "q10": -0.01,
-            "q50": 0.0,
-            "q90": 0.01,
-            "intervalWidth": 0.02,
-            "confidence": 0.5,
+            "pUp": 0.472,
+            "q10": -0.007,
+            "q50": -0.0004,
+            "q90": 0.0178,
+            "intervalWidth": 0.0247,
+            "confidence": 0.551,
             "signal": "FLAT"
           },
           "explanation": {
-            "summary": "TRANSFORMER fallback forecast for 000001.SS at 1H. Missing asset coverage in this horizon run.",
+            "summary": "TRANSFORMER live artifact forecast for 000001.SS at 1H. P(UP)=0.47, median move=-0.043%.",
             "topFeatures": [
               {
-                "name": "missing_coverage",
-                "value": 0.0
+                "name": "volume_z",
+                "value": 1.0
+              },
+              {
+                "name": "asset_id",
+                "value": 0.887
+              },
+              {
+                "name": "return_3",
+                "value": 0.807
+              },
+              {
+                "name": "vol_12",
+                "value": 0.769
+              },
+              {
+                "name": "oc_spread",
+                "value": 0.759
+              },
+              {
+                "name": "hl_spread",
+                "value": 0.755
               }
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.547,
+            "brierScore": 0.248,
+            "ece": 0.087,
+            "intervalCoverage": 0.779
           },
           "heatmap": {
             "xLabels": [
@@ -5748,93 +6008,113 @@
             ],
             "matrix": [
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.207,
+                0.265,
+                -0.102,
+                1.913,
+                0.167,
+                -0.5,
+                0.035,
+                -1.985
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.693,
+                0.02,
+                0.183,
+                1.13,
+                1.075,
+                0.853,
+                -0.188,
+                -1.38
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.782,
+                -1.084,
+                -0.776,
+                0.337,
+                0.983,
+                0.961,
+                0.924,
+                0.438
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.782,
+                -1.084,
+                -0.776,
+                0.337,
+                0.983,
+                0.961,
+                0.924,
+                0.438
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.513,
+                -1.087,
+                -1.034,
+                1.023,
+                0.277,
+                0.239,
+                0.841,
+                1.254
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.731,
+                0.927,
+                1.103,
+                0.895,
+                -1.283,
+                -1.224,
+                -1.2,
+                0.051
               ]
             ]
           }
         },
         "4H": {
-          "referencePrice": 0.0,
+          "referencePrice": 4109.233887,
           "prediction": {
-            "pUp": 0.5,
-            "q10": -0.01,
-            "q50": 0.0,
-            "q90": 0.01,
-            "intervalWidth": 0.02,
-            "confidence": 0.5,
+            "pUp": 0.497,
+            "q10": -0.0138,
+            "q50": -0.0014,
+            "q90": 0.0149,
+            "intervalWidth": 0.0288,
+            "confidence": 0.505,
             "signal": "FLAT"
           },
           "explanation": {
-            "summary": "TRANSFORMER fallback forecast for 000001.SS at 4H. Missing asset coverage in this horizon run.",
+            "summary": "TRANSFORMER live artifact forecast for 000001.SS at 4H. P(UP)=0.50, median move=-0.144%.",
             "topFeatures": [
               {
-                "name": "missing_coverage",
-                "value": 0.0
+                "name": "asset_id",
+                "value": 1.0
+              },
+              {
+                "name": "vol_12",
+                "value": 0.867
+              },
+              {
+                "name": "volume_z",
+                "value": 0.862
+              },
+              {
+                "name": "vol_6",
+                "value": 0.782
+              },
+              {
+                "name": "hl_spread",
+                "value": 0.623
+              },
+              {
+                "name": "return_3",
+                "value": 0.62
               }
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.518,
+            "brierScore": 0.25,
+            "ece": 0.087,
+            "intervalCoverage": 0.776
           },
           "heatmap": {
             "xLabels": [
@@ -5857,93 +6137,113 @@
             ],
             "matrix": [
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.733,
+                -1.437,
+                0.07,
+                0.445,
+                0.48,
+                0.253,
+                1.503,
+                0.419
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.329,
+                -1.272,
+                -0.986,
+                -0.113,
+                0.662,
+                0.736,
+                1.164,
+                1.139
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.137,
+                -1.113,
+                -1.111,
+                -0.769,
+                -0.111,
+                0.179,
+                1.226,
+                1.835
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.137,
+                -1.113,
+                -1.111,
+                -0.769,
+                -0.111,
+                0.179,
+                1.226,
+                1.835
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.181,
+                -0.606,
+                -0.586,
+                -1.186,
+                -0.702,
+                -0.641,
+                1.694,
+                0.846
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.72,
+                -0.801,
+                -0.796,
+                0.226,
+                0.418,
+                0.59,
+                0.387,
+                -1.745
               ]
             ]
           }
         },
         "1D": {
-          "referencePrice": 0.0,
+          "referencePrice": 4108.566895,
           "prediction": {
-            "pUp": 0.5,
-            "q10": -0.01,
-            "q50": 0.0,
-            "q90": 0.01,
-            "intervalWidth": 0.02,
-            "confidence": 0.5,
-            "signal": "FLAT"
+            "pUp": 0.411,
+            "q10": 0.0104,
+            "q50": 0.0332,
+            "q90": 0.0521,
+            "intervalWidth": 0.0417,
+            "confidence": 0.661,
+            "signal": "SHORT"
           },
           "explanation": {
-            "summary": "TRANSFORMER fallback forecast for 000001.SS at 1D. Missing asset coverage in this horizon run.",
+            "summary": "TRANSFORMER live artifact forecast for 000001.SS at 1D. P(UP)=0.41, median move=+3.316%.",
             "topFeatures": [
               {
-                "name": "missing_coverage",
-                "value": 0.0
+                "name": "asset_id",
+                "value": 1.0
+              },
+              {
+                "name": "vol_6",
+                "value": 0.634
+              },
+              {
+                "name": "return_6",
+                "value": 0.634
+              },
+              {
+                "name": "return_12",
+                "value": 0.617
+              },
+              {
+                "name": "volume_z",
+                "value": 0.585
+              },
+              {
+                "name": "oc_spread",
+                "value": 0.536
               }
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.25,
+            "brierScore": 0.31,
+            "ece": 0.109,
+            "intervalCoverage": 0.172
           },
           "heatmap": {
             "xLabels": [
@@ -5966,64 +6266,64 @@
             ],
             "matrix": [
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.779,
+                -0.621,
+                -0.695,
+                -0.46,
+                1.479,
+                0.419,
+                0.729,
+                0.928
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.873,
+                0.24,
+                -1.624,
+                -1.126,
+                -0.332,
+                0.091,
+                0.544,
+                0.334
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                2.157,
+                0.573,
+                0.242,
+                0.075,
+                -0.462,
+                -1.401,
+                -0.784,
+                -0.401
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                2.157,
+                0.573,
+                0.242,
+                0.075,
+                -0.462,
+                -1.401,
+                -0.784,
+                -0.401
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.408,
+                0.704,
+                0.318,
+                0.049,
+                0.316,
+                0.225,
+                -0.919,
+                -2.103
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.21,
+                0.623,
+                0.76,
+                0.822,
+                0.343,
+                -1.036,
+                -1.333,
+                -1.388
               ]
             ]
           }
@@ -6140,30 +6440,50 @@
       },
       "^GSPC": {
         "1H": {
-          "referencePrice": 0.0,
+          "referencePrice": 6817.339844,
           "prediction": {
-            "pUp": 0.5,
-            "q10": -0.01,
-            "q50": 0.0,
-            "q90": 0.01,
-            "intervalWidth": 0.02,
-            "confidence": 0.5,
+            "pUp": 0.472,
+            "q10": -0.0043,
+            "q50": -0.0001,
+            "q90": 0.0042,
+            "intervalWidth": 0.0085,
+            "confidence": 0.551,
             "signal": "FLAT"
           },
           "explanation": {
-            "summary": "TRANSFORMER fallback forecast for ^GSPC at 1H. Missing asset coverage in this horizon run.",
+            "summary": "TRANSFORMER live artifact forecast for ^GSPC at 1H. P(UP)=0.47, median move=-0.013%.",
             "topFeatures": [
               {
-                "name": "missing_coverage",
-                "value": 0.0
+                "name": "volume_z",
+                "value": 1.0
+              },
+              {
+                "name": "asset_id",
+                "value": 0.887
+              },
+              {
+                "name": "return_3",
+                "value": 0.807
+              },
+              {
+                "name": "vol_12",
+                "value": 0.769
+              },
+              {
+                "name": "oc_spread",
+                "value": 0.759
+              },
+              {
+                "name": "hl_spread",
+                "value": 0.755
               }
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.547,
+            "brierScore": 0.248,
+            "ece": 0.087,
+            "intervalCoverage": 0.779
           },
           "heatmap": {
             "xLabels": [
@@ -6186,93 +6506,113 @@
             ],
             "matrix": [
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                2.141,
+                -0.376,
+                0.079,
+                0.237,
+                0.155,
+                -0.158,
+                -0.331,
+                -1.747
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.044,
+                1.006,
+                1.087,
+                -0.378,
+                0.032,
+                -0.151,
+                -0.589,
+                -2.05
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.019,
+                0.382,
+                0.289,
+                0.332,
+                0.675,
+                0.58,
+                -1.157,
+                -2.12
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.019,
+                0.382,
+                0.289,
+                0.332,
+                0.675,
+                0.58,
+                -1.157,
+                -2.12
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.932,
+                -0.651,
+                -0.779,
+                -0.693,
+                2.05,
+                0.977,
+                0.494,
+                -0.466
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.294,
+                0.57,
+                0.588,
+                0.584,
+                0.382,
+                0.443,
+                -2.5,
+                -0.32
               ]
             ]
           }
         },
         "4H": {
-          "referencePrice": 0.0,
+          "referencePrice": 6811.089844,
           "prediction": {
-            "pUp": 0.5,
-            "q10": -0.01,
-            "q50": 0.0,
-            "q90": 0.01,
-            "intervalWidth": 0.02,
-            "confidence": 0.5,
+            "pUp": 0.497,
+            "q10": -0.009,
+            "q50": -0.001,
+            "q90": 0.0074,
+            "intervalWidth": 0.0164,
+            "confidence": 0.505,
             "signal": "FLAT"
           },
           "explanation": {
-            "summary": "TRANSFORMER fallback forecast for ^GSPC at 4H. Missing asset coverage in this horizon run.",
+            "summary": "TRANSFORMER live artifact forecast for ^GSPC at 4H. P(UP)=0.50, median move=-0.103%.",
             "topFeatures": [
               {
-                "name": "missing_coverage",
-                "value": 0.0
+                "name": "asset_id",
+                "value": 1.0
+              },
+              {
+                "name": "vol_12",
+                "value": 0.867
+              },
+              {
+                "name": "volume_z",
+                "value": 0.862
+              },
+              {
+                "name": "vol_6",
+                "value": 0.782
+              },
+              {
+                "name": "hl_spread",
+                "value": 0.623
+              },
+              {
+                "name": "return_3",
+                "value": 0.62
               }
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.518,
+            "brierScore": 0.25,
+            "ece": 0.087,
+            "intervalCoverage": 0.776
           },
           "heatmap": {
             "xLabels": [
@@ -6295,93 +6635,113 @@
             ],
             "matrix": [
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.11,
+                -0.787,
+                -0.379,
+                2.5,
+                -0.852,
+                -0.24,
+                -0.027,
+                -0.138
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.109,
+                -0.938,
+                -1.227,
+                1.186,
+                1.126,
+                1.254,
+                -1.083,
+                -0.429
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -2.376,
+                1.318,
+                -0.16,
+                0.665,
+                0.105,
+                0.024,
+                0.062,
+                0.362
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -2.376,
+                1.318,
+                -0.16,
+                0.665,
+                0.105,
+                0.024,
+                0.062,
+                0.362
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.3,
+                -0.868,
+                -0.897,
+                -0.266,
+                -0.005,
+                -0.124,
+                -0.044,
+                2.5
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                2.5,
+                -0.248,
+                -0.979,
+                -0.325,
+                -0.243,
+                -0.238,
+                -0.239,
+                -0.299
               ]
             ]
           }
         },
         "1D": {
-          "referencePrice": 0.0,
+          "referencePrice": 6869.5,
           "prediction": {
-            "pUp": 0.5,
+            "pUp": 0.407,
             "q10": -0.01,
-            "q50": 0.0,
-            "q90": 0.01,
-            "intervalWidth": 0.02,
-            "confidence": 0.5,
-            "signal": "FLAT"
+            "q50": -0.004,
+            "q90": 0.0059,
+            "intervalWidth": 0.0159,
+            "confidence": 0.667,
+            "signal": "SHORT"
           },
           "explanation": {
-            "summary": "TRANSFORMER fallback forecast for ^GSPC at 1D. Missing asset coverage in this horizon run.",
+            "summary": "TRANSFORMER live artifact forecast for ^GSPC at 1D. P(UP)=0.41, median move=-0.395%.",
             "topFeatures": [
               {
-                "name": "missing_coverage",
-                "value": 0.0
+                "name": "asset_id",
+                "value": 1.0
+              },
+              {
+                "name": "vol_6",
+                "value": 0.634
+              },
+              {
+                "name": "return_6",
+                "value": 0.634
+              },
+              {
+                "name": "return_12",
+                "value": 0.617
+              },
+              {
+                "name": "volume_z",
+                "value": 0.585
+              },
+              {
+                "name": "oc_spread",
+                "value": 0.536
               }
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.25,
+            "brierScore": 0.31,
+            "ece": 0.109,
+            "intervalCoverage": 0.172
           },
           "heatmap": {
             "xLabels": [
@@ -6404,64 +6764,64 @@
             ],
             "matrix": [
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.145,
+                -2.399,
+                1.235,
+                0.547,
+                -0.036,
+                0.492,
+                0.388,
+                -0.082
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.415,
+                -1.75,
+                -0.982,
+                -0.453,
+                1.403,
+                0.827,
+                0.704,
+                0.668
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.296,
+                -1.619,
+                -0.927,
+                -0.407,
+                -0.006,
+                0.165,
+                0.501,
+                1.997
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.296,
+                -1.619,
+                -0.927,
+                -0.407,
+                -0.006,
+                0.165,
+                0.501,
+                1.997
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.975,
+                -1.829,
+                0.173,
+                -0.007,
+                -1.225,
+                0.535,
+                1.373,
+                0.004
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.697,
+                -0.137,
+                0.569,
+                0.736,
+                0.672,
+                0.73,
+                0.763,
+                -1.634
               ]
             ]
           }
@@ -6600,10 +6960,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.557,
+            "brierScore": 0.247,
+            "ece": 0.086,
+            "intervalCoverage": 0.779
           },
           "heatmap": {
             "xLabels": [
@@ -6709,10 +7069,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.503,
+            "brierScore": 0.25,
+            "ece": 0.088,
+            "intervalCoverage": 0.776
           },
           "heatmap": {
             "xLabels": [
@@ -6818,10 +7178,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.25,
+            "brierScore": 0.254,
+            "ece": 0.089,
+            "intervalCoverage": 0.172
           },
           "heatmap": {
             "xLabels": [
@@ -7038,10 +7398,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.557,
+            "brierScore": 0.247,
+            "ece": 0.086,
+            "intervalCoverage": 0.779
           },
           "heatmap": {
             "xLabels": [
@@ -7147,10 +7507,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.503,
+            "brierScore": 0.25,
+            "ece": 0.088,
+            "intervalCoverage": 0.776
           },
           "heatmap": {
             "xLabels": [
@@ -7256,10 +7616,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.25,
+            "brierScore": 0.254,
+            "ece": 0.089,
+            "intervalCoverage": 0.172
           },
           "heatmap": {
             "xLabels": [
@@ -7476,10 +7836,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.557,
+            "brierScore": 0.247,
+            "ece": 0.086,
+            "intervalCoverage": 0.779
           },
           "heatmap": {
             "xLabels": [
@@ -7585,10 +7945,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.503,
+            "brierScore": 0.25,
+            "ece": 0.088,
+            "intervalCoverage": 0.776
           },
           "heatmap": {
             "xLabels": [
@@ -7694,10 +8054,10 @@
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.25,
+            "brierScore": 0.254,
+            "ece": 0.089,
+            "intervalCoverage": 0.172
           },
           "heatmap": {
             "xLabels": [
@@ -7894,30 +8254,50 @@
       },
       "000001.SS": {
         "1H": {
-          "referencePrice": 0.0,
+          "referencePrice": 4109.233887,
           "prediction": {
-            "pUp": 0.5,
-            "q10": -0.01,
-            "q50": 0.0,
-            "q90": 0.01,
-            "intervalWidth": 0.02,
-            "confidence": 0.5,
+            "pUp": 0.47,
+            "q10": -0.007,
+            "q50": -0.0004,
+            "q90": 0.0177,
+            "intervalWidth": 0.0247,
+            "confidence": 0.554,
             "signal": "FLAT"
           },
           "explanation": {
-            "summary": "TCN fallback forecast for 000001.SS at 1H. Missing asset coverage in this horizon run.",
+            "summary": "TCN live artifact forecast for 000001.SS at 1H. P(UP)=0.47, median move=-0.045%.",
             "topFeatures": [
               {
-                "name": "missing_coverage",
-                "value": 0.0
+                "name": "volume_z",
+                "value": 1.0
+              },
+              {
+                "name": "asset_id",
+                "value": 0.887
+              },
+              {
+                "name": "return_3",
+                "value": 0.807
+              },
+              {
+                "name": "vol_12",
+                "value": 0.769
+              },
+              {
+                "name": "oc_spread",
+                "value": 0.759
+              },
+              {
+                "name": "hl_spread",
+                "value": 0.755
               }
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.557,
+            "brierScore": 0.247,
+            "ece": 0.086,
+            "intervalCoverage": 0.779
           },
           "heatmap": {
             "xLabels": [
@@ -7940,93 +8320,113 @@
             ],
             "matrix": [
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.207,
+                0.265,
+                -0.102,
+                1.913,
+                0.167,
+                -0.5,
+                0.035,
+                -1.985
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.693,
+                0.02,
+                0.183,
+                1.13,
+                1.075,
+                0.853,
+                -0.188,
+                -1.38
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.782,
+                -1.084,
+                -0.776,
+                0.337,
+                0.983,
+                0.961,
+                0.924,
+                0.438
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.782,
+                -1.084,
+                -0.776,
+                0.337,
+                0.983,
+                0.961,
+                0.924,
+                0.438
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.513,
+                -1.087,
+                -1.034,
+                1.023,
+                0.277,
+                0.239,
+                0.841,
+                1.254
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.731,
+                0.927,
+                1.103,
+                0.895,
+                -1.283,
+                -1.224,
+                -1.2,
+                0.051
               ]
             ]
           }
         },
         "4H": {
-          "referencePrice": 0.0,
+          "referencePrice": 4109.233887,
           "prediction": {
-            "pUp": 0.5,
-            "q10": -0.01,
-            "q50": 0.0,
-            "q90": 0.01,
-            "intervalWidth": 0.02,
-            "confidence": 0.5,
+            "pUp": 0.513,
+            "q10": -0.0137,
+            "q50": -0.0013,
+            "q90": 0.0151,
+            "intervalWidth": 0.0288,
+            "confidence": 0.523,
             "signal": "FLAT"
           },
           "explanation": {
-            "summary": "TCN fallback forecast for 000001.SS at 4H. Missing asset coverage in this horizon run.",
+            "summary": "TCN live artifact forecast for 000001.SS at 4H. P(UP)=0.51, median move=-0.128%.",
             "topFeatures": [
               {
-                "name": "missing_coverage",
-                "value": 0.0
+                "name": "asset_id",
+                "value": 1.0
+              },
+              {
+                "name": "vol_12",
+                "value": 0.867
+              },
+              {
+                "name": "volume_z",
+                "value": 0.862
+              },
+              {
+                "name": "vol_6",
+                "value": 0.782
+              },
+              {
+                "name": "hl_spread",
+                "value": 0.623
+              },
+              {
+                "name": "return_3",
+                "value": 0.62
               }
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.503,
+            "brierScore": 0.25,
+            "ece": 0.088,
+            "intervalCoverage": 0.776
           },
           "heatmap": {
             "xLabels": [
@@ -8049,93 +8449,113 @@
             ],
             "matrix": [
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.733,
+                -1.437,
+                0.07,
+                0.445,
+                0.48,
+                0.253,
+                1.503,
+                0.419
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.329,
+                -1.272,
+                -0.986,
+                -0.113,
+                0.662,
+                0.736,
+                1.164,
+                1.139
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.137,
+                -1.113,
+                -1.111,
+                -0.769,
+                -0.111,
+                0.179,
+                1.226,
+                1.835
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.137,
+                -1.113,
+                -1.111,
+                -0.769,
+                -0.111,
+                0.179,
+                1.226,
+                1.835
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.181,
+                -0.606,
+                -0.586,
+                -1.186,
+                -0.702,
+                -0.641,
+                1.694,
+                0.846
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.72,
+                -0.801,
+                -0.796,
+                0.226,
+                0.418,
+                0.59,
+                0.387,
+                -1.745
               ]
             ]
           }
         },
         "1D": {
-          "referencePrice": 0.0,
+          "referencePrice": 4108.566895,
           "prediction": {
-            "pUp": 0.5,
-            "q10": -0.01,
-            "q50": 0.0,
-            "q90": 0.01,
-            "intervalWidth": 0.02,
-            "confidence": 0.5,
+            "pUp": 0.481,
+            "q10": 0.0111,
+            "q50": 0.0339,
+            "q90": 0.0528,
+            "intervalWidth": 0.0417,
+            "confidence": 0.535,
             "signal": "FLAT"
           },
           "explanation": {
-            "summary": "TCN fallback forecast for 000001.SS at 1D. Missing asset coverage in this horizon run.",
+            "summary": "TCN live artifact forecast for 000001.SS at 1D. P(UP)=0.48, median move=+3.387%.",
             "topFeatures": [
               {
-                "name": "missing_coverage",
-                "value": 0.0
+                "name": "asset_id",
+                "value": 1.0
+              },
+              {
+                "name": "vol_6",
+                "value": 0.634
+              },
+              {
+                "name": "return_6",
+                "value": 0.634
+              },
+              {
+                "name": "return_12",
+                "value": 0.617
+              },
+              {
+                "name": "volume_z",
+                "value": 0.585
+              },
+              {
+                "name": "oc_spread",
+                "value": 0.536
               }
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.25,
+            "brierScore": 0.254,
+            "ece": 0.089,
+            "intervalCoverage": 0.172
           },
           "heatmap": {
             "xLabels": [
@@ -8158,64 +8578,64 @@
             ],
             "matrix": [
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.779,
+                -0.621,
+                -0.695,
+                -0.46,
+                1.479,
+                0.419,
+                0.729,
+                0.928
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.873,
+                0.24,
+                -1.624,
+                -1.126,
+                -0.332,
+                0.091,
+                0.544,
+                0.334
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                2.157,
+                0.573,
+                0.242,
+                0.075,
+                -0.462,
+                -1.401,
+                -0.784,
+                -0.401
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                2.157,
+                0.573,
+                0.242,
+                0.075,
+                -0.462,
+                -1.401,
+                -0.784,
+                -0.401
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.408,
+                0.704,
+                0.318,
+                0.049,
+                0.316,
+                0.225,
+                -0.919,
+                -2.103
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.21,
+                0.623,
+                0.76,
+                0.822,
+                0.343,
+                -1.036,
+                -1.333,
+                -1.388
               ]
             ]
           }
@@ -8332,30 +8752,50 @@
       },
       "^GSPC": {
         "1H": {
-          "referencePrice": 0.0,
+          "referencePrice": 6817.339844,
           "prediction": {
-            "pUp": 0.5,
-            "q10": -0.01,
-            "q50": 0.0,
-            "q90": 0.01,
-            "intervalWidth": 0.02,
-            "confidence": 0.5,
+            "pUp": 0.481,
+            "q10": -0.0042,
+            "q50": -0.0,
+            "q90": 0.0043,
+            "intervalWidth": 0.0085,
+            "confidence": 0.534,
             "signal": "FLAT"
           },
           "explanation": {
-            "summary": "TCN fallback forecast for ^GSPC at 1H. Missing asset coverage in this horizon run.",
+            "summary": "TCN live artifact forecast for ^GSPC at 1H. P(UP)=0.48, median move=-0.003%.",
             "topFeatures": [
               {
-                "name": "missing_coverage",
-                "value": 0.0
+                "name": "volume_z",
+                "value": 1.0
+              },
+              {
+                "name": "asset_id",
+                "value": 0.887
+              },
+              {
+                "name": "return_3",
+                "value": 0.807
+              },
+              {
+                "name": "vol_12",
+                "value": 0.769
+              },
+              {
+                "name": "oc_spread",
+                "value": 0.759
+              },
+              {
+                "name": "hl_spread",
+                "value": 0.755
               }
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.557,
+            "brierScore": 0.247,
+            "ece": 0.086,
+            "intervalCoverage": 0.779
           },
           "heatmap": {
             "xLabels": [
@@ -8378,93 +8818,113 @@
             ],
             "matrix": [
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                2.141,
+                -0.376,
+                0.079,
+                0.237,
+                0.155,
+                -0.158,
+                -0.331,
+                -1.747
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.044,
+                1.006,
+                1.087,
+                -0.378,
+                0.032,
+                -0.151,
+                -0.589,
+                -2.05
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.019,
+                0.382,
+                0.289,
+                0.332,
+                0.675,
+                0.58,
+                -1.157,
+                -2.12
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                1.019,
+                0.382,
+                0.289,
+                0.332,
+                0.675,
+                0.58,
+                -1.157,
+                -2.12
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.932,
+                -0.651,
+                -0.779,
+                -0.693,
+                2.05,
+                0.977,
+                0.494,
+                -0.466
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.294,
+                0.57,
+                0.588,
+                0.584,
+                0.382,
+                0.443,
+                -2.5,
+                -0.32
               ]
             ]
           }
         },
         "4H": {
-          "referencePrice": 0.0,
+          "referencePrice": 6811.089844,
           "prediction": {
-            "pUp": 0.5,
-            "q10": -0.01,
-            "q50": 0.0,
-            "q90": 0.01,
-            "intervalWidth": 0.02,
-            "confidence": 0.5,
+            "pUp": 0.521,
+            "q10": -0.0088,
+            "q50": -0.0008,
+            "q90": 0.0076,
+            "intervalWidth": 0.0164,
+            "confidence": 0.538,
             "signal": "FLAT"
           },
           "explanation": {
-            "summary": "TCN fallback forecast for ^GSPC at 4H. Missing asset coverage in this horizon run.",
+            "summary": "TCN live artifact forecast for ^GSPC at 4H. P(UP)=0.52, median move=-0.079%.",
             "topFeatures": [
               {
-                "name": "missing_coverage",
-                "value": 0.0
+                "name": "asset_id",
+                "value": 1.0
+              },
+              {
+                "name": "vol_12",
+                "value": 0.867
+              },
+              {
+                "name": "volume_z",
+                "value": 0.862
+              },
+              {
+                "name": "vol_6",
+                "value": 0.782
+              },
+              {
+                "name": "hl_spread",
+                "value": 0.623
+              },
+              {
+                "name": "return_3",
+                "value": 0.62
               }
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.503,
+            "brierScore": 0.25,
+            "ece": 0.088,
+            "intervalCoverage": 0.776
           },
           "heatmap": {
             "xLabels": [
@@ -8487,93 +8947,113 @@
             ],
             "matrix": [
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.11,
+                -0.787,
+                -0.379,
+                2.5,
+                -0.852,
+                -0.24,
+                -0.027,
+                -0.138
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.109,
+                -0.938,
+                -1.227,
+                1.186,
+                1.126,
+                1.254,
+                -1.083,
+                -0.429
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -2.376,
+                1.318,
+                -0.16,
+                0.665,
+                0.105,
+                0.024,
+                0.062,
+                0.362
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -2.376,
+                1.318,
+                -0.16,
+                0.665,
+                0.105,
+                0.024,
+                0.062,
+                0.362
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.3,
+                -0.868,
+                -0.897,
+                -0.266,
+                -0.005,
+                -0.124,
+                -0.044,
+                2.5
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                2.5,
+                -0.248,
+                -0.979,
+                -0.325,
+                -0.243,
+                -0.238,
+                -0.239,
+                -0.299
               ]
             ]
           }
         },
         "1D": {
-          "referencePrice": 0.0,
+          "referencePrice": 6869.5,
           "prediction": {
-            "pUp": 0.5,
-            "q10": -0.01,
-            "q50": 0.0,
-            "q90": 0.01,
-            "intervalWidth": 0.02,
-            "confidence": 0.5,
+            "pUp": 0.485,
+            "q10": -0.0093,
+            "q50": -0.0032,
+            "q90": 0.0067,
+            "intervalWidth": 0.0159,
+            "confidence": 0.528,
             "signal": "FLAT"
           },
           "explanation": {
-            "summary": "TCN fallback forecast for ^GSPC at 1D. Missing asset coverage in this horizon run.",
+            "summary": "TCN live artifact forecast for ^GSPC at 1D. P(UP)=0.48, median move=-0.318%.",
             "topFeatures": [
               {
-                "name": "missing_coverage",
-                "value": 0.0
+                "name": "asset_id",
+                "value": 1.0
+              },
+              {
+                "name": "vol_6",
+                "value": 0.634
+              },
+              {
+                "name": "return_6",
+                "value": 0.634
+              },
+              {
+                "name": "return_12",
+                "value": 0.617
+              },
+              {
+                "name": "volume_z",
+                "value": 0.585
+              },
+              {
+                "name": "oc_spread",
+                "value": 0.536
               }
             ]
           },
           "performance": {
-            "directionAccuracy": 0.0,
-            "brierScore": 1.0,
-            "ece": 1.0,
-            "intervalCoverage": 0.0
+            "directionAccuracy": 0.25,
+            "brierScore": 0.254,
+            "ece": 0.089,
+            "intervalCoverage": 0.172
           },
           "heatmap": {
             "xLabels": [
@@ -8596,64 +9076,64 @@
             ],
             "matrix": [
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.145,
+                -2.399,
+                1.235,
+                0.547,
+                -0.036,
+                0.492,
+                0.388,
+                -0.082
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -0.415,
+                -1.75,
+                -0.982,
+                -0.453,
+                1.403,
+                0.827,
+                0.704,
+                0.668
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.296,
+                -1.619,
+                -0.927,
+                -0.407,
+                -0.006,
+                0.165,
+                0.501,
+                1.997
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.296,
+                -1.619,
+                -0.927,
+                -0.407,
+                -0.006,
+                0.165,
+                0.501,
+                1.997
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                0.975,
+                -1.829,
+                0.173,
+                -0.007,
+                -1.225,
+                0.535,
+                1.373,
+                0.004
               ],
               [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                -1.697,
+                -0.137,
+                0.569,
+                0.736,
+                0.672,
+                0.73,
+                0.763,
+                -1.634
               ]
             ]
           }

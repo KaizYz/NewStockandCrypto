@@ -1,22 +1,22 @@
 {
   "ensemble": {
     "1H": {
-      "directionAccuracy": 0.0,
-      "brierScore": 1.0,
-      "ece": 1.0,
-      "intervalCoverage": 0.0
+      "directionAccuracy": 0.568,
+      "brierScore": 0.239,
+      "ece": 0.016,
+      "intervalCoverage": 0.779
     },
     "4H": {
-      "directionAccuracy": 0.0,
-      "brierScore": 1.0,
-      "ece": 1.0,
-      "intervalCoverage": 0.0
+      "directionAccuracy": 0.559,
+      "brierScore": 0.244,
+      "ece": 0.014,
+      "intervalCoverage": 0.776
     },
     "1D": {
-      "directionAccuracy": 0.0,
-      "brierScore": 1.0,
-      "ece": 1.0,
-      "intervalCoverage": 0.0
+      "directionAccuracy": 0.517,
+      "brierScore": 0.415,
+      "ece": 0.448,
+      "intervalCoverage": 0.172
     },
     "3D": {
       "directionAccuracy": 0.0,
@@ -27,22 +27,22 @@
   },
   "lstm": {
     "1H": {
-      "directionAccuracy": 0.0,
-      "brierScore": 1.0,
-      "ece": 1.0,
-      "intervalCoverage": 0.0
+      "directionAccuracy": 0.532,
+      "brierScore": 0.248,
+      "ece": 0.087,
+      "intervalCoverage": 0.779
     },
     "4H": {
-      "directionAccuracy": 0.0,
-      "brierScore": 1.0,
-      "ece": 1.0,
-      "intervalCoverage": 0.0
+      "directionAccuracy": 0.5,
+      "brierScore": 0.25,
+      "ece": 0.088,
+      "intervalCoverage": 0.776
     },
     "1D": {
-      "directionAccuracy": 0.0,
-      "brierScore": 1.0,
-      "ece": 1.0,
-      "intervalCoverage": 0.0
+      "directionAccuracy": 0.25,
+      "brierScore": 0.27,
+      "ece": 0.095,
+      "intervalCoverage": 0.172
     },
     "3D": {
       "directionAccuracy": 0.0,
@@ -53,22 +53,22 @@
   },
   "transformer": {
     "1H": {
-      "directionAccuracy": 0.0,
-      "brierScore": 1.0,
-      "ece": 1.0,
-      "intervalCoverage": 0.0
+      "directionAccuracy": 0.547,
+      "brierScore": 0.248,
+      "ece": 0.087,
+      "intervalCoverage": 0.779
     },
     "4H": {
-      "directionAccuracy": 0.0,
-      "brierScore": 1.0,
-      "ece": 1.0,
-      "intervalCoverage": 0.0
+      "directionAccuracy": 0.518,
+      "brierScore": 0.25,
+      "ece": 0.087,
+      "intervalCoverage": 0.776
     },
     "1D": {
-      "directionAccuracy": 0.0,
-      "brierScore": 1.0,
-      "ece": 1.0,
-      "intervalCoverage": 0.0
+      "directionAccuracy": 0.25,
+      "brierScore": 0.31,
+      "ece": 0.109,
+      "intervalCoverage": 0.172
     },
     "3D": {
       "directionAccuracy": 0.0,
@@ -79,22 +79,22 @@
   },
   "tcn": {
     "1H": {
-      "directionAccuracy": 0.0,
-      "brierScore": 1.0,
-      "ece": 1.0,
-      "intervalCoverage": 0.0
+      "directionAccuracy": 0.557,
+      "brierScore": 0.247,
+      "ece": 0.086,
+      "intervalCoverage": 0.779
     },
     "4H": {
-      "directionAccuracy": 0.0,
-      "brierScore": 1.0,
-      "ece": 1.0,
-      "intervalCoverage": 0.0
+      "directionAccuracy": 0.503,
+      "brierScore": 0.25,
+      "ece": 0.088,
+      "intervalCoverage": 0.776
     },
     "1D": {
-      "directionAccuracy": 0.0,
-      "brierScore": 1.0,
-      "ece": 1.0,
-      "intervalCoverage": 0.0
+      "directionAccuracy": 0.25,
+      "brierScore": 0.254,
+      "ece": 0.089,
+      "intervalCoverage": 0.172
     },
     "3D": {
       "directionAccuracy": 0.0,
