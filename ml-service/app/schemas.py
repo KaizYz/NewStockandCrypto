@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -136,3 +136,61 @@ class InsightsResponse(BaseModel):
     compatibility: Dict[str, List[str]]
     health: Dict[str, ModelHealthPayload]
     comparison: List[ModelComparisonItem]
+
+
+class EvaluationSummaryItem(BaseModel):
+    model: str
+    horizon: str
+    sampleCount: int
+    direction: Dict[str, float]
+    calibration: Dict[str, Any]
+    optimalThreshold: Dict[str, float]
+    magnitude: Dict[str, float]
+    coverage: Dict[str, float]
+    benchmark: Dict[str, str]
+
+
+class EvaluationSummaryResponse(BaseModel):
+    meta: MetaPayload
+    records: List[EvaluationSummaryItem]
+
+
+class EvaluationFoldsResponse(BaseModel):
+    meta: MetaPayload
+    rows: List[Dict[str, Any]]
+
+
+class BacktestSummaryResponse(BaseModel):
+    meta: MetaPayload
+    rows: List[Dict[str, Any]]
+
+
+class BacktestDetailResponse(BaseModel):
+    meta: MetaPayload
+    summary: Dict[str, Any]
+    trades: List[Dict[str, Any]]
+    equity: List[Dict[str, Any]]
+
+
+class BacktestRunRequest(BaseModel):
+    model: str
+    asset: str
+    horizon: str
+    initial_capital: float = 100000.0
+    commission_rate: float = 0.001
+    slippage_rate: float = 0.0005
+    position_sizing: str = "fixed_fraction"
+    risk_per_trade: float = 0.02
+    max_position_size: float = 0.10
+    confidence_threshold: float = 0.55
+    stop_loss_pct: float = 0.02
+    take_profit_pct: float = 0.04
+    take_profit_2_pct: float = 0.08
+
+
+class BacktestRunResponse(BaseModel):
+    meta: MetaPayload
+    cacheKey: str
+    summary: Dict[str, Any]
+    trades: List[Dict[str, Any]]
+    equity: List[Dict[str, Any]]

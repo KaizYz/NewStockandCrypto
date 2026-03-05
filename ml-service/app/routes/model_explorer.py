@@ -7,6 +7,12 @@ from fastapi import APIRouter, HTTPException, Query
 from app.schemas import (
     AssetCatalogResponse,
     AssetCatalogItem,
+    BacktestDetailResponse,
+    BacktestRunRequest,
+    BacktestRunResponse,
+    BacktestSummaryResponse,
+    EvaluationFoldsResponse,
+    EvaluationSummaryResponse,
     HealthResponse,
     InsightsResponse,
     ModelCatalogItem,
@@ -158,3 +164,102 @@ def insights(
         return ctx.provider.insights(normalized_asset, normalized_horizon)
     except Exception as exc:  # pragma: no cover
         raise HTTPException(status_code=502, detail=f'Insights request failed: {exc}') from exc
+
+
+@router.get('/v1/evaluation/summary', response_model=EvaluationSummaryResponse)
+def evaluation_summary(
+    model: str = Query(""),
+    asset: str = Query(""),
+    horizon: str = Query(""),
+) -> EvaluationSummaryResponse:
+    normalized_model = normalize_model(model) if model else None
+    normalized_asset = normalize_asset(asset) if asset else None
+    normalized_horizon = normalize_horizon(horizon) if horizon else None
+    ctx = provider_factory.get()
+    try:
+        return ctx.provider.evaluation_summary(
+            model=normalized_model,
+            asset=normalized_asset,
+            horizon=normalized_horizon,
+        )
+    except Exception as exc:  # pragma: no cover
+        raise HTTPException(status_code=502, detail=f'Evaluation summary request failed: {exc}') from exc
+
+
+@router.get('/v1/evaluation/folds', response_model=EvaluationFoldsResponse)
+def evaluation_folds(
+    model: str = Query(""),
+    asset: str = Query(""),
+    horizon: str = Query(""),
+    limit: int = Query(2000, ge=1, le=50000),
+) -> EvaluationFoldsResponse:
+    normalized_model = normalize_model(model) if model else None
+    normalized_asset = normalize_asset(asset) if asset else None
+    normalized_horizon = normalize_horizon(horizon) if horizon else None
+    ctx = provider_factory.get()
+    try:
+        return ctx.provider.evaluation_folds(
+            model=normalized_model,
+            asset=normalized_asset,
+            horizon=normalized_horizon,
+            limit=int(limit),
+        )
+    except Exception as exc:  # pragma: no cover
+        raise HTTPException(status_code=502, detail=f'Evaluation folds request failed: {exc}') from exc
+
+
+@router.get('/v1/backtest/summary', response_model=BacktestSummaryResponse)
+def backtest_summary(
+    model: str = Query(""),
+    asset: str = Query(""),
+    horizon: str = Query(""),
+) -> BacktestSummaryResponse:
+    normalized_model = normalize_model(model) if model else None
+    normalized_asset = normalize_asset(asset) if asset else None
+    normalized_horizon = normalize_horizon(horizon) if horizon else None
+    ctx = provider_factory.get()
+    try:
+        return ctx.provider.backtest_summary(
+            model=normalized_model,
+            asset=normalized_asset,
+            horizon=normalized_horizon,
+        )
+    except Exception as exc:  # pragma: no cover
+        raise HTTPException(status_code=502, detail=f'Backtest summary request failed: {exc}') from exc
+
+
+@router.get('/v1/backtest/detail', response_model=BacktestDetailResponse)
+def backtest_detail(
+    model: str = Query(...),
+    asset: str = Query(...),
+    horizon: str = Query(...),
+) -> BacktestDetailResponse:
+    normalized_model = normalize_model(model)
+    normalized_asset = normalize_asset(asset)
+    normalized_horizon = normalize_horizon(horizon)
+    ctx = provider_factory.get()
+    try:
+        return ctx.provider.backtest_detail(
+            model=normalized_model,
+            asset=normalized_asset,
+            horizon=normalized_horizon,
+        )
+    except Exception as exc:  # pragma: no cover
+        raise HTTPException(status_code=502, detail=f'Backtest detail request failed: {exc}') from exc
+
+
+@router.post('/v1/backtest/run', response_model=BacktestRunResponse)
+def backtest_run(payload: BacktestRunRequest) -> BacktestRunResponse:
+    normalized_model = normalize_model(payload.model)
+    normalized_asset = normalize_asset(payload.asset)
+    normalized_horizon = normalize_horizon(payload.horizon)
+    ctx = provider_factory.get()
+    try:
+        return ctx.provider.backtest_run(
+            model=normalized_model,
+            asset=normalized_asset,
+            horizon=normalized_horizon,
+            params=payload.model_dump(),
+        )
+    except Exception as exc:  # pragma: no cover
+        raise HTTPException(status_code=502, detail=f'Backtest run request failed: {exc}') from exc

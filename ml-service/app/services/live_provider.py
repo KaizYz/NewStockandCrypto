@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
@@ -9,10 +10,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
+import pandas as pd
 import requests
 
 from app.schemas import (
+    BacktestDetailResponse,
+    BacktestRunResponse,
+    BacktestSummaryResponse,
     ExplanationPayload,
+    EvaluationFoldsResponse,
+    EvaluationSummaryItem,
+    EvaluationSummaryResponse,
     FeatureContribution,
     HeatmapResponse,
     InsightsResponse,
@@ -26,6 +34,7 @@ from app.schemas import (
     PredictResponse,
     PredictionPayload,
 )
+from training.backtest import SimpleBacktest
 
 BINANCE_PRICE_URL = 'https://api.binance.com/api/v3/ticker/price?symbol={symbol}'
 YAHOO_CHART_URL = 'https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=1d&interval=1m&includePrePost=true'
@@ -63,6 +72,13 @@ class ArtifactBundle:
     generated_at: str
     metrics: Dict[str, Dict[str, dict]]
     meta: Dict[str, object]
+    evaluation_summary: Dict[str, object]
+    backtest_summary: Dict[str, object]
+    evaluation_folds_df: pd.DataFrame
+    evaluation_assets_df: pd.DataFrame
+    backtest_trades_df: pd.DataFrame
+    backtest_equity_df: pd.DataFrame
+    backtest_inputs_df: pd.DataFrame
 
 
 class LiveProvider:
@@ -77,6 +93,13 @@ class LiveProvider:
         outputs_path = self.artifact_dir / 'model_outputs.json'
         meta_path = self.artifact_dir / 'artifact_meta.json'
         metrics_path = self.artifact_dir / 'metrics.json'
+        evaluation_summary_path = self.artifact_dir / 'evaluation_summary.json'
+        backtest_summary_path = self.artifact_dir / 'backtest_summary.json'
+        evaluation_folds_path = self.artifact_dir / 'evaluation_folds.parquet'
+        evaluation_assets_path = self.artifact_dir / 'evaluation_assets.parquet'
+        backtest_trades_path = self.artifact_dir / 'backtest_trades.parquet'
+        backtest_equity_path = self.artifact_dir / 'backtest_equity.parquet'
+        backtest_inputs_path = self.artifact_dir / 'backtest_inputs.parquet'
         if not outputs_path.exists() or not meta_path.exists():
             raise FileNotFoundError(
                 f'Missing live artifacts under {self.artifact_dir}. ' 
@@ -98,6 +121,34 @@ class LiveProvider:
             if isinstance(loaded_metrics, dict):
                 metrics_payload = loaded_metrics
 
+        evaluation_summary_payload: Dict[str, object] = {}
+        if evaluation_summary_path.exists():
+            with evaluation_summary_path.open('r', encoding='utf-8') as fp:
+                loaded = json.load(fp)
+            if isinstance(loaded, dict):
+                evaluation_summary_payload = loaded
+
+        backtest_summary_payload: Dict[str, object] = {}
+        if backtest_summary_path.exists():
+            with backtest_summary_path.open('r', encoding='utf-8') as fp:
+                loaded = json.load(fp)
+            if isinstance(loaded, dict):
+                backtest_summary_payload = loaded
+
+        def _read_parquet(path: Path) -> pd.DataFrame:
+            if not path.exists():
+                return pd.DataFrame()
+            try:
+                return pd.read_parquet(path)
+            except Exception:
+                return pd.DataFrame()
+
+        evaluation_folds_df = _read_parquet(evaluation_folds_path)
+        evaluation_assets_df = _read_parquet(evaluation_assets_path)
+        backtest_trades_df = _read_parquet(backtest_trades_path)
+        backtest_equity_df = _read_parquet(backtest_equity_path)
+        backtest_inputs_df = _read_parquet(backtest_inputs_path)
+
         model_version = str(meta_payload.get('model_version') or 'live-artifact')
         outputs = outputs_payload.get('outputs')
         if not isinstance(outputs, dict) or not outputs:
@@ -109,6 +160,13 @@ class LiveProvider:
             generated_at=str(outputs_payload.get('generatedAt') or datetime.now(timezone.utc).isoformat()),
             metrics=metrics_payload,
             meta=meta_payload if isinstance(meta_payload, dict) else {},
+            evaluation_summary=evaluation_summary_payload,
+            backtest_summary=backtest_summary_payload,
+            evaluation_folds_df=evaluation_folds_df,
+            evaluation_assets_df=evaluation_assets_df,
+            backtest_trades_df=backtest_trades_df,
+            backtest_equity_df=backtest_equity_df,
+            backtest_inputs_df=backtest_inputs_df,
         )
         self._loaded_at = datetime.now(timezone.utc)
         self._mtime_guard = newest_mtime
@@ -481,6 +539,241 @@ class LiveProvider:
             comparison=comparison,
         )
 
+    @staticmethod
+    def _clean_numeric_payload(payload: Dict[str, object]) -> Dict[str, object]:
+        cleaned: Dict[str, object] = {}
+        for key, value in payload.items():
+            if isinstance(value, (int, float, np.integer, np.floating)):
+                cleaned[key] = float(value) if math.isfinite(float(value)) else 0.0
+            else:
+                cleaned[key] = value
+        return cleaned
+
+    def evaluation_summary(
+        self,
+        model: Optional[str] = None,
+        asset: Optional[str] = None,
+        horizon: Optional[str] = None,
+    ) -> EvaluationSummaryResponse:
+        self._load_artifacts()
+        if not self._bundle:
+            return EvaluationSummaryResponse(meta=self._meta(), records=[])
+
+        raw = self._bundle.evaluation_summary or {}
+        horizons = raw.get("horizons") if isinstance(raw, dict) else {}
+        records: List[EvaluationSummaryItem] = []
+        allowed_pairs: Optional[set[tuple[str, str]]] = None
+        if asset and not self._bundle.evaluation_assets_df.empty:
+            filtered = self._bundle.evaluation_assets_df[self._bundle.evaluation_assets_df["asset"] == asset]
+            allowed_pairs = {(str(row["model"]), str(row["horizon"])) for _, row in filtered.iterrows()}
+
+        if isinstance(horizons, dict):
+            for hz, payload in horizons.items():
+                if horizon and str(hz).upper() != str(horizon).upper():
+                    continue
+                model_rows = payload.get("models") if isinstance(payload, dict) else []
+                if not isinstance(model_rows, list):
+                    continue
+                for row in model_rows:
+                    if not isinstance(row, dict):
+                        continue
+                    model_id = str(row.get("model") or "")
+                    if model and model_id != model:
+                        continue
+                    if allowed_pairs is not None and (model_id, str(hz)) not in allowed_pairs:
+                        continue
+                    records.append(
+                        EvaluationSummaryItem(
+                            model=model_id,
+                            horizon=str(row.get("horizon") or hz),
+                            sampleCount=int(row.get("sampleCount") or 0),
+                            direction={k: float(v) for k, v in (row.get("direction") or {}).items()},
+                            calibration=dict(row.get("calibration") or {}),
+                            optimalThreshold={k: float(v) for k, v in (row.get("optimalThreshold") or {}).items()},
+                            magnitude={k: float(v) for k, v in (row.get("magnitude") or {}).items()},
+                            coverage={k: float(v) for k, v in (row.get("coverage") or {}).items()},
+                            benchmark={k: str(v) for k, v in (row.get("benchmark") or {}).items()},
+                        )
+                    )
+        return EvaluationSummaryResponse(meta=self._meta(), records=records)
+
+    def evaluation_folds(
+        self,
+        model: Optional[str] = None,
+        asset: Optional[str] = None,
+        horizon: Optional[str] = None,
+        limit: int = 2000,
+    ) -> EvaluationFoldsResponse:
+        self._load_artifacts()
+        if not self._bundle or self._bundle.evaluation_folds_df.empty:
+            return EvaluationFoldsResponse(meta=self._meta(), rows=[])
+        df = self._bundle.evaluation_folds_df.copy()
+        if model:
+            df = df[df["model"] == model]
+        if horizon:
+            df = df[df["horizon"] == horizon]
+        if asset and "asset" in df.columns:
+            df = df[df["asset"] == asset]
+        df = df.head(max(1, int(limit)))
+        rows = [self._clean_numeric_payload(record) for record in df.to_dict(orient="records")]
+        return EvaluationFoldsResponse(meta=self._meta(), rows=rows)
+
+    def backtest_summary(
+        self,
+        model: Optional[str] = None,
+        asset: Optional[str] = None,
+        horizon: Optional[str] = None,
+    ) -> BacktestSummaryResponse:
+        self._load_artifacts()
+        if not self._bundle:
+            return BacktestSummaryResponse(meta=self._meta(), rows=[])
+        payload = self._bundle.backtest_summary or {}
+        rows = payload.get("results") if isinstance(payload, dict) else []
+        if not isinstance(rows, list):
+            rows = []
+        filtered: List[Dict[str, object]] = []
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            if model and str(row.get("model")) != model:
+                continue
+            if asset and str(row.get("asset")) != asset:
+                continue
+            if horizon and str(row.get("horizon")).upper() != str(horizon).upper():
+                continue
+            filtered.append(self._clean_numeric_payload(row))
+        return BacktestSummaryResponse(meta=self._meta(), rows=filtered)
+
+    def backtest_detail(self, model: str, asset: str, horizon: str) -> BacktestDetailResponse:
+        summary_rows = self.backtest_summary(model=model, asset=asset, horizon=horizon).rows
+        summary = summary_rows[0] if summary_rows else {}
+
+        self._load_artifacts()
+        if not self._bundle:
+            return BacktestDetailResponse(meta=self._meta(), summary=summary, trades=[], equity=[])
+
+        trades_df = self._bundle.backtest_trades_df
+        if not trades_df.empty:
+            trades_df = trades_df[
+                (trades_df["model"] == model) & (trades_df["asset"] == asset) & (trades_df["horizon"] == horizon)
+            ]
+        equity_df = self._bundle.backtest_equity_df
+        if not equity_df.empty:
+            equity_df = equity_df[
+                (equity_df["model"] == model) & (equity_df["asset"] == asset) & (equity_df["horizon"] == horizon)
+            ]
+
+        trades = [self._clean_numeric_payload(record) for record in trades_df.to_dict(orient="records")] if not trades_df.empty else []
+        equity = [self._clean_numeric_payload(record) for record in equity_df.to_dict(orient="records")] if not equity_df.empty else []
+        return BacktestDetailResponse(meta=self._meta(), summary=summary, trades=trades, equity=equity)
+
+    def backtest_run(
+        self,
+        model: str,
+        asset: str,
+        horizon: str,
+        params: Dict[str, object],
+    ) -> BacktestRunResponse:
+        self._load_artifacts()
+        if not self._bundle:
+            raise RuntimeError("Live artifact bundle unavailable.")
+        runtime_policy = self._bundle.meta.get("runtime_backtest") if isinstance(self._bundle.meta, dict) else {}
+        if isinstance(runtime_policy, dict) and not bool(runtime_policy.get("allow_runtime_backtest", True)):
+            raise RuntimeError("Runtime backtest is disabled by artifact policy.")
+
+        defaults = self._bundle.backtest_summary.get("defaults") if isinstance(self._bundle.backtest_summary, dict) else {}
+        merged = dict(defaults or {})
+        merged.update(params or {})
+        merged["model"] = model
+        merged["asset"] = asset
+        merged["horizon"] = horizon
+        key = hashlib.sha1(json.dumps(merged, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+        cache_dir = self.artifact_dir / "backtest_runtime_cache"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        cache_file = cache_dir / f"{key}.json"
+        if cache_file.exists():
+            with cache_file.open("r", encoding="utf-8") as fp:
+                cached = json.load(fp)
+            return BacktestRunResponse(
+                meta=self._meta(),
+                cacheKey=key,
+                summary=dict(cached.get("summary") or {}),
+                trades=list(cached.get("trades") or []),
+                equity=list(cached.get("equity") or []),
+            )
+
+        inputs = self._bundle.backtest_inputs_df
+        if inputs.empty:
+            detail = self.backtest_detail(model=model, asset=asset, horizon=horizon)
+            payload = {"summary": detail.summary, "trades": detail.trades, "equity": detail.equity}
+            with cache_file.open("w", encoding="utf-8") as fp:
+                json.dump(payload, fp, indent=2)
+            return BacktestRunResponse(meta=self._meta(), cacheKey=key, summary=detail.summary, trades=detail.trades, equity=detail.equity)
+
+        subset = inputs[(inputs["model"] == model) & (inputs["asset"] == asset) & (inputs["horizon"] == horizon)].copy()
+        if subset.empty:
+            detail = self.backtest_detail(model=model, asset=asset, horizon=horizon)
+            payload = {"summary": detail.summary, "trades": detail.trades, "equity": detail.equity}
+            with cache_file.open("w", encoding="utf-8") as fp:
+                json.dump(payload, fp, indent=2)
+            return BacktestRunResponse(meta=self._meta(), cacheKey=key, summary=detail.summary, trades=detail.trades, equity=detail.equity)
+
+        subset["timestamp"] = pd.to_datetime(subset["timestamp"], utc=True, errors="coerce")
+        subset = subset.dropna(subset=["timestamp"]).sort_values("timestamp")
+        prices = pd.DataFrame(
+            {
+                "open": subset["open"].to_numpy(dtype=float),
+                "high": subset["high"].to_numpy(dtype=float),
+                "low": subset["low"].to_numpy(dtype=float),
+                "close": subset["close"].to_numpy(dtype=float),
+            },
+            index=subset["timestamp"],
+        )
+        signals = pd.DataFrame(
+            {
+                "signal": subset["signal"].to_numpy(),
+                "confidence": subset["confidence"].to_numpy(dtype=float),
+            },
+            index=subset["timestamp"],
+        )
+
+        engine = SimpleBacktest(
+            initial_capital=float(merged.get("initial_capital", 100000.0)),
+            commission_rate=float(merged.get("commission_rate", 0.001)),
+            slippage_rate=float(merged.get("slippage_rate", 0.0005)),
+            position_sizing=str(merged.get("position_sizing", "fixed_fraction")),
+            risk_per_trade=float(merged.get("risk_per_trade", 0.02)),
+            max_position_size=float(merged.get("max_position_size", 0.10)),
+            bars_per_year=(24 * 365 if horizon in {"1H", "4H"} else 252),
+        )
+        result = engine.run_backtest(
+            prices=prices,
+            signals=signals,
+            stop_loss_pct=float(merged.get("stop_loss_pct", 0.02)),
+            take_profit_pct=float(merged.get("take_profit_pct", 0.04)),
+            take_profit_2_pct=float(merged.get("take_profit_2_pct", 0.08)),
+            confidence_threshold=float(merged.get("confidence_threshold", 0.55)),
+        )
+        summary = self._clean_numeric_payload(result.metrics)
+        trades = [self._clean_numeric_payload(record) for record in result.trades_frame().to_dict(orient="records")] if result.trades else []
+        equity_df = pd.DataFrame(
+            {
+                "timestamp": prices.index.astype("datetime64[ns]").astype(str),
+                "equity": result.equity_curve[: len(prices)],
+                "drawdown": result.drawdown_curve[: len(prices)],
+            }
+        )
+        rolling = np.asarray(result.rolling_sharpe, dtype=np.float64)
+        padded = np.full(len(equity_df), np.nan, dtype=np.float64)
+        if len(rolling) > 0:
+            padded[1 : 1 + len(rolling)] = rolling
+        equity_df["rolling_sharpe"] = padded
+        equity = [self._clean_numeric_payload(record) for record in equity_df.to_dict(orient="records")]
+
+        with cache_file.open("w", encoding="utf-8") as fp:
+            json.dump({"summary": summary, "trades": trades, "equity": equity}, fp, indent=2)
+        return BacktestRunResponse(meta=self._meta(), cacheKey=key, summary=summary, trades=trades, equity=equity)
+
     def health(self) -> Dict[str, str]:
         self._load_artifacts()
         return {
@@ -488,4 +781,6 @@ class LiveProvider:
             'artifactDir': str(self.artifact_dir),
             'loadedAt': self._loaded_at.isoformat(),
             'generatedAt': self._bundle.generated_at if self._bundle else 'unknown',
+            'hasEvaluation': str(bool(self._bundle and self._bundle.evaluation_summary)),
+            'hasBacktest': str(bool(self._bundle and self._bundle.backtest_summary)),
         }

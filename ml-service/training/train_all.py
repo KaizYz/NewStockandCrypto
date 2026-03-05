@@ -24,9 +24,15 @@ from training.data_pipeline import (
     build_sequence_dataset,
     build_training_dataset,
     build_training_frames_for_horizon,
+    configure_request_runtime,
     parse_boundary,
     split_sequence_train_test,
     split_train_test,
+)
+from training.evaluation_backtest_pipeline import (
+    EvaluationBacktestConfig,
+    EvaluationBacktestResult,
+    run_evaluation_and_backtest,
 )
 from training.models import (
     LSTMClassifier,
@@ -185,6 +191,9 @@ def _train_windows_from_args(args: argparse.Namespace) -> TrainingWindowConfig:
         max_workers=max(1, int(args.max_workers)),
         min_bars_intraday=max(64, int(args.min_bars_intraday)),
         min_bars_daily=max(32, int(args.min_bars_daily)),
+        cache_dir=str(args.cache_dir),
+        cache_ttl_hours=max(1, int(args.cache_ttl_hours)),
+        request_rate_limit=max(0.1, float(args.request_rate_limit)),
     )
 
 
@@ -204,6 +213,44 @@ def _build_coverage_summary(results: Dict[str, HorizonFramesResult]) -> tuple[Di
 
     deduped = sorted(set(coverage_warnings))
     return coverage_report, deduped, diagnostics
+
+
+def _coverage_ratio(coverage_report: Dict[str, Dict[str, int]]) -> Dict[str, float]:
+    ratios: Dict[str, float] = {}
+    for horizon, values in coverage_report.items():
+        requested = int(values.get("requestedSymbols", 0))
+        loaded = int(values.get("loadedSymbols", 0))
+        ratios[horizon] = float(loaded / requested) if requested > 0 else 0.0
+    return ratios
+
+
+def _validate_coverage_gate(
+    *,
+    artifact_dir: Path,
+    coverage_report: Dict[str, Dict[str, int]],
+    coverage_warnings: List[str],
+    diagnostics: Dict[str, Dict[str, Dict[str, object]]],
+    min_coverage_threshold: float,
+) -> None:
+    ratios = _coverage_ratio(coverage_report)
+    min_ratio = min(ratios.values()) if ratios else 0.0
+    payload = {
+        "generatedAt": datetime.now(timezone.utc).isoformat(),
+        "minimumThreshold": float(min_coverage_threshold),
+        "minimumObserved": float(min_ratio),
+        "ratios": ratios,
+        "coverage_report": coverage_report,
+        "coverage_warnings": coverage_warnings,
+        "diagnostics": diagnostics,
+    }
+    with (artifact_dir / "coverage_gate_report.json").open("w", encoding="utf-8") as fp:
+        json.dump(payload, fp, indent=2)
+
+    if min_ratio < min_coverage_threshold:
+        raise RuntimeError(
+            f"Coverage gate failed: observed minimum coverage={min_ratio:.3f}, "
+            f"required threshold={min_coverage_threshold:.3f}. See coverage_gate_report.json"
+        )
 
 
 def _run_fetch_only_report(
@@ -245,6 +292,16 @@ def train_and_export(
     gpu_id: int,
     gpu_platform_id: Optional[int],
     gpu_device_id: Optional[int],
+    min_coverage_threshold: float,
+    wf_n_splits: int,
+    wf_train_size: int,
+    wf_test_size: int,
+    wf_purge_size: int,
+    wf_embargo_size: int,
+    wf_expanding: bool,
+    sequence_length: int,
+    backtest_defaults: Dict[str, float],
+    allow_runtime_backtest: bool,
 ) -> None:
     artifact_dir.mkdir(parents=True, exist_ok=True)
     models_dir = artifact_dir / "models"
@@ -266,11 +323,25 @@ def train_and_export(
         f"device_id={resolved_gpu_device_id})"
     )
 
+    configure_request_runtime(
+        cache_dir=window_config.cache_dir,
+        cache_ttl_hours=window_config.cache_ttl_hours,
+        requests_per_second=window_config.request_rate_limit,
+    )
     jobs = build_asset_jobs(SP500_SNAPSHOT_PATH, CSI300_SNAPSHOT_PATH)
 
     horizon_results: Dict[str, HorizonFramesResult] = {}
     for horizon in DEFAULT_HORIZON_STEPS:
         horizon_results[horizon] = build_training_frames_for_horizon(horizon, jobs=jobs, windows=window_config)
+
+    coverage_report, coverage_warnings, diagnostics = _build_coverage_summary(horizon_results)
+    _validate_coverage_gate(
+        artifact_dir=artifact_dir,
+        coverage_report=coverage_report,
+        coverage_warnings=coverage_warnings,
+        diagnostics=diagnostics,
+        min_coverage_threshold=float(min_coverage_threshold),
+    )
 
     if fetch_only:
         _run_fetch_only_report(artifact_dir=artifact_dir, window_config=window_config, results=horizon_results)
@@ -279,6 +350,14 @@ def train_and_export(
     outputs: Dict[str, Dict[str, Dict[str, dict]]] = {model_id: {asset: {} for asset in SERVE_ASSETS} for model_id in MODEL_IDS}
     global_metrics: Dict[str, Dict[str, dict]] = {model_id: {} for model_id in MODEL_IDS}
     all_training_warnings: List[str] = []
+    evaluation_horizon_map: Dict[str, Dict[str, object]] = {}
+    fold_metrics_frames: List[pd.DataFrame] = []
+    asset_metrics_frames: List[pd.DataFrame] = []
+    prediction_frames: List[pd.DataFrame] = []
+    backtest_summary_rows: List[dict] = []
+    backtest_trades_frames: List[pd.DataFrame] = []
+    backtest_equity_frames: List[pd.DataFrame] = []
+    backtest_inputs_frames: List[pd.DataFrame] = []
 
     for horizon, horizon_steps in DEFAULT_HORIZON_STEPS.items():
         horizon_result = horizon_results[horizon]
@@ -300,7 +379,6 @@ def train_and_export(
 
         dataset = build_training_dataset(frames, horizon_steps)
         train_df, test_df = split_train_test(dataset.table, train_ratio=0.8)
-
         x_train = train_df[dataset.feature_columns].to_numpy(dtype=np.float32)
         x_test = test_df[dataset.feature_columns].to_numpy(dtype=np.float32)
         y_train = train_df["target_direction"].to_numpy(dtype=np.int64)
@@ -340,10 +418,9 @@ def train_and_export(
             horizon_dir / "ensemble.joblib",
         )
 
-        seq_dataset = build_sequence_dataset(frames, horizon_steps=horizon_steps, sequence_length=32)
+        seq_dataset = build_sequence_dataset(frames, horizon_steps=horizon_steps, sequence_length=sequence_length)
         x_seq_train, x_seq_test, y_seq_train, y_seq_test = split_sequence_train_test(seq_dataset.x, seq_dataset.y, train_ratio=0.8)
         input_dim = x_seq_train.shape[-1]
-
         lstm_result = train_torch_model(
             LSTMClassifier(input_dim=input_dim),
             x_seq_train,
@@ -396,7 +473,7 @@ def train_and_export(
         }
 
         feature_importance = _feature_importance(ensemble_pack.direction_model, dataset.feature_columns)
-        seq_map = _sequence_map_for_asset(frames, horizon_steps=horizon_steps, sequence_length=32)
+        seq_map = _sequence_map_for_asset(frames, horizon_steps=horizon_steps, sequence_length=sequence_length)
 
         for asset in SERVE_ASSETS:
             latest_x = _latest_feature_row(dataset, asset)
@@ -470,7 +547,47 @@ def train_and_export(
                     },
                 }
 
-    coverage_report, coverage_warnings, diagnostics = _build_coverage_summary(horizon_results)
+        eval_cfg = EvaluationBacktestConfig(
+            n_splits=max(1, int(wf_n_splits)),
+            train_size=max(16, int(wf_train_size)),
+            test_size=max(8, int(wf_test_size)),
+            purge_size=max(0, int(wf_purge_size)),
+            embargo_size=max(0, int(wf_embargo_size)),
+            expanding=bool(wf_expanding),
+            sequence_length=max(8, int(sequence_length)),
+            gpu_id=int(gpu_id),
+            gpu_platform_id=gpu_platform_id,
+            gpu_device_id=int(resolved_gpu_device_id),
+            epochs=max(1, int(epochs)),
+            backtest_defaults=backtest_defaults,
+        )
+        eval_result: EvaluationBacktestResult = run_evaluation_and_backtest(
+            frames=frames,
+            horizon=horizon,
+            horizon_steps=horizon_steps,
+            config=eval_cfg,
+        )
+        evaluation_horizon_map[horizon] = eval_result.evaluation_summary
+        if not eval_result.fold_metrics.empty:
+            fold_metrics_frames.append(eval_result.fold_metrics)
+        if not eval_result.asset_metrics.empty:
+            asset_metrics_frames.append(eval_result.asset_metrics)
+        if not eval_result.prediction_rows.empty:
+            prediction_frames.append(eval_result.prediction_rows)
+
+        backtest_results = eval_result.backtest_summary.get("results", [])
+        if isinstance(backtest_results, list):
+            for row in backtest_results:
+                row_copy = dict(row)
+                row_copy["horizon"] = horizon
+                backtest_summary_rows.append(row_copy)
+        if not eval_result.backtest_trades.empty:
+            backtest_trades_frames.append(eval_result.backtest_trades)
+        if not eval_result.backtest_equity.empty:
+            backtest_equity_frames.append(eval_result.backtest_equity)
+        if not eval_result.backtest_inputs.empty:
+            backtest_inputs_frames.append(eval_result.backtest_inputs)
+
     coverage_warnings.extend(all_training_warnings)
     coverage_warnings = sorted(set(coverage_warnings))
     generated_at = datetime.now(timezone.utc).isoformat()
@@ -491,6 +608,10 @@ def train_and_export(
             },
             "stock": {"intraday_start": window_config.start_stock, "daily_start": window_config.start_stock},
             "end": end_iso,
+        },
+        "runtime_backtest": {
+            "allow_runtime_backtest": bool(allow_runtime_backtest),
+            "cache_dir": str((artifact_dir / "backtest_runtime_cache").resolve()),
         },
         "coverage_report": coverage_report,
         "coverage_warnings": coverage_warnings,
@@ -518,6 +639,44 @@ def train_and_export(
     with (artifact_dir / "coverage_diagnostics.json").open("w", encoding="utf-8") as fp:
         json.dump(diagnostics, fp, indent=2)
 
+    evaluation_summary_payload = {
+        "generatedAt": generated_at,
+        "horizons": evaluation_horizon_map,
+    }
+    with (artifact_dir / "evaluation_summary.json").open("w", encoding="utf-8") as fp:
+        json.dump(evaluation_summary_payload, fp, indent=2)
+
+    fold_metrics_df = pd.concat(fold_metrics_frames, axis=0, ignore_index=True) if fold_metrics_frames else pd.DataFrame()
+    asset_metrics_df = pd.concat(asset_metrics_frames, axis=0, ignore_index=True) if asset_metrics_frames else pd.DataFrame()
+    prediction_df = pd.concat(prediction_frames, axis=0, ignore_index=True) if prediction_frames else pd.DataFrame()
+    backtest_trades_df = pd.concat(backtest_trades_frames, axis=0, ignore_index=True) if backtest_trades_frames else pd.DataFrame()
+    backtest_equity_df = pd.concat(backtest_equity_frames, axis=0, ignore_index=True) if backtest_equity_frames else pd.DataFrame()
+    backtest_inputs_df = pd.concat(backtest_inputs_frames, axis=0, ignore_index=True) if backtest_inputs_frames else pd.DataFrame()
+
+    if not fold_metrics_df.empty:
+        fold_metrics_df.to_parquet(artifact_dir / "evaluation_folds.parquet", index=False)
+    else:
+        pd.DataFrame(columns=["model", "horizon", "fold"]).to_parquet(artifact_dir / "evaluation_folds.parquet", index=False)
+    if not asset_metrics_df.empty:
+        asset_metrics_df.to_parquet(artifact_dir / "evaluation_assets.parquet", index=False)
+    else:
+        pd.DataFrame(columns=["model", "horizon", "asset"]).to_parquet(artifact_dir / "evaluation_assets.parquet", index=False)
+
+    backtest_summary_payload = {
+        "generatedAt": generated_at,
+        "defaults": backtest_defaults,
+        "results": backtest_summary_rows,
+    }
+    with (artifact_dir / "backtest_summary.json").open("w", encoding="utf-8") as fp:
+        json.dump(backtest_summary_payload, fp, indent=2)
+
+    backtest_trades_df.to_parquet(artifact_dir / "backtest_trades.parquet", index=False)
+    backtest_equity_df.to_parquet(artifact_dir / "backtest_equity.parquet", index=False)
+    backtest_inputs_df.to_parquet(artifact_dir / "backtest_inputs.parquet", index=False)
+
+    runtime_cache_dir = artifact_dir / "backtest_runtime_cache"
+    runtime_cache_dir.mkdir(parents=True, exist_ok=True)
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train full multi-model artifacts for Model Explorer.")
@@ -534,7 +693,31 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-workers", type=int, default=8, help="Maximum concurrent fetch workers")
     parser.add_argument("--min-bars-intraday", type=int, default=2000, help="Minimum bars required for intraday symbol inclusion")
     parser.add_argument("--min-bars-daily", type=int, default=400, help="Minimum bars required for daily symbol inclusion")
+    parser.add_argument("--cache-dir", type=str, default="ml-service/cache/market_data", help="Market data request cache directory")
+    parser.add_argument("--cache-ttl-hours", type=int, default=168, help="Request cache TTL in hours")
+    parser.add_argument("--request-rate-limit", type=float, default=6.0, help="Global request rate limit (requests/sec)")
+    parser.add_argument("--min-coverage-threshold", type=float, default=0.90, help="Minimum loaded/requested ratio required for each horizon")
     parser.add_argument("--fetch-only", action="store_true", help="Only fetch and validate coverage, without model training")
+
+    parser.add_argument("--wf-n-splits", type=int, default=5, help="Walk-forward number of folds")
+    parser.add_argument("--wf-train-size", type=int, default=252, help="Walk-forward train size")
+    parser.add_argument("--wf-test-size", type=int, default=63, help="Walk-forward test size")
+    parser.add_argument("--wf-purge-size", type=int, default=5, help="Purged walk-forward purge gap")
+    parser.add_argument("--wf-embargo-size", type=int, default=5, help="Purged walk-forward embargo gap")
+    parser.add_argument("--wf-expanding", action=argparse.BooleanOptionalAction, default=False, help="Use expanding instead of rolling window")
+    parser.add_argument("--sequence-length", type=int, default=32, help="Sequence length for deep models")
+
+    parser.add_argument("--backtest-initial-capital", type=float, default=100000.0, help="Backtest initial capital")
+    parser.add_argument("--backtest-commission-rate", type=float, default=0.001, help="Backtest commission rate")
+    parser.add_argument("--backtest-slippage-rate", type=float, default=0.0005, help="Backtest slippage rate")
+    parser.add_argument("--backtest-position-sizing", type=str, default="fixed_fraction", choices=["fixed_fraction", "kelly"], help="Position sizing strategy")
+    parser.add_argument("--backtest-risk-per-trade", type=float, default=0.02, help="Risk per trade")
+    parser.add_argument("--backtest-max-position-size", type=float, default=0.10, help="Maximum position fraction")
+    parser.add_argument("--backtest-confidence-threshold", type=float, default=0.55, help="Minimum confidence to enter position")
+    parser.add_argument("--backtest-stop-loss-pct", type=float, default=0.02, help="Stop loss percent")
+    parser.add_argument("--backtest-take-profit-pct", type=float, default=0.04, help="Take profit percent")
+    parser.add_argument("--backtest-take-profit-2-pct", type=float, default=0.08, help="Second take profit percent")
+    parser.add_argument("--allow-runtime-backtest", action=argparse.BooleanOptionalAction, default=True, help="Allow service runtime custom backtest runs")
 
     parser.add_argument("--gpu-id", type=int, default=0, help="CUDA GPU id for torch training")
     parser.add_argument("--gpu-strict", action=argparse.BooleanOptionalAction, default=True, help="Require usable GPU runtime and fail fast when unavailable")
@@ -556,6 +739,27 @@ def main() -> None:
         gpu_id=int(args.gpu_id),
         gpu_platform_id=args.gpu_platform_id,
         gpu_device_id=args.gpu_device_id,
+        min_coverage_threshold=float(args.min_coverage_threshold),
+        wf_n_splits=int(args.wf_n_splits),
+        wf_train_size=int(args.wf_train_size),
+        wf_test_size=int(args.wf_test_size),
+        wf_purge_size=int(args.wf_purge_size),
+        wf_embargo_size=int(args.wf_embargo_size),
+        wf_expanding=bool(args.wf_expanding),
+        sequence_length=max(8, int(args.sequence_length)),
+        backtest_defaults={
+            "initial_capital": float(args.backtest_initial_capital),
+            "commission_rate": float(args.backtest_commission_rate),
+            "slippage_rate": float(args.backtest_slippage_rate),
+            "position_sizing": str(args.backtest_position_sizing),
+            "risk_per_trade": float(args.backtest_risk_per_trade),
+            "max_position_size": float(args.backtest_max_position_size),
+            "confidence_threshold": float(args.backtest_confidence_threshold),
+            "stop_loss_pct": float(args.backtest_stop_loss_pct),
+            "take_profit_pct": float(args.backtest_take_profit_pct),
+            "take_profit_2_pct": float(args.backtest_take_profit_2_pct),
+        },
+        allow_runtime_backtest=bool(args.allow_runtime_backtest),
     )
     print(f"Artifacts generated in: {artifact_dir}")
 

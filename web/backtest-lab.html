@@ -9,9 +9,30 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        .backtest-shell { max-width: 1400px; margin: 0 auto; padding: 0 2rem 3rem; }
+        .panel { background: rgba(15, 23, 42, 0.72); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 12px; padding: 1.35rem; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+        .grid-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; }
+        .label { display: block; margin-bottom: 0.45rem; color: #94A3B8; font-size: 0.85rem; font-weight: 600; }
+        .input, .select { width: 100%; background: rgba(10, 18, 34, 0.9); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 6px; padding: 0.65rem; color: #F8FAFC; font-family: 'JetBrains Mono', monospace; }
+        .metric-row { display: flex; justify-content: space-between; margin-bottom: 0.65rem; }
+        .metric-label { color: #94A3B8; font-size: 0.85rem; }
+        .metric-value { color: #F8FAFC; font-size: 1rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .metric-positive { color: #00FFAA; }
+        .metric-negative { color: #FF4D4F; }
+        .btn-primary { margin-top: 0.6rem; padding: 0.85rem 1.35rem; background: linear-gradient(135deg, #00E5FF 0%, #00FFAA 100%); color: #031225; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
+        .btn-secondary { margin-top: 0.6rem; margin-left: 0.5rem; padding: 0.85rem 1.35rem; background: rgba(148, 163, 184, 0.18); color: #E2E8F0; border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 8px; font-weight: 700; cursor: pointer; }
+        .status-note { color: #94A3B8; font-size: 0.86rem; margin-top: 0.8rem; }
+        .chart-wrap { height: 350px; position: relative; }
+        @media (max-width: 1100px) {
+            .grid-2 { grid-template-columns: 1fr; }
+            .grid-3 { grid-template-columns: 1fr; }
+        }
+    </style>
 </head>
 <body style="background: #050A1A; color: #F8FAFC; font-family: 'Inter', sans-serif;">
-        <header class="header">
+    <header class="header">
         <div class="header-container">
             <div class="logo">
                 <a href="index.html">
@@ -20,9 +41,7 @@
                 </a>
             </div>
             <nav class="nav" data-site-nav>
-                <button class="nav-toggle" id="navToggle" type="button" aria-label="Toggle navigation" aria-controls="navMenu" aria-expanded="false">
-                    <span></span><span></span><span></span>
-                </button>
+                <button class="nav-toggle" id="navToggle" type="button" aria-label="Toggle navigation" aria-controls="navMenu" aria-expanded="false"><span></span><span></span><span></span></button>
                 <ul class="nav-menu" id="navMenu">
                     <li><a href="index.html" class="nav-link">Home</a></li>
                     <li class="nav-dropdown">
@@ -41,189 +60,87 @@
                             <li><a href="risk-engine.html" class="nav-link">Risk</a></li>
                         </ul>
                     </li>
-                    <li class="nav-dropdown">
-                        <button class="nav-link nav-dropdown-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="sessionMenu">Session Forecast</button>
-                        <ul class="nav-dropdown-menu" id="sessionMenu">
-                            <li><a href="session-crypto.html" class="nav-link">Crypto Session</a></li>
-                            <li><a href="session-index.html" class="nav-link">Index Session</a></li>
-                        </ul>
-                    </li>
                     <li><a href="tracking.html" class="nav-link">Tracking</a></li>
                 </ul>
                 <button class="nav-backdrop" type="button" aria-label="Close navigation"></button>
             </nav>
-            <div class="nav-actions">
-                <a href="login.html" class="btn btn-secondary btn-sm">Login</a>
-            </div>
+            <div class="nav-actions"><a href="login.html" class="btn btn-secondary btn-sm">Login</a></div>
         </div>
     </header>
 
     <main style="padding-top: 100px; min-height: 100vh;">
-        <div style="max-width: 1400px; margin: 0 auto; padding: 0 2rem;">
-            <div style="margin-bottom: 3rem;">
-                <h1 style="font-size: 3rem; margin-bottom: 1rem; font-weight: 800;">Backtest Lab</h1>
-                <p style="color: #64748B; font-size: 1.1rem;">Walk-forward validation with purged gaps and multi-strategy comparison</p>
+        <div class="backtest-shell">
+            <div style="margin-bottom: 1.8rem;">
+                <h1 style="font-size: 2.4rem; margin-bottom: 0.8rem; font-weight: 800;">Backtest Lab</h1>
+                <p style="color: #64748B; font-size: 1rem;">Live API-driven walk-forward and backtest diagnostics</p>
             </div>
 
-            <!-- Parameter Upload -->
-            <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 2rem; margin-bottom: 2rem;">
-                <h2 style="font-size: 1.5rem; margin-bottom: 1.5rem; font-weight: 700;">Configure Parameters</h2>
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;">
+            <div class="panel" style="margin-bottom: 1rem;">
+                <h2 style="font-size: 1.2rem; margin-bottom: 1rem; font-weight: 700;">Configuration</h2>
+                <div class="grid-3">
                     <div>
-                        <label style="display: block; margin-bottom: 0.5rem; color: #94A3B8; font-size: 0.85rem; font-weight: 600;">Model</label>
-                        <select style="width: 100%; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; padding: 0.75rem; color: #F8FAFC; font-family: 'JetBrains Mono', monospace;">
-                            <option>LSTM+Attention</option>
-                            <option>LightGBM Ensemble</option>
-                            <option>Transformer</option>
-                        </select>
+                        <label class="label" for="btModel">Model</label>
+                        <select class="select" id="btModel"></select>
                     </div>
                     <div>
-                        <label style="display: block; margin-bottom: 0.5rem; color: #94A3B8; font-size: 0.85rem; font-weight: 600;">Asset</label>
-                        <select style="width: 100%; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; padding: 0.75rem; color: #F8FAFC; font-family: 'JetBrains Mono', monospace;">
-                            <option>BTC/USDT</option>
-                            <option>ETH/USDT</option>
-                            <option>SSE Composite</option>
-                        </select>
+                        <label class="label" for="btAsset">Asset</label>
+                        <select class="select" id="btAsset"></select>
                     </div>
                     <div>
-                        <label style="display: block; margin-bottom: 0.5rem; color: #94A3B8; font-size: 0.85rem; font-weight: 600;">Horizon</label>
-                        <select style="width: 100%; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; padding: 0.75rem; color: #F8FAFC; font-family: 'JetBrains Mono', monospace;">
-                            <option>1-Hour</option>
-                            <option>4-Hour</option>
-                            <option>1-Day</option>
+                        <label class="label" for="btHorizon">Horizon</label>
+                        <select class="select" id="btHorizon">
+                            <option value="1H">1H</option>
+                            <option value="4H">4H</option>
+                            <option value="1D">1D</option>
+                            <option value="3D">3D</option>
                         </select>
                     </div>
                 </div>
-                <button style="margin-top: 1.5rem; padding: 1rem 2rem; background: linear-gradient(135deg, #00E5FF 0%, #00FFAA 100%); color: #050A1A; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; box-shadow: 0 0 20px rgba(0, 229, 255, 0.3);">
-                    Run Backtest
-                </button>
-            </div>
-
-            <!-- Results -->
-            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; margin-bottom: 2rem;">
-                <!-- Equity Curve -->
-                <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 2rem;">
-                    <h3 style="font-size: 1.25rem; margin-bottom: 1.5rem; font-weight: 700;">Equity Curve</h3>
-                    <div style="height: 350px; position: relative;">
-                        <canvas id="equityChart"></canvas>
-                    </div>
-                </div>
-
-                <!-- Metrics -->
-                <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 2rem;">
-                    <h3 style="font-size: 1.25rem; margin-bottom: 1.5rem; font-weight: 700;">Performance Metrics</h3>
-                    <div style="margin-bottom: 1.5rem;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                            <span style="color: #94A3B8; font-size: 0.85rem;">Total Return</span>
-                            <span style="font-family: 'JetBrains Mono', monospace; color: #00FFAA; font-weight: 700; font-size: 1.1rem;">+12.4%</span>
-                        </div>
-                    </div>
-                    <div style="margin-bottom: 1.5rem;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                            <span style="color: #94A3B8; font-size: 0.85rem;">Sharpe Ratio</span>
-                            <span style="font-family: 'JetBrains Mono', monospace; color: #00FFAA; font-weight: 700; font-size: 1.1rem;">2.34</span>
-                        </div>
-                    </div>
-                    <div style="margin-bottom: 1.5rem;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                            <span style="color: #94A3B8; font-size: 0.85rem;">Max Drawdown</span>
-                            <span style="font-family: 'JetBrains Mono', monospace; color: #FF4D4F; font-weight: 700; font-size: 1.1rem;">-14.2%</span>
-                        </div>
-                    </div>
-                    <div style="margin-bottom: 1.5rem;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                            <span style="color: #94A3B8; font-size: 0.85rem;">Win Rate</span>
-                            <span style="font-family: 'JetBrains Mono', monospace; color: #F8FAFC; font-weight: 700; font-size: 1.1rem;">54.2%</span>
-                        </div>
+                <div class="grid-3" style="margin-top: 1rem;">
+                    <div>
+                        <label class="label" for="btConfidence">Confidence Threshold</label>
+                        <input class="input" id="btConfidence" type="number" step="0.01" min="0" max="1" value="0.55">
                     </div>
                     <div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                            <span style="color: #94A3B8; font-size: 0.85rem;">Total Trades</span>
-                            <span style="font-family: 'JetBrains Mono', monospace; color: #F8FAFC; font-weight: 700; font-size: 1.1rem;">1,868</span>
-                        </div>
+                        <label class="label" for="btStopLoss">Stop Loss %</label>
+                        <input class="input" id="btStopLoss" type="number" step="0.001" min="0" value="0.02">
                     </div>
+                    <div>
+                        <label class="label" for="btTakeProfit">Take Profit %</label>
+                        <input class="input" id="btTakeProfit" type="number" step="0.001" min="0" value="0.04">
+                    </div>
+                </div>
+                <button class="btn-primary" id="btLoadSummary">Load Summary</button>
+                <button class="btn-secondary" id="btRunCustom">Run Custom Backtest</button>
+                <div class="status-note" id="btStatusNote">Loading...</div>
+            </div>
+
+            <div class="grid-2" style="margin-bottom: 1rem;">
+                <div class="panel">
+                    <h3 style="font-size: 1.1rem; margin-bottom: 0.9rem; font-weight: 700;">Equity Curve</h3>
+                    <div class="chart-wrap"><canvas id="btEquityChart"></canvas></div>
+                </div>
+                <div class="panel">
+                    <h3 style="font-size: 1.1rem; margin-bottom: 0.9rem; font-weight: 700;">Key Metrics</h3>
+                    <div class="metric-row"><span class="metric-label">Total Return</span><span class="metric-value" id="btTotalReturn">--</span></div>
+                    <div class="metric-row"><span class="metric-label">Sharpe Ratio</span><span class="metric-value" id="btSharpe">--</span></div>
+                    <div class="metric-row"><span class="metric-label">Max Drawdown</span><span class="metric-value" id="btMaxDd">--</span></div>
+                    <div class="metric-row"><span class="metric-label">Win Rate</span><span class="metric-value" id="btWinRate">--</span></div>
+                    <div class="metric-row"><span class="metric-label">Profit Factor</span><span class="metric-value" id="btProfitFactor">--</span></div>
+                    <div class="metric-row"><span class="metric-label">Total Trades</span><span class="metric-value" id="btTrades">--</span></div>
                 </div>
             </div>
 
-            <!-- Radar Chart -->
-            <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 2rem;">
-                <h3 style="font-size: 1.25rem; margin-bottom: 1.5rem; font-weight: 700;">Multi-Strategy Comparison</h3>
-                <div style="height: 400px; position: relative;">
-                    <canvas id="radarChart"></canvas>
-                </div>
+            <div class="panel">
+                <h3 style="font-size: 1.1rem; margin-bottom: 0.9rem; font-weight: 700;">Model Comparison (Current Asset/Horizon)</h3>
+                <div style="height: 360px; position: relative;"><canvas id="btRadarChart"></canvas></div>
             </div>
         </div>
     </main>
 
-    <script>
-        // Initialize Charts
-        const equityCtx = document.getElementById('equityChart');
-        if (equityCtx) {
-            new Chart(equityCtx, {
-                type: 'line',
-                data: {
-                    labels: Array.from({length: 30}, (_, i) => `Day ${i+1}`),
-                    datasets: [{
-                        label: 'Strategy',
-                        data: Array.from({length: 30}, (_, i) => 100 + i * 0.4 + Math.random() * 2),
-                        borderColor: '#00FFAA',
-                        backgroundColor: 'rgba(0, 255, 170, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    }, {
-                        label: 'Benchmark',
-                        data: Array.from({length: 30}, (_, i) => 100 + i * 0.27 + Math.random() * 1.5),
-                        borderColor: '#00E5FF',
-                        backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { ticks: { color: '#64748B' }, grid: { color: 'rgba(255, 255, 255, 0.1)' } },
-                        x: { ticks: { color: '#64748B', maxTicksLimit: 7 }, grid: { display: false } }
-                    }
-                }
-            });
-        }
-
-        const radarCtx = document.getElementById('radarChart');
-        if (radarCtx) {
-            new Chart(radarCtx, {
-                type: 'radar',
-                data: {
-                    labels: ['Return', 'Sharpe', 'Win Rate', 'Max DD', 'Stability', 'Coverage'],
-                    datasets: [{
-                        label: 'LSTM',
-                        data: [85, 90, 75, 70, 80, 85],
-                        borderColor: '#00FFAA',
-                        backgroundColor: 'rgba(0, 255, 170, 0.2)'
-                    }, {
-                        label: 'LightGBM',
-                        data: [80, 85, 80, 75, 85, 80],
-                        borderColor: '#00E5FF',
-                        backgroundColor: 'rgba(0, 229, 255, 0.2)'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        r: {
-                            ticks: { color: '#64748B' },
-                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
-                            pointLabels: { color: '#94A3B8' }
-                        }
-                    }
-                }
-            });
-        }
-    </script>
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/backtest-lab.js"></script>
     <script src="js/nav.js"></script>
 </body>
 </html>
-

@@ -3,8 +3,10 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+import hashlib
 import json
 import math
+import threading
 import time
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
@@ -75,6 +77,43 @@ class TrainingWindowConfig:
     max_workers: int
     min_bars_intraday: int
     min_bars_daily: int
+    cache_dir: str
+    cache_ttl_hours: int
+    request_rate_limit: float
+
+
+class RateLimiter:
+    """Simple thread-safe token spacing rate limiter."""
+
+    def __init__(self, requests_per_second: float) -> None:
+        self.requests_per_second = max(0.1, float(requests_per_second))
+        self.min_interval = 1.0 / self.requests_per_second
+        self._lock = threading.Lock()
+        self._next_allowed = 0.0
+
+    def wait(self) -> None:
+        while True:
+            with self._lock:
+                now = time.monotonic()
+                if now >= self._next_allowed:
+                    self._next_allowed = now + self.min_interval
+                    return
+                sleep_sec = self._next_allowed - now
+            time.sleep(min(sleep_sec, 0.25))
+
+
+_REQUEST_CACHE_DIR: Optional[Path] = None
+_REQUEST_CACHE_TTL_SEC: float = 7 * 24 * 3600.0
+_REQUEST_RATE_LIMITER: Optional[RateLimiter] = None
+
+
+def configure_request_runtime(*, cache_dir: str, cache_ttl_hours: int, requests_per_second: float) -> None:
+    global _REQUEST_CACHE_DIR, _REQUEST_CACHE_TTL_SEC, _REQUEST_RATE_LIMITER
+    base = Path(cache_dir).expanduser().resolve()
+    base.mkdir(parents=True, exist_ok=True)
+    _REQUEST_CACHE_DIR = base
+    _REQUEST_CACHE_TTL_SEC = max(1.0, float(cache_ttl_hours) * 3600.0)
+    _REQUEST_RATE_LIMITER = RateLimiter(requests_per_second)
 
 
 def _safe_float(value: object) -> Optional[float]:
@@ -123,18 +162,50 @@ def _request_json(
     retries: int = 4,
     backoff_sec: float = 1.2,
 ) -> object:
+    cache_key = hashlib.sha1(
+        json.dumps({"url": url, "params": params}, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()
+    cache_path: Optional[Path] = None
+    cached_payload: Optional[object] = None
+    cache_fresh = False
+    if _REQUEST_CACHE_DIR is not None:
+        cache_path = _REQUEST_CACHE_DIR / f"{cache_key}.json"
+        if cache_path.exists():
+            try:
+                with cache_path.open("r", encoding="utf-8") as fp:
+                    cached_payload = json.load(fp)
+                age_sec = time.time() - cache_path.stat().st_mtime
+                cache_fresh = age_sec <= _REQUEST_CACHE_TTL_SEC
+            except Exception:
+                cached_payload = None
+                cache_fresh = False
+
+    if cached_payload is not None and cache_fresh:
+        return cached_payload
+
     last_error: Optional[Exception] = None
     for attempt in range(retries):
         try:
+            if _REQUEST_RATE_LIMITER is not None:
+                _REQUEST_RATE_LIMITER.wait()
             response = requests.get(url, params=params, timeout=timeout)
             response.raise_for_status()
-            return response.json()
+            payload = response.json()
+            if cache_path is not None:
+                try:
+                    with cache_path.open("w", encoding="utf-8") as fp:
+                        json.dump(payload, fp)
+                except Exception:
+                    pass
+            return payload
         except Exception as exc:  # pragma: no cover - network-dependent
             last_error = exc
             if attempt == retries - 1:
                 break
             sleep_sec = backoff_sec * (2**attempt)
             time.sleep(min(sleep_sec, 8.0))
+    if cached_payload is not None:
+        return cached_payload
     raise RuntimeError(f"Request failed: {url} params={params} error={last_error}")
 
 
@@ -639,4 +710,3 @@ def split_sequence_train_test(
     split_idx = int(len(x) * train_ratio)
     split_idx = min(max(split_idx, 1), len(x) - 1)
     return x[:split_idx], x[split_idx:], y[:split_idx], y[split_idx:]
-

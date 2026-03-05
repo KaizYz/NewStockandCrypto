@@ -208,6 +208,26 @@ const api = {
         return this.get(`/model-explorer/v1/insights${buildQueryString(params)}`);
     },
 
+    async getModelExplorerEvaluationSummary(params = {}) {
+        return this.get(`/model-explorer/v1/evaluation/summary${buildQueryString(params)}`);
+    },
+
+    async getModelExplorerEvaluationFolds(params = {}) {
+        return this.get(`/model-explorer/v1/evaluation/folds${buildQueryString(params)}`);
+    },
+
+    async getModelExplorerBacktestSummary(params = {}) {
+        return this.get(`/model-explorer/v1/backtest/summary${buildQueryString(params)}`);
+    },
+
+    async getModelExplorerBacktestDetail(params = {}) {
+        return this.get(`/model-explorer/v1/backtest/detail${buildQueryString(params)}`);
+    },
+
+    async runModelExplorerBacktest(payload) {
+        return this.post('/model-explorer/v1/backtest/run', payload);
+    },
+
     // ==================== Session Forecast ====================
     
     // Get crypto session forecast

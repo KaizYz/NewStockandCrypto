@@ -7,8 +7,16 @@ import statistics
 from datetime import datetime, timezone
 from typing import Dict, List
 
+import pandas as pd
+
 from app.schemas import (
+    BacktestDetailResponse,
+    BacktestRunResponse,
+    BacktestSummaryResponse,
     ExplanationPayload,
+    EvaluationFoldsResponse,
+    EvaluationSummaryItem,
+    EvaluationSummaryResponse,
     FeatureContribution,
     HeatmapResponse,
     InsightsResponse,
@@ -290,6 +298,202 @@ class MockProvider:
             compatibility=COMPATIBILITY,
             health=health,
             comparison=comparison,
+        )
+
+    def evaluation_summary(
+        self,
+        model: str | None = None,
+        asset: str | None = None,
+        horizon: str | None = None,
+    ) -> EvaluationSummaryResponse:
+        selected_models = [model] if model else MODEL_KEYS
+        selected_horizons = [horizon] if horizon else ["1H", "4H", "1D", "3D"]
+        records: List[EvaluationSummaryItem] = []
+        for model_id in selected_models:
+            for hz in selected_horizons:
+                perf = self._performance(model_id, asset or "BTCUSDT", hz)
+                rng = random.Random(self._seed(model_id, asset or "BTCUSDT", hz) + 901)
+                records.append(
+                    EvaluationSummaryItem(
+                        model=model_id,
+                        horizon=hz,
+                        sampleCount=1000 + rng.randint(0, 400),
+                        direction={
+                            "accuracy": perf.directionAccuracy,
+                            "precision": round(max(0.0, perf.directionAccuracy - 0.015), 3),
+                            "recall": round(max(0.0, perf.directionAccuracy - 0.008), 3),
+                            "f1": round(max(0.0, perf.directionAccuracy - 0.01), 3),
+                            "auc_roc": round(max(0.5, perf.directionAccuracy + 0.02), 3),
+                            "log_loss": round(0.68 - perf.directionAccuracy * 0.55, 3),
+                            "brier_score": perf.brierScore,
+                            "specificity": round(max(0.0, perf.directionAccuracy - 0.012), 3),
+                            "npv": round(max(0.0, perf.directionAccuracy - 0.02), 3),
+                            "fpr": round(1 - perf.directionAccuracy, 3),
+                            "fnr": round(1 - perf.directionAccuracy + 0.01, 3),
+                            "mcc": round((perf.directionAccuracy - 0.5) * 1.7, 3),
+                            "kappa": round((perf.directionAccuracy - 0.5) * 1.4, 3),
+                        },
+                        calibration={
+                            "expected_calibration_error": perf.ece,
+                            "maximum_calibration_error": round(min(1.0, perf.ece * 1.8), 3),
+                            "bins": [],
+                        },
+                        optimalThreshold={
+                            "threshold": 0.5,
+                            "accuracy": perf.directionAccuracy,
+                            "precision": round(max(0.0, perf.directionAccuracy - 0.015), 3),
+                            "recall": round(max(0.0, perf.directionAccuracy - 0.008), 3),
+                            "f1": round(max(0.0, perf.directionAccuracy - 0.01), 3),
+                            "youden_j": round(perf.directionAccuracy * 2 - 1, 3),
+                        },
+                        magnitude={
+                            "mae": round(0.012 + rng.random() * 0.006, 4),
+                            "mse": round(0.0004 + rng.random() * 0.0003, 6),
+                            "rmse": round(0.02 + rng.random() * 0.01, 4),
+                            "r2": round(0.05 + rng.random() * 0.2, 3),
+                            "mape": round(0.9 + rng.random() * 0.6, 3),
+                            "smape": round(0.85 + rng.random() * 0.35, 3),
+                            "direction_accuracy": perf.directionAccuracy,
+                            "pearson_r": round(0.1 + rng.random() * 0.4, 3),
+                            "spearman_r": round(0.1 + rng.random() * 0.4, 3),
+                            "bias": round((rng.random() - 0.5) * 0.008, 5),
+                            "relative_bias": round((rng.random() - 0.5) * 0.2, 3),
+                        },
+                        coverage={
+                            "q10_coverage": 0.1,
+                            "q50_coverage": 0.5,
+                            "q90_coverage": 0.9,
+                            "pi80_coverage": perf.intervalCoverage,
+                            "mean_interval_width": round(0.02 + rng.random() * 0.01, 4),
+                            "sharpness": round(0.005 + rng.random() * 0.01, 4),
+                        },
+                        benchmark={
+                            "direction_accuracy": "good" if perf.directionAccuracy >= 0.55 else "acceptable",
+                            "auc_roc": "good" if perf.directionAccuracy >= 0.55 else "acceptable",
+                            "brier_score": "good" if perf.brierScore <= 0.2 else "acceptable",
+                        },
+                    )
+                )
+        return EvaluationSummaryResponse(meta=self._meta(), records=records)
+
+    def evaluation_folds(
+        self,
+        model: str | None = None,
+        asset: str | None = None,
+        horizon: str | None = None,
+        limit: int = 2000,
+    ) -> EvaluationFoldsResponse:
+        selected_models = [model] if model else MODEL_KEYS
+        selected_horizons = [horizon] if horizon else ["1H", "4H", "1D", "3D"]
+        rows: List[Dict[str, object]] = []
+        for model_id in selected_models:
+            for hz in selected_horizons:
+                for fold in range(5):
+                    perf = self._performance(model_id, asset or "BTCUSDT", hz)
+                    rows.append(
+                        {
+                            "model": model_id,
+                            "horizon": hz,
+                            "asset": asset or "ALL",
+                            "fold": fold,
+                            "direction_accuracy": perf.directionAccuracy - 0.01 + fold * 0.002,
+                            "brier_score": perf.brierScore + fold * 0.001,
+                            "ece": perf.ece + fold * 0.001,
+                            "interval_coverage": perf.intervalCoverage - fold * 0.002,
+                            "test_samples": 200,
+                        }
+                    )
+        return EvaluationFoldsResponse(meta=self._meta(), rows=rows[: max(1, int(limit))])
+
+    def backtest_summary(
+        self,
+        model: str | None = None,
+        asset: str | None = None,
+        horizon: str | None = None,
+    ) -> BacktestSummaryResponse:
+        selected_models = [model] if model else MODEL_KEYS
+        selected_assets = [asset] if asset else ["BTCUSDT", "ETHUSDT", "SOLUSDT", "000001.SS", "^GSPC"]
+        selected_horizons = [horizon] if horizon else ["1H", "4H", "1D", "3D"]
+        rows: List[Dict[str, object]] = []
+        for model_id in selected_models:
+            for symbol in selected_assets:
+                for hz in selected_horizons:
+                    rng = random.Random(self._seed(model_id, symbol, hz) + 444)
+                    sharpe = round(0.6 + rng.random() * 1.8, 3)
+                    max_dd = round(0.07 + rng.random() * 0.18, 3)
+                    rows.append(
+                        {
+                            "model": model_id,
+                            "asset": symbol,
+                            "horizon": hz,
+                            "total_return": round(0.04 + rng.random() * 0.34, 4),
+                            "annualized_return": round(0.03 + rng.random() * 0.27, 4),
+                            "volatility": round(0.09 + rng.random() * 0.22, 4),
+                            "sharpe_ratio": sharpe,
+                            "sortino_ratio": round(sharpe * 1.2, 3),
+                            "calmar_ratio": round((0.08 + rng.random() * 0.2) / max(max_dd, 1e-6), 3),
+                            "max_drawdown": max_dd,
+                            "win_rate": round(0.46 + rng.random() * 0.16, 4),
+                            "profit_factor": round(1.05 + rng.random() * 0.8, 3),
+                            "expected_value": round(12 + rng.random() * 80, 4),
+                            "total_trades": int(300 + rng.random() * 1400),
+                        }
+                    )
+        return BacktestSummaryResponse(meta=self._meta(), rows=rows)
+
+    def backtest_detail(self, model: str, asset: str, horizon: str) -> BacktestDetailResponse:
+        summary_rows = self.backtest_summary(model=model, asset=asset, horizon=horizon).rows
+        summary = summary_rows[0] if summary_rows else {}
+        rng = random.Random(self._seed(model, asset, horizon) + 777)
+        trades: List[Dict[str, object]] = []
+        equity: List[Dict[str, object]] = []
+        base = 100000.0
+        value = base
+        for idx in range(120):
+            date = datetime.now(timezone.utc).replace(microsecond=0) - pd.Timedelta(hours=120 - idx)
+            value *= 1 + (rng.random() - 0.48) * 0.006
+            peak = max(base, value if idx == 0 else max(row["equity"] for row in equity))
+            dd = max(0.0, (peak - value) / peak)
+            equity.append(
+                {
+                    "timestamp": date.isoformat(),
+                    "equity": round(value, 4),
+                    "drawdown": round(dd, 5),
+                    "rolling_sharpe": round(0.8 + rng.random() * 1.2, 4),
+                }
+            )
+        for idx in range(40):
+            entry = datetime.now(timezone.utc).replace(microsecond=0) - pd.Timedelta(hours=160 - idx * 3)
+            exit_time = entry + pd.Timedelta(hours=2)
+            pnl = (rng.random() - 0.45) * 220
+            trades.append(
+                {
+                    "entry_time": entry.isoformat(),
+                    "exit_time": exit_time.isoformat(),
+                    "entry_price": round(100 + rng.random() * 20, 4),
+                    "exit_price": round(100 + rng.random() * 20, 4),
+                    "direction": "LONG" if rng.random() >= 0.45 else "SHORT",
+                    "size": round(5 + rng.random() * 4, 4),
+                    "entry_confidence": round(0.52 + rng.random() * 0.36, 3),
+                    "pnl": round(pnl, 4),
+                    "pnl_pct": round(pnl / 100000, 5),
+                    "holding_period": 2,
+                    "status": "CLOSED",
+                }
+            )
+        return BacktestDetailResponse(meta=self._meta(), summary=summary, trades=trades, equity=equity)
+
+    def backtest_run(self, model: str, asset: str, horizon: str, params: Dict[str, object]) -> BacktestRunResponse:
+        detail = self.backtest_detail(model=model, asset=asset, horizon=horizon)
+        digest = hashlib.sha1(
+            f"{model}|{asset}|{horizon}|{str(sorted(params.items()))}".encode("utf-8")
+        ).hexdigest()
+        return BacktestRunResponse(
+            meta=self._meta(),
+            cacheKey=digest,
+            summary=detail.summary,
+            trades=detail.trades,
+            equity=detail.equity,
         )
 
     def health(self) -> Dict[str, str]:
