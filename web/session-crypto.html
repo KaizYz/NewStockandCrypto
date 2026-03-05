@@ -1,11 +1,12 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crypto Session Forecast - StockandCrypto</title>
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/components.css"><link rel="stylesheet" href="css/confidence-ring.css">
+    <link rel="stylesheet" href="css/ui-enhancements.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         .session-toolbar {
@@ -353,7 +354,59 @@
                 font-size: 1.6rem;
             }
         }
-    </style>
+    .decision-levels-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+    .level-item {
+        padding: 0.85rem 1rem;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(15, 23, 42, 0.6);
+        transition: all 0.25s ease;
+    }
+    .level-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+    }
+    .level-item.entry {
+        border-left: 3px solid #00E5FF;
+        background: linear-gradient(135deg, rgba(0, 229, 255, 0.1) 0%, rgba(15, 23, 42, 0.6) 100%);
+    }
+    .level-item.stop {
+        border-left: 3px solid #FF4D4F;
+        background: linear-gradient(135deg, rgba(255, 77, 79, 0.1) 0%, rgba(15, 23, 42, 0.6) 100%);
+    }
+    .level-item.tp1 {
+        border-left: 3px solid #00FF88;
+        background: linear-gradient(135deg, rgba(0, 255, 136, 0.1) 0%, rgba(15, 23, 42, 0.6) 100%);
+    }
+    .level-item.tp2 {
+        border-left: 3px solid #8B5CF6;
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(15, 23, 42, 0.6) 100%);
+    }
+    .level-label {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--text-muted);
+        margin-bottom: 0.35rem;
+    }
+    .level-value {
+        font-family: var(--font-mono);
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+    .level-item.entry .level-value { color: #00E5FF; }
+    .level-item.stop .level-value { color: #FF4D4F; }
+    .level-item.tp1 .level-value { color: #00FF88; }
+    .level-item.tp2 .level-value { color: #8B5CF6; }
+    @media (max-width: 600px) {
+        .decision-levels-grid { grid-template-columns: 1fr; }
+    }</style>
 </head>
 <body>
     <header class="header">
@@ -523,10 +576,12 @@
                             </div>
                         </div>
                         <div style="display:grid; gap:0.5rem; font-family:var(--font-mono);">
-                            <div class="risk-breakdown-row"><span>Entry</span><strong id="decisionEntry">--</strong></div>
-                            <div class="risk-breakdown-row"><span>Stop Loss</span><strong id="decisionStopLoss">--</strong></div>
-                            <div class="risk-breakdown-row"><span>Take Profit</span><strong id="decisionTakeProfit">--</strong></div>
-                            <div class="risk-breakdown-row"><span>Take Profit 2</span><strong id="decisionTakeProfit2">--</strong></div>
+                            <div class="decision-levels-grid">
+                    <div class="level-item entry"><div class="level-label">Entry</div><div class="level-value" id="decisionEntry">--</div></div>
+                    <div class="level-item stop"><div class="level-label">Stop Loss</div><div class="level-value" id="decisionStopLoss">--</div></div>
+                    <div class="level-item tp1"><div class="level-label">Take Profit</div><div class="level-value" id="decisionTakeProfit">--</div></div>
+                    <div class="level-item tp2"><div class="level-label">Take Profit 2</div><div class="level-value" id="decisionTakeProfit2">--</div></div>
+                </div>
                         </div>
                         <button class="btn btn-primary" id="executeBtn" style="width:100%; margin-top:1rem;" type="button">Execute (Mock)</button>
                         <div id="executeDisclaimer" class="warning-inline" style="color: var(--text-secondary);">
@@ -659,7 +714,7 @@
     <footer style="background: var(--bg-secondary); border-top: 1px solid var(--border-color); padding: 2rem 0; margin-top: 2rem;">
         <div class="container">
             <div style="text-align: center;">
-                <p style="color: var(--text-muted); font-size: 0.875rem;">© 2026 StockandCrypto. AI-powered quantitative trading platform.</p>
+                <p style="color: var(--text-muted); font-size: 0.875rem;">� 2026 StockandCrypto. AI-powered quantitative trading platform.</p>
                 <p id="sessionFooterDisclaimer" style="margin-top: 0.4rem; color: var(--text-secondary); font-size: 0.8rem;">Mock Mode | Simulated Data | For Educational Use Only</p>
             </div>
         </div>

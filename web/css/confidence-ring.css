@@ -1,0 +1,115 @@
+/* Confidence Ring - Capsule/Pill Design */
+.confidence-ring {
+    width: 100px !important;
+    height: 70px !important;
+    border-radius: 12px !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(5, 10, 26, 0.95));
+    box-shadow: 
+        0 4px 20px rgba(0, 0, 0, 0.4),
+        0 0 30px rgba(0, 255, 136, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(0, 255, 136, 0.3);
+    transition: all 0.3s ease;
+}
+
+.confidence-ring::before {
+    display: none !important;
+}
+
+.confidence-ring-inner {
+    width: auto !important;
+    height: auto !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 1.4rem !important;
+    font-weight: 700;
+    z-index: 1;
+    position: relative;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.confidence-ring:hover {
+    transform: translateY(-3px);
+    box-shadow: 
+        0 8px 30px rgba(0, 0, 0, 0.5),
+        0 0 40px rgba(0, 255, 136, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    border-color: rgba(0, 255, 136, 0.5);
+}
+
+/* Progress bar inside the capsule */
+.confidence-ring::after {
+    content: '';
+    position: absolute;
+    bottom: 8px;
+    left: 12px;
+    right: 12px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.confidence-ring .progress-fill {
+    position: absolute;
+    bottom: 8px;
+    left: 12px;
+    height: 4px;
+    background: linear-gradient(90deg, #00ff88, #10b981);
+    border-radius: 2px;
+    box-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+    transition: width 0.5s ease;
+}
+
+/* Label styling */
+.confidence-ring-inner::before {
+    content: 'CONFIDENCE';
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.4);
+    margin-bottom: 2px;
+}
+
+/* Pulse animation */
+@keyframes capsuleGlow {
+    0%, 100% { 
+        box-shadow: 
+            0 4px 20px rgba(0, 0, 0, 0.4),
+            0 0 30px rgba(0, 255, 136, 0.15),
+            inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+    50% { 
+        box-shadow: 
+            0 4px 20px rgba(0, 0, 0, 0.4),
+            0 0 45px rgba(0, 255, 136, 0.25),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+}
+
+.confidence-ring {
+    animation: capsuleGlow 3s ease-in-out infinite;
+}
+
+/* High/Medium/Low confidence colors */
+.confidence-ring.high {
+    border-color: rgba(0, 255, 136, 0.4);
+}
+
+.confidence-ring.medium {
+    border-color: rgba(245, 158, 11, 0.4);
+}
+
+.confidence-ring.low {
+    border-color: rgba(255, 77, 79, 0.4);
+}
