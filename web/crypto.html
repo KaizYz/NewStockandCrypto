@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -632,8 +632,9 @@
                     <li class="nav-dropdown">
                         <button class="nav-link nav-dropdown-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="sessionMenu">Session Forecast</button>
                         <ul class="nav-dropdown-menu" id="sessionMenu">
-                            <li><a href="session-crypto.html" class="nav-link">Crypto Session</a></li>
-                            <li><a href="session-index.html" class="nav-link">Index Session</a></li>
+                            <li><a href="session-crypto.html" class="nav-link">Crypto Sessions</a></li>
+                            <li><a href="session-index.html" class="nav-link">A-Share Index Sessions</a></li>
+                            <li><a href="session-index-us.html" class="nav-link">US Index Sessions</a></li>
                         </ul>
                     </li>
                     <li><a href="tracking.html" class="nav-link">Tracking</a></li>
@@ -1020,13 +1021,13 @@
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th class="sortable" data-sort-key="symbol">Symbol <span class="sort-indicator">â†•</span></th>
-                                <th class="sortable" data-sort-key="price">Price <span class="sort-indicator">â†•</span></th>
-                                <th class="sortable" data-sort-key="change">24h Change <span class="sort-indicator">â†•</span></th>
-                                <th class="sortable" data-sort-key="pUp" title="Probability of Upward Movement (next interval)">P(UP) <span class="sort-indicator">â†•</span></th>
-                                <th class="sortable" data-sort-key="signal">Signal <span class="sort-indicator">â†•</span></th>
-                                <th class="sortable" data-sort-key="volume">24h Volume <span class="sort-indicator">â†•</span></th>
-                                <th class="sortable" data-sort-key="status">Status <span class="sort-indicator">â†•</span></th>
+                                <th class="sortable" data-sort-key="symbol">Symbol <span class="sort-indicator">↕</span></th>
+                                <th class="sortable" data-sort-key="price">Price <span class="sort-indicator">↕</span></th>
+                                <th class="sortable" data-sort-key="change">24h Change <span class="sort-indicator">↕</span></th>
+                                <th class="sortable" data-sort-key="pUp" title="Probability of Upward Movement (next interval)">P(UP) <span class="sort-indicator">↕</span></th>
+                                <th class="sortable" data-sort-key="signal">Signal <span class="sort-indicator">↕</span></th>
+                                <th class="sortable" data-sort-key="volume">24h Volume <span class="sort-indicator">↕</span></th>
+                                <th class="sortable" data-sort-key="status">Status <span class="sort-indicator">↕</span></th>
                             </tr>
                         </thead>
                         <tbody id="cryptoTableBody"></tbody>
@@ -1053,5 +1054,6 @@
     <script src="js/crypto.js"></script>
 </body>
 </html>
+
 
 

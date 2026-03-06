@@ -2,7 +2,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A-Share Index Session Forecast - StockandCrypto</title>
+    <title>US Index Session Forecast - StockandCrypto</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/components.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -415,6 +415,11 @@
             margin-top: 1rem;
         }
 
+        .panel-unavailable {
+            opacity: 0.56;
+            filter: grayscale(0.18);
+        }
+
         .detail-body {
             display: grid;
             gap: 0.75rem;
@@ -520,8 +525,8 @@
         <div class="container">
             <div class="section-header" style="text-align: left; margin-bottom: 1.6rem;">
                 <span class="section-tag">Session Analysis</span>
-                <h1 class="section-title">A-Share Index Session Forecast</h1>
-                <p class="section-note">Track the session structure for SSE Composite and CSI 300 with A-share specific timing, T+1, and policy-band context.</p>
+                <h1 class="section-title">US Index Session Forecast</h1>
+                <p class="section-note">Track Dow Jones, Nasdaq, and S&amp;P 500 during regular US cash hours only. Pre-market and after-hours are treated as closed.</p>
             </div>
 
             <section class="status-banner">
@@ -529,7 +534,7 @@
                     <div>
                         <span class="section-tag">Current Status Banner</span>
                         <h2 class="status-title" id="statusBannerTitle">Current: Loading session status...</h2>
-                        <p class="status-subtitle" id="statusBannerSubtitle">Preparing A-share timing, session state, and next tradable window.</p>
+                        <p class="status-subtitle" id="statusBannerSubtitle">Preparing US regular-hours timing, current state, and the next official open.</p>
                     </div>
                     <div class="status-inline">
                         <span class="status-badge info" id="marketStatusBadge">Loading</span>
@@ -557,11 +562,11 @@
                         <strong id="timeRemainingText">--</strong>
                     </div>
                     <div class="status-chip">
-                        <span>Next Open</span>
+                        <span>Next Event</span>
                         <strong id="nextOpenText">--</strong>
                     </div>
                     <div class="status-chip">
-                        <span>Pre-Open / Resume Rule</span>
+                        <span>Regular Hours Rule</span>
                         <strong id="preOpenText">--</strong>
                     </div>
                 </div>
@@ -569,14 +574,16 @@
 
             <div class="section-controls">
                 <div class="index-switcher">
-                    <button class="btn btn-primary" id="btnSSE" type="button" data-index="SSE">SSE Composite</button>
-                    <button class="btn btn-secondary" id="btnCSI" type="button" data-index="CSI300">CSI 300</button>
+                    <button class="btn btn-primary" id="btnDJI" type="button" data-index="DJI">Dow Jones</button>
+                    <button class="btn btn-secondary" id="btnNDX" type="button" data-index="NDX">Nasdaq</button>
+                    <button class="btn btn-secondary" id="btnSPX" type="button" data-index="SPX">S&amp;P 500</button>
                 </div>
 
                 <div class="scope-controls">
                     <select id="indexFilter" class="scope-select" aria-label="Filter by index">
-                        <option value="SSE">SSE Composite</option>
-                        <option value="CSI300">CSI 300</option>
+                        <option value="DJI">Dow Jones</option>
+                        <option value="NDX">Nasdaq</option>
+                        <option value="SPX">S&amp;P 500</option>
                     </select>
                     <div class="scope-toggle">
                         <button class="btn btn-primary btn-sm" id="scopeAllBtn" type="button">All Sessions</button>
@@ -586,27 +593,27 @@
             </div>
 
             <div class="hero-grid">
-                <div class="metric-card-strong">
+                <div class="metric-card-strong" id="currentIndexCard">
                     <div class="metric-label-strong">Current Index</div>
                     <div class="metric-main" id="currentIndexValue">--</div>
-                    <div class="metric-meta" id="currentIndexChange">Waiting for A-share index quote...</div>
+                    <div class="metric-meta" id="currentIndexChange">Waiting for US index snapshot...</div>
                     <div class="metric-breakdown">
                         <span id="selectedSessionLabel">Session: --</span>
                         <span id="lastUpdatedLabel">Updated: --</span>
                     </div>
                 </div>
 
-                <div class="metric-card-strong">
+                <div class="metric-card-strong" id="marketStructureCard">
                     <div class="metric-label-strong">Market Structure</div>
                     <div class="metric-main" id="marketStructureLabel">--</div>
-                    <div class="metric-meta" id="marketStructureMeta">Morning 09:30-11:30 | Afternoon 13:00-15:00</div>
+                    <div class="metric-meta" id="marketStructureMeta">Regular Hours 09:30-16:00 ET | Early Close 13:00 ET</div>
                     <div class="metric-breakdown">
                         <span id="marketStateInline">State: --</span>
                         <span id="nextActionInline">Next tradable window: --</span>
                     </div>
                 </div>
 
-                <div class="metric-card-strong">
+                <div class="metric-card-strong" id="accuracyCard">
                     <div class="metric-label-strong">Model Accuracy</div>
                     <div class="metric-main" id="accuracyPrimary">--</div>
                     <div class="confidence-shell">
@@ -616,19 +623,19 @@
                         <div class="confidence-meta">
                             <div class="status-inline" style="margin-bottom: 0.55rem;">
                                 <span class="status-badge warning" id="goNoGoBadge">NO-GO</span>
-                                <span class="status-badge info" id="tPlusOneBadge" title="T+1 Holding Rule Applies">T+1</span>
+                                <span class="status-badge info" id="tPlusOneBadge" title="Real-data only">REAL</span>
                             </div>
                             <div class="metric-meta" id="accuracyBreakdown">Direction: -- | Coverage: -- | Brier Score: --</div>
-                            <p class="panel-note" id="noGoReason">Loading A-share policy and NO-GO explanation...</p>
+                            <p class="panel-note" id="noGoReason">Waiting for a real regular-session snapshot.</p>
                         </div>
                     </div>
                 </div>
 
-                <div class="metric-card-strong">
+                <div class="metric-card-strong" id="quickDecisionCard">
                     <div class="metric-label-strong">Quick Decision</div>
                     <div class="decision-action">
                         <span class="signal-pill flat" id="quickDecisionPill">NO-GO</span>
-                        <span class="status-badge info" id="quickDecisionMode">Simulated Only</span>
+                        <span class="status-badge info" id="quickDecisionMode">Closed</span>
                     </div>
                     <div class="decision-grid">
                         <div class="decision-row"><span class="label-text" id="quickEntryLabel">Entry</span><strong id="quickEntry">--</strong></div>
@@ -641,11 +648,11 @@
             </div>
 
             <div class="content-grid">
-                <div class="panel-card">
+                <div class="panel-card" id="projectionCard">
                     <div class="chart-toolbar">
                         <div>
                             <div class="panel-title">Session-by-Session Projection</div>
-                            <p class="panel-note" id="sessionChartNote">Morning and afternoon bias for the selected A-share index.</p>
+                            <p class="panel-note" id="sessionChartNote">Opening, midday, afternoon, and close bias for the selected US index.</p>
                         </div>
                         <div class="chart-toggle">
                             <button class="btn btn-primary btn-sm" id="chartModeDirection" type="button">Direction</button>
@@ -657,9 +664,9 @@
                     </div>
                 </div>
 
-                <div class="panel-card">
+                <div class="panel-card" id="startWindowCard">
                     <div class="panel-title">Start Window Prediction</div>
-                    <p class="panel-note">W0-W3 probability distribution for the next actionable A-share session.</p>
+                    <p class="panel-note">W0-W3 probability distribution for regular-session subwindows only.</p>
                     <div class="window-bars" id="windowBars"></div>
                     <div class="window-summary">
                         <div class="label-text">Most Likely Start</div>
@@ -670,9 +677,9 @@
             </div>
 
             <div class="secondary-grid">
-                <div class="panel-card">
+                <div class="panel-card" id="magnitudeCard">
                     <div class="panel-title">Magnitude Forecast</div>
-                    <p class="panel-note">q10 / q50 / q90 for the next A-share session with policy-band adjustment.</p>
+                    <p class="panel-note">q10 / q50 / q90 for regular-session returns. No pre-market or after-hours projection is shown here.</p>
                     <div class="magnitude-grid">
                         <div class="magnitude-strip"><span class="label-text">q10</span><strong id="magnitudeQ10">--</strong></div>
                         <div class="magnitude-strip"><span class="label-text">q50</span><strong id="magnitudeQ50">--</strong></div>
@@ -680,16 +687,16 @@
                         <div class="magnitude-strip"><span class="label-text">Interval Width</span><strong id="magnitudeWidth">--</strong></div>
                     </div>
                     <div class="limit-adjusted" id="limitAdjustedBox">
-                        <div class="label-text">Limit Adjusted</div>
-                        <strong id="limitAdjustedText">Within the active A-share policy band.</strong>
-                        <div class="window-note" id="limitAdjustedNote">Limit risk: --</div>
+                        <div class="label-text">Regular Session Range</div>
+                        <strong id="limitAdjustedText">Waiting for the last regular-session band.</strong>
+                        <div class="window-note" id="limitAdjustedNote">Gap / volatility risk: --</div>
                     </div>
                     <div class="spark-wrap">
                         <canvas id="magnitudeSparkChart"></canvas>
                     </div>
                 </div>
 
-                <div class="panel-card">
+                <div class="panel-card" id="executionLensCard">
                     <div class="panel-title">Session Execution Lens</div>
                     <div class="detail-grid">
                         <div class="detail-cell">
@@ -697,12 +704,12 @@
                             <strong id="currentBiasText">--</strong>
                         </div>
                         <div class="detail-cell">
-                            <span class="label-text">Limit Risk</span>
+                            <span class="label-text">Gap Risk</span>
                             <strong id="currentLimitRiskText">--</strong>
                         </div>
                         <div class="detail-cell">
-                            <span class="label-text">T+1 Rule</span>
-                    <strong id="tPlusOneText">Applies to long holdings for the selected A-share index workflow.</strong>
+                            <span class="label-text">Liquidity Rule</span>
+                            <strong id="tPlusOneText">Only regular-session data is used on this page.</strong>
                         </div>
                         <div class="detail-cell">
                             <span class="label-text">Delay / Source</span>
@@ -711,34 +718,34 @@
                     </div>
                     <div class="detail-panel" style="margin-top: 1rem; padding: 1rem;">
                         <div class="detail-title">Session Explanation</div>
-                        <p class="detail-note" id="sessionExplanationText">Hover a row below to inspect the session explanation.</p>
+                        <p class="detail-note" id="sessionExplanationText">Hover a row below to inspect the regular-session explanation.</p>
                     </div>
                 </div>
             </div>
 
-            <div class="table-shell">
+            <div class="table-shell" id="sessionTableShell">
                 <div class="table-head-row">
                     <div>
                         <div class="table-title">Session-by-Session Forecast</div>
-                        <p class="table-inline-note">Hover a row to inspect the reasoning, limit risk, and suggested wait state.</p>
+                        <p class="table-inline-note">Hover a row to inspect the reasoning, gap risk, and regular-session execution bias.</p>
                     </div>
                 </div>
                 <table class="data-table">
                     <thead>
                         <tr>
                             <th>Session</th>
-                            <th>Time (BJT)</th>
+                            <th>Time (ET)</th>
                             <th>P(UP)</th>
                             <th>P(W1)</th>
                             <th>q50 Return</th>
                             <th>Volatility</th>
                             <th>Signal</th>
-                            <th>Limit Risk</th>
+                            <th>Gap Risk</th>
                         </tr>
                     </thead>
                     <tbody id="sessionTableBody">
                         <tr>
-                                <td colspan="8" style="text-align:center; color: var(--text-secondary); padding: 1.2rem;">Loading A-share session rows...</td>
+                            <td colspan="8" style="text-align:center; color: var(--text-secondary); padding: 1.2rem;">Loading US regular-session rows...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -756,21 +763,21 @@
                         </div>
                         <div class="detail-cell">
                             <span class="label-text">Execution Hint</span>
-                            <strong id="hoveredExecutionHint">NO-GO stays highlighted until confidence clears the execution gate.</strong>
+                            <strong id="hoveredExecutionHint">Decision packets are only shown from real regular-session data.</strong>
                         </div>
                         <div class="detail-cell">
                             <span class="label-text">Window Bias</span>
                             <strong id="hoveredWindowBias">--</strong>
                         </div>
                         <div class="detail-cell">
-                            <span class="label-text">Limit / T+1</span>
+                            <span class="label-text">Gap / Liquidity</span>
                             <strong id="hoveredLimitText">--</strong>
                         </div>
                     </div>
                 </div>
                 <div class="footnote-bar">
-                    <div class="footnote-item" id="dataDelayNote">Data Source: EastMoney | Delay: ~10s</div>
-                    <div class="footnote-item" id="mockDisclaimer">Mock Mode | Simulated for A-Share Index Sessions | Not Trading Advice</div>
+                    <div class="footnote-item" id="dataDelayNote">Data Source: US Level-1 quote feed | Delay depends on venue</div>
+                    <div class="footnote-item" id="mockDisclaimer">Regular Session Only | Last real snapshot only | Not Trading Advice</div>
                 </div>
             </div>
         </div>
@@ -779,7 +786,7 @@
     <footer style="background: var(--bg-secondary); border-top: 1px solid var(--border-color); padding: 2rem 0; margin-top: 4rem;">
         <div class="container">
             <div style="text-align: center;">
-                <p style="color: var(--text-muted); font-size: 0.875rem;">&copy; 2026 StockandCrypto. Mock Mode | Simulated for A-Share Index Sessions | Not Trading Advice.</p>
+                <p style="color: var(--text-muted); font-size: 0.875rem;">&copy; 2026 StockandCrypto. Regular Session Only | Last real snapshot only | Not Trading Advice.</p>
             </div>
         </div>
     </footer>
@@ -787,7 +794,7 @@
     <script src="js/nav.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/api.js"></script>
-    <script src="js/session-index.js"></script>
+    <script src="js/session-index-us.js"></script>
 </body>
 </html>
 
