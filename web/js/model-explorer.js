@@ -29,6 +29,15 @@
         IN_REVIEW: 'In Review',
     };
 
+    const RUNTIME_CLASS_MAP = {
+        LIVE: 'success',
+        STALE: 'warning',
+        DEGRADED: 'warning',
+        UNAVAILABLE: 'info',
+    };
+
+    const AUTO_REFRESH_MS = 10000;
+
     const COMPARISON_COLORS = {
         lstm: '#00e5ff',
         ensemble: '#00ffaa',
@@ -55,10 +64,13 @@
         assetHorizonMap: {},
         compatibilityByModel: { ...DEFAULT_COMPATIBILITY },
         healthByModel: {},
+        runtimeByModel: {},
+        selection: {},
         lastPrediction: null,
         lastPerformance: null,
         lastHeatmap: null,
         lastInsights: null,
+        autoRefreshHandle: null,
         baselineSnapshot: null,
         whatIf: {
             volatilityDelta: 0,
@@ -161,6 +173,14 @@
         return 'info';
     }
 
+    function runtimeBadgeClass(status) {
+        return RUNTIME_CLASS_MAP[String(status || '').toUpperCase()] || 'info';
+    }
+
+    function effectiveHorizon() {
+        return safeText(state.selection?.resolvedHorizon || state.horizon, state.horizon);
+    }
+
     function setLoading(flag) {
         state.loading = flag;
         if (!els.loadingMask) return;
@@ -199,6 +219,9 @@
         els.loadedModelBadge = byId('loadedModelBadge');
         els.predictionContext = byId('predictionContext');
         els.predictionConfidenceTag = byId('predictionConfidenceTag');
+        els.runtimeStatusBadge = byId('runtimeStatusBadge');
+        els.runtimeStatusText = byId('runtimeStatusText');
+        els.runtimeNoticeBanner = byId('runtimeNoticeBanner');
         els.pUpValue = byId('predictionPUp');
         els.q50Value = byId('predictionQ50');
         els.intervalWidthValue = byId('predictionIntervalWidth');
@@ -273,7 +296,8 @@
     }
 
     function syncHorizonAvailability() {
-        const allowed = new Set(state.assetHorizonMap[state.asset] || ['1H', '4H', '1D', '3D']);
+        const allowedList = Array.isArray(state.assetHorizonMap[state.asset]) ? state.assetHorizonMap[state.asset] : [];
+        const allowed = new Set(allowedList);
         els.horizonButtons.forEach((button) => {
             const horizon = getHorizonFromButton(button);
             const enabled = allowed.has(horizon);
@@ -282,8 +306,8 @@
             button.style.cursor = enabled ? 'pointer' : 'not-allowed';
         });
 
-        if (!allowed.has(state.horizon)) {
-            state.horizon = Array.from(allowed)[0] || '1H';
+        if (allowedList.length && !allowed.has(state.horizon)) {
+            state.horizon = allowedList[0];
         }
     }
 
@@ -355,7 +379,7 @@
         }
 
         if (els.predictionContext) {
-            els.predictionContext.textContent = `${state.asset} | ${state.horizon} Horizon | ${state.model.toUpperCase()} | ${state.modelVersion}`;
+            els.predictionContext.textContent = `${state.asset} | ${effectiveHorizon()} Horizon | ${state.model.toUpperCase()} | ${state.modelVersion}`;
         }
     }
 
@@ -388,11 +412,12 @@
     }
 
     function getPrimaryViewPayload() {
-        const ensemblePrediction = state.lastInsights?.ensemble?.fusedPrediction;
+        const ensemblePayload = state.lastInsights?.ensemble;
+        const ensemblePrediction = ensemblePayload?.enabled ? ensemblePayload?.fusedPrediction : null;
         if (state.viewMode === 'ensemble' && ensemblePrediction) {
             return {
                 prediction: ensemblePrediction,
-                summary: safeText(state.lastInsights?.ensemble?.explanation, 'Ensemble view is active.'),
+                summary: safeText(ensemblePayload?.explanation, 'Ensemble view is active.'),
                 label: 'ENSEMBLE',
             };
         }
@@ -406,7 +431,10 @@
     function renderPredictionAndExplanation() {
         const viewPayload = getPrimaryViewPayload();
         const prediction = viewPayload.prediction;
-        if (!prediction) return;
+        if (!prediction) {
+            renderPredictionUnavailable('Runtime unavailable for the selected model.');
+            return;
+        }
 
         const pUp = toNumber(prediction.pUp);
         const q50 = toNumber(prediction.q50);
@@ -438,7 +466,7 @@
         }
 
         if (els.predictionContext) {
-            els.predictionContext.textContent = `${state.asset} | ${state.horizon} Horizon | ${viewPayload.label} | ${state.modelVersion}`;
+            els.predictionContext.textContent = `${state.asset} | ${effectiveHorizon()} Horizon | ${viewPayload.label} | ${state.modelVersion}`;
         }
 
         if (els.explanationSummary) {
@@ -464,7 +492,7 @@
 
     function renderEnsembleCard() {
         const ensemble = state.lastInsights?.ensemble;
-        if (!ensemble || !els.ensembleCard) {
+        if (!ensemble || !els.ensembleCard || ensemble.enabled === false) {
             if (els.ensembleCard) els.ensembleCard.style.display = 'none';
             return;
         }
@@ -507,15 +535,72 @@
         Array.from(document.querySelectorAll('[data-health-for]')).forEach((node) => {
             const modelId = node.getAttribute('data-health-for');
             const payload = state.healthByModel?.[modelId] || null;
-            const status = safeText(payload?.status, 'IN_REVIEW').toUpperCase();
+            const status = payload ? safeText(payload?.status, 'IN_REVIEW').toUpperCase() : 'UNAVAILABLE';
             const cssClass = HEALTH_CLASS_MAP[status] || 'review';
             node.className = `model-health-badge ${cssClass}`;
-            node.textContent = HEALTH_LABEL_MAP[status] || 'In Review';
+            node.textContent = payload ? (HEALTH_LABEL_MAP[status] || 'In Review') : 'Quality N/A';
             const psi = toNumber(payload?.psi);
             const drop = toNumber(payload?.coverageDropPct);
-            const reason = safeText(payload?.reason, 'No health details available.');
-            node.title = `Status: ${HEALTH_LABEL_MAP[status] || status} | PSI: ${Number.isFinite(psi) ? psi.toFixed(3) : '--'} | Coverage Drop: ${Number.isFinite(drop) ? drop.toFixed(2) : '--'}% | ${reason}`;
+            const reason = safeText(payload?.reason, 'Quality status unavailable.');
+            node.title = payload
+                ? `Status: ${HEALTH_LABEL_MAP[status] || status} | PSI: ${Number.isFinite(psi) ? psi.toFixed(3) : '--'} | Coverage Drop: ${Number.isFinite(drop) ? drop.toFixed(2) : '--'}% | ${reason}`
+                : 'Quality status unavailable.';
         });
+    }
+
+    function renderPredictionUnavailable(message) {
+        if (els.pUpValue) els.pUpValue.textContent = '--';
+        if (els.q50Value) els.q50Value.textContent = '--';
+        if (els.intervalWidthValue) els.intervalWidthValue.textContent = '--';
+        if (els.explanationSummary) els.explanationSummary.textContent = message || 'Runtime unavailable.';
+        if (els.predictionConfidenceTag) {
+            els.predictionConfidenceTag.textContent = 'Runtime unavailable';
+            els.predictionConfidenceTag.className = 'status-badge info';
+        }
+    }
+
+    function renderRuntimeStatus() {
+        const runtimePayload = state.runtimeByModel?.[state.model] || null;
+        const status = safeText(runtimePayload?.status, 'UNAVAILABLE').toUpperCase();
+        const sessionState = safeText(runtimePayload?.sessionState, 'PAUSED').toUpperCase();
+        const reason = safeText(runtimePayload?.reason, 'Runtime status unavailable.');
+        const effective = effectiveHorizon();
+
+        if (els.runtimeStatusBadge) {
+            els.runtimeStatusBadge.className = `status-badge ${runtimeBadgeClass(status)}`;
+            els.runtimeStatusBadge.textContent = status;
+        }
+
+        if (els.runtimeStatusText) {
+            const age = toNumber(runtimePayload?.priceAgeSec);
+            const ageText = Number.isFinite(age) ? `${Math.round(age)}s ago` : '--';
+            els.runtimeStatusText.textContent = `${sessionState} | ${effective} | Updated ${ageText}`;
+        }
+
+        if (els.runtimeNoticeBanner) {
+            const switchedFrom = safeText(state.selection?.autoSwitchedFrom, '');
+            const shouldShow = status !== 'LIVE' || switchedFrom;
+            if (!shouldShow) {
+                els.runtimeNoticeBanner.style.display = 'none';
+            } else {
+                const switchText = switchedFrom ? `Auto-switched from ${switchedFrom} to ${effective}. ` : '';
+                els.runtimeNoticeBanner.style.display = 'block';
+                els.runtimeNoticeBanner.textContent = `${switchText}${reason}`;
+            }
+        }
+    }
+
+    function applyInsightsSelection(selection, triggerSource) {
+        state.selection = selection || {};
+        const resolvedHorizon = safeText(selection?.resolvedHorizon, '');
+        if (resolvedHorizon && resolvedHorizon !== state.horizon) {
+            const previous = state.horizon;
+            state.horizon = resolvedHorizon;
+            applyButtonStates();
+            if (triggerSource !== 'silent') {
+                notify(`Auto-switched to ${resolvedHorizon} because ${previous} is not runtime-enabled for ${state.asset}.`, 'warning', 2600);
+            }
+        }
     }
 
     function setHighlightedFeature(featureKey) {
@@ -1112,14 +1197,18 @@
         }
     }
 
-    function renderInsightsPayload(insights) {
+    function renderInsightsPayload(insights, triggerSource = 'silent') {
         if (!insights) return;
         renderMeta(insights.meta);
         state.compatibilityByModel = insights.compatibility || { ...DEFAULT_COMPATIBILITY };
-        state.healthByModel = insights.health || {};
+        state.healthByModel = insights.qualityHealth || insights.health || {};
+        state.runtimeByModel = insights.runtimeHealth || {};
+        applyInsightsSelection(insights.selection, triggerSource);
         syncModelCompatibility();
+        syncHorizonAvailability();
         applyButtonStates();
         updateHealthBadges();
+        renderRuntimeStatus();
         renderEnsembleCard();
         renderComparison(insights);
     }
@@ -1153,7 +1242,7 @@
                 api.getModelExplorerPrediction(payload),
                 api.getModelExplorerHeatmap({ ...payload, scope: state.xaiScope }),
                 api.getModelExplorerPerformance(payload),
-                api.getModelExplorerInsights({ asset: state.asset, horizon: state.horizon }),
+                api.getModelExplorerInsights({ asset: state.asset, horizon: state.horizon, model: state.model }),
             ]);
 
             if (cycleId !== state.cycleId) return;
@@ -1162,6 +1251,8 @@
                 state.lastPrediction = predictionRes.value;
                 renderMeta(predictionRes.value.meta);
             } else {
+                state.lastPrediction = null;
+                renderPredictionUnavailable(`Runtime unavailable for ${state.asset} ${state.horizon} ${state.model.toUpperCase()}.`);
                 notify(`Prediction request failed: ${predictionRes.reason?.message || predictionRes.reason}`, 'error', 3600);
             }
 
@@ -1174,12 +1265,16 @@
 
             if (insightsRes.status === 'fulfilled') {
                 state.lastInsights = insightsRes.value;
-                renderInsightsPayload(insightsRes.value);
+                renderInsightsPayload(insightsRes.value, triggerSource);
             } else {
+                state.lastInsights = null;
+                state.healthByModel = {};
+                state.runtimeByModel = {};
+                state.selection = {};
+                updateHealthBadges();
+                renderRuntimeStatus();
                 notify(`Insights request failed: ${insightsRes.reason?.message || insightsRes.reason}`, 'warning', 3400);
-                if (state.lastInsights) {
-                    renderInsightsPayload(state.lastInsights);
-                } else if (state.lastPerformance) {
+                if (state.lastPerformance) {
                     renderComparisonUnavailable('Comparison unavailable (insights endpoint error). Showing selected model fallback.', state.lastPerformance);
                 } else {
                     renderComparisonUnavailable('Comparison unavailable (insights endpoint error).');
@@ -1241,7 +1336,8 @@
             const assets = Array.isArray(assetsRes.assets) ? assetsRes.assets : [];
             state.assetHorizonMap = {};
             assets.forEach((asset) => {
-                state.assetHorizonMap[asset.symbol] = Array.isArray(asset.horizons) ? asset.horizons : ['1H', '4H', '1D', '3D'];
+                const available = Array.isArray(asset.availableHorizons) ? asset.availableHorizons : [];
+                state.assetHorizonMap[asset.symbol] = available;
             });
 
             if (els.assetSelect) {
@@ -1267,7 +1363,7 @@
             `Mode: ${state.mode}`,
             `Model Version: ${state.modelVersion}`,
             `Asset: ${state.asset}`,
-            `Horizon: ${state.horizon}`,
+            `Horizon: ${effectiveHorizon()}`,
             `View: ${state.viewMode.toUpperCase()}`,
             `P(UP): ${formatRatio(prediction.pUp, 3)}`,
             `Signal: ${safeText(prediction.signal, getSignalFromProbability(toNumber(prediction.pUp, 0.5)))}`,
@@ -1304,7 +1400,7 @@
             context: {
                 model: state.model,
                 asset: state.asset,
-                horizon: state.horizon,
+                horizon: effectiveHorizon(),
                 viewMode: state.viewMode,
                 xaiScope: state.xaiScope,
                 xaiChartMode: state.xaiChartMode,
@@ -1452,6 +1548,20 @@
                 exportShapReport();
             });
         }
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) return;
+            refreshAll('auto');
+        });
+    }
+
+    function startAutoRefresh() {
+        if (state.autoRefreshHandle) {
+            clearInterval(state.autoRefreshHandle);
+        }
+        state.autoRefreshHandle = window.setInterval(() => {
+            refreshAll('auto');
+        }, AUTO_REFRESH_MS);
     }
 
     async function init() {
@@ -1461,6 +1571,7 @@
         await initCatalog();
         applyButtonStates();
         await refreshAll();
+        startAutoRefresh();
     }
 
     document.addEventListener('DOMContentLoaded', init);

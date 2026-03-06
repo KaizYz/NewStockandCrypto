@@ -1,67 +1,56 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import hashlib
 import json
 import math
-import os
-import statistics
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
+import numpy as np
 import pandas as pd
-import requests
 
 from app.schemas import (
     BacktestDetailResponse,
     BacktestRunResponse,
     BacktestSummaryResponse,
     ExplanationPayload,
+    EnsembleBlendItem,
+    EnsemblePayload,
     EvaluationFoldsResponse,
     EvaluationSummaryItem,
     EvaluationSummaryResponse,
     FeatureContribution,
     HeatmapResponse,
     InsightsResponse,
-    EnsemblePayload,
-    EnsembleBlendItem,
+    MetaPayload,
     ModelComparisonItem,
     ModelHealthPayload,
-    MetaPayload,
     PerformancePayload,
     PerformanceResponse,
     PredictResponse,
     PredictionPayload,
+    RuntimeMetaPayload,
 )
+from app.services.health_logic import quality_status_from_metrics
+from app.services.model_registry import ASSETS
+from app.services.realtime_runtime import RealtimeInferenceWorker
 from training.backtest import SimpleBacktest
+from training.runtime_manifest import MODEL_COMPATIBILITY, build_runtime_manifest
 
-BINANCE_PRICE_URL = 'https://api.binance.com/api/v3/ticker/price?symbol={symbol}'
-YAHOO_CHART_URL = 'https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=1d&interval=1m&includePrePost=true'
-MODEL_KEYS = ['lstm', 'ensemble', 'transformer', 'tcn']
-ENSEMBLE_WEIGHTS = {
-    'lstm': 0.40,
-    'ensemble': 0.30,
-    'transformer': 0.20,
-    'tcn': 0.10,
-}
-COMPATIBILITY = {
-    'lstm': ['1H', '4H', '1D'],
-    'ensemble': ['1H', '4H', '1D', '3D'],
-    'transformer': ['4H', '1D', '3D'],
-    'tcn': ['1H', '4H'],
-}
+MODEL_KEYS = ["lstm", "ensemble", "transformer", "tcn"]
 INFERENCE_MS = {
-    'ensemble': 12.4,
-    'lstm': 18.2,
-    'transformer': 26.7,
-    'tcn': 10.8,
+    "ensemble": 12.4,
+    "lstm": 18.2,
+    "transformer": 26.7,
+    "tcn": 10.8,
 }
 TRAINING_MINUTES = {
-    'ensemble': 41.0,
-    'lstm': 67.0,
-    'transformer': 95.0,
-    'tcn': 52.0,
+    "ensemble": 41.0,
+    "lstm": 67.0,
+    "transformer": 95.0,
+    "tcn": 52.0,
 }
 
 
@@ -79,6 +68,7 @@ class ArtifactBundle:
     backtest_trades_df: pd.DataFrame
     backtest_equity_df: pd.DataFrame
     backtest_inputs_df: pd.DataFrame
+    runtime_manifest: Dict[str, object]
 
 
 class LiveProvider:
@@ -87,50 +77,59 @@ class LiveProvider:
         self._bundle: Optional[ArtifactBundle] = None
         self._loaded_at = datetime.now(timezone.utc)
         self._mtime_guard: float = 0.0
+        self._worker: Optional[RealtimeInferenceWorker] = None
         self._load_artifacts(force=True)
 
+    def close(self) -> None:
+        if self._worker:
+            self._worker.stop()
+            self._worker = None
+
     def _load_artifacts(self, force: bool = False) -> None:
-        outputs_path = self.artifact_dir / 'model_outputs.json'
-        meta_path = self.artifact_dir / 'artifact_meta.json'
-        metrics_path = self.artifact_dir / 'metrics.json'
-        evaluation_summary_path = self.artifact_dir / 'evaluation_summary.json'
-        backtest_summary_path = self.artifact_dir / 'backtest_summary.json'
-        evaluation_folds_path = self.artifact_dir / 'evaluation_folds.parquet'
-        evaluation_assets_path = self.artifact_dir / 'evaluation_assets.parquet'
-        backtest_trades_path = self.artifact_dir / 'backtest_trades.parquet'
-        backtest_equity_path = self.artifact_dir / 'backtest_equity.parquet'
-        backtest_inputs_path = self.artifact_dir / 'backtest_inputs.parquet'
+        outputs_path = self.artifact_dir / "model_outputs.json"
+        meta_path = self.artifact_dir / "artifact_meta.json"
+        metrics_path = self.artifact_dir / "metrics.json"
+        evaluation_summary_path = self.artifact_dir / "evaluation_summary.json"
+        backtest_summary_path = self.artifact_dir / "backtest_summary.json"
+        runtime_manifest_path = self.artifact_dir / "runtime_manifest.json"
+        evaluation_folds_path = self.artifact_dir / "evaluation_folds.parquet"
+        evaluation_assets_path = self.artifact_dir / "evaluation_assets.parquet"
+        backtest_trades_path = self.artifact_dir / "backtest_trades.parquet"
+        backtest_equity_path = self.artifact_dir / "backtest_equity.parquet"
+        backtest_inputs_path = self.artifact_dir / "backtest_inputs.parquet"
         if not outputs_path.exists() or not meta_path.exists():
             raise FileNotFoundError(
-                f'Missing live artifacts under {self.artifact_dir}. ' 
-                'Expected artifact_meta.json and model_outputs.json.'
+                f"Missing live artifacts under {self.artifact_dir}. "
+                "Expected artifact_meta.json and model_outputs.json."
             )
 
         newest_mtime = max(outputs_path.stat().st_mtime, meta_path.stat().st_mtime)
+        if runtime_manifest_path.exists():
+            newest_mtime = max(newest_mtime, runtime_manifest_path.stat().st_mtime)
         if not force and newest_mtime <= self._mtime_guard:
             return
 
-        with outputs_path.open('r', encoding='utf-8') as fp:
+        with outputs_path.open("r", encoding="utf-8") as fp:
             outputs_payload = json.load(fp)
-        with meta_path.open('r', encoding='utf-8') as fp:
+        with meta_path.open("r", encoding="utf-8") as fp:
             meta_payload = json.load(fp)
         metrics_payload: Dict[str, Dict[str, dict]] = {}
         if metrics_path.exists():
-            with metrics_path.open('r', encoding='utf-8') as fp:
+            with metrics_path.open("r", encoding="utf-8") as fp:
                 loaded_metrics = json.load(fp)
             if isinstance(loaded_metrics, dict):
                 metrics_payload = loaded_metrics
 
         evaluation_summary_payload: Dict[str, object] = {}
         if evaluation_summary_path.exists():
-            with evaluation_summary_path.open('r', encoding='utf-8') as fp:
+            with evaluation_summary_path.open("r", encoding="utf-8") as fp:
                 loaded = json.load(fp)
             if isinstance(loaded, dict):
                 evaluation_summary_payload = loaded
 
         backtest_summary_payload: Dict[str, object] = {}
         if backtest_summary_path.exists():
-            with backtest_summary_path.open('r', encoding='utf-8') as fp:
+            with backtest_summary_path.open("r", encoding="utf-8") as fp:
                 loaded = json.load(fp)
             if isinstance(loaded, dict):
                 backtest_summary_payload = loaded
@@ -149,15 +148,29 @@ class LiveProvider:
         backtest_equity_df = _read_parquet(backtest_equity_path)
         backtest_inputs_df = _read_parquet(backtest_inputs_path)
 
-        model_version = str(meta_payload.get('model_version') or 'live-artifact')
-        outputs = outputs_payload.get('outputs')
+        model_version = str(meta_payload.get("model_version") or "live-artifact")
+        outputs = outputs_payload.get("outputs")
         if not isinstance(outputs, dict) or not outputs:
-            raise ValueError('model_outputs.json has no outputs map.')
+            raise ValueError("model_outputs.json has no outputs map.")
+
+        sequence_length = int((((meta_payload.get("runtime") or {}) if isinstance(meta_payload, dict) else {}).get("sequence_length")) or 32)
+        if runtime_manifest_path.exists():
+            with runtime_manifest_path.open("r", encoding="utf-8") as fp:
+                runtime_manifest_payload = json.load(fp)
+        else:
+            runtime_manifest_payload = build_runtime_manifest(
+                artifact_dir=self.artifact_dir,
+                outputs=outputs,
+                meta=meta_payload if isinstance(meta_payload, dict) else {},
+                sequence_length=sequence_length,
+            )
+            with runtime_manifest_path.open("w", encoding="utf-8") as fp:
+                json.dump(runtime_manifest_payload, fp, indent=2)
 
         self._bundle = ArtifactBundle(
             model_version=model_version,
             outputs=outputs,
-            generated_at=str(outputs_payload.get('generatedAt') or datetime.now(timezone.utc).isoformat()),
+            generated_at=str(outputs_payload.get("generatedAt") or datetime.now(timezone.utc).isoformat()),
             metrics=metrics_payload,
             meta=meta_payload if isinstance(meta_payload, dict) else {},
             evaluation_summary=evaluation_summary_payload,
@@ -167,28 +180,35 @@ class LiveProvider:
             backtest_trades_df=backtest_trades_df,
             backtest_equity_df=backtest_equity_df,
             backtest_inputs_df=backtest_inputs_df,
+            runtime_manifest=runtime_manifest_payload if isinstance(runtime_manifest_payload, dict) else {},
         )
         self._loaded_at = datetime.now(timezone.utc)
         self._mtime_guard = newest_mtime
+        self._reset_worker()
+
+    def _reset_worker(self) -> None:
+        if not self._bundle:
+            return
+        if self._worker:
+            self._worker.stop()
+        refresh_interval_sec = int((((self._bundle.runtime_manifest.get("refreshIntervalSec")) if isinstance(self._bundle.runtime_manifest, dict) else None) or 10))
+        self._worker = RealtimeInferenceWorker(
+            artifact_dir=self.artifact_dir,
+            manifest=self._bundle.runtime_manifest,
+            outputs=self._bundle.outputs,
+            refresh_interval_sec=refresh_interval_sec,
+        )
+        self._worker.start()
 
     @property
     def model_version(self) -> str:
         self._load_artifacts()
         if not self._bundle:
-            return 'live-unavailable'
+            return "live-unavailable"
         return self._bundle.model_version
 
     def _meta(self) -> MetaPayload:
-        return MetaPayload(mode='live', modelVersion=self.model_version, timestamp=datetime.now(timezone.utc))
-
-    def _lookup(self, model: str, asset: str, horizon: str) -> dict:
-        self._load_artifacts()
-        if not self._bundle:
-            raise RuntimeError('Live artifact bundle is not available.')
-        try:
-            return self._bundle.outputs[model][asset][horizon]
-        except KeyError as exc:
-            raise KeyError(f'No live payload for {model}/{asset}/{horizon}') from exc
+        return MetaPayload(mode="live", modelVersion=self.model_version, timestamp=datetime.now(timezone.utc))
 
     @staticmethod
     def _safe_float(value: object) -> Optional[float]:
@@ -200,87 +220,25 @@ class LiveProvider:
             return parsed
         return None
 
-    def _fetch_current_price(self, asset: str) -> Optional[float]:
-        if asset.endswith('USDT'):
-            url = BINANCE_PRICE_URL.format(symbol=asset)
-            response = requests.get(url, timeout=4)
-            response.raise_for_status()
-            payload = response.json()
-            return self._safe_float(payload.get('price'))
-
-        url = YAHOO_CHART_URL.format(symbol=asset)
-        response = requests.get(url, timeout=6)
-        response.raise_for_status()
-        payload = response.json()
-        result = (payload.get('chart') or {}).get('result') or []
-        if not result:
-            return None
-        first = result[0]
-        meta_price = self._safe_float((first.get('meta') or {}).get('regularMarketPrice'))
-        if meta_price is not None:
-            return meta_price
-
-        closes = (((first.get('indicators') or {}).get('quote') or [{}])[0]).get('close') or []
-        for raw in reversed(closes):
-            parsed = self._safe_float(raw)
-            if parsed is not None:
-                return parsed
-        return None
-
     @staticmethod
-    def _normalize_quantiles(q10: float, q50: float, q90: float) -> tuple[float, float, float]:
-        ordered = sorted([q10, q50, q90])
-        return ordered[0], ordered[1], ordered[2]
-
-    def _apply_realtime_adjustment(self, payload: dict, asset: str, current_price: Optional[float] = None) -> dict:
-        prediction = dict(payload.get('prediction') or {})
-        reference_price = self._safe_float(payload.get('referencePrice'))
-        if reference_price is None or reference_price <= 0:
-            return payload
-
-        current_price = current_price if current_price is not None else self._fetch_current_price(asset)
-        if current_price is None:
-            return payload
-
-        delta = (current_price - reference_price) / reference_price
-        adjust = max(-0.08, min(0.08, math.tanh(delta * 15.0) * 0.08))
-
-        p_up = self._safe_float(prediction.get('pUp')) or 0.5
-        q10 = self._safe_float(prediction.get('q10')) or -0.01
-        q50 = self._safe_float(prediction.get('q50')) or 0.0
-        q90 = self._safe_float(prediction.get('q90')) or 0.01
-
-        p_up = max(0.01, min(0.99, p_up + adjust))
-        q50 = q50 + delta * 0.25
-        q10 = q10 + delta * 0.18
-        q90 = q90 + delta * 0.32
-        q10, q50, q90 = self._normalize_quantiles(q10, q50, q90)
-
-        if p_up >= 0.55:
-            signal = 'LONG'
-        elif p_up <= 0.45:
-            signal = 'SHORT'
-        else:
-            signal = 'FLAT'
-
-        prediction.update(
-            {
-                'pUp': round(p_up, 3),
-                'q10': round(q10, 4),
-                'q50': round(q50, 4),
-                'q90': round(q90, 4),
-                'intervalWidth': round(q90 - q10, 4),
-                'confidence': round(max(0.0, min(1.0, 0.5 + abs(p_up - 0.5) * 1.7)), 3),
-                'signal': signal,
-            }
-        )
-
-        adjusted = dict(payload)
-        adjusted['prediction'] = prediction
-        adjusted['currentPrice'] = current_price
-        adjusted['referencePrice'] = reference_price
-        adjusted['liveDeltaPct'] = round(delta * 100.0, 4)
-        return adjusted
+    def _parse_dt(value: object) -> Optional[datetime]:
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            return value.astimezone(timezone.utc)
+        raw = str(value).replace("Z", "+00:00")
+        try:
+            parsed = datetime.fromisoformat(raw)
+        except ValueError:
+            return None
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    def _lookup_output(self, model: str, asset: str, horizon: str) -> dict:
+        self._load_artifacts()
+        if not self._bundle:
+            raise RuntimeError("Live artifact bundle is not available.")
+        return (((self._bundle.outputs.get(model) or {}).get(asset) or {}).get(horizon) or {})
 
     @staticmethod
     def _parse_features(raw_features: List[dict]) -> List[FeatureContribution]:
@@ -288,8 +246,8 @@ class LiveProvider:
         for item in raw_features or []:
             features.append(
                 FeatureContribution(
-                    name=str(item.get('name') or 'unknown_feature'),
-                    value=float(item.get('value') or 0.0),
+                    name=str(item.get("name") or "unknown_feature"),
+                    value=float(item.get("value") or 0.0),
                 )
             )
         return features
@@ -297,11 +255,18 @@ class LiveProvider:
     @staticmethod
     def _parse_performance(raw: dict) -> PerformancePayload:
         return PerformancePayload(
-            directionAccuracy=float(raw.get('directionAccuracy') or 0.0),
-            brierScore=float(raw.get('brierScore') or 0.0),
-            ece=float(raw.get('ece') or 0.0),
-            intervalCoverage=float(raw.get('intervalCoverage') or 0.0),
+            directionAccuracy=float(raw.get("directionAccuracy") or 0.0),
+            brierScore=float(raw.get("brierScore") or 0.0),
+            ece=float(raw.get("ece") or 0.0),
+            intervalCoverage=float(raw.get("intervalCoverage") or 0.0),
         )
+
+    @staticmethod
+    def _state_matrix(matrix: List[List[float]]) -> List[List[float]]:
+        derived: List[List[float]] = []
+        for row in matrix:
+            derived.append([round(max(-1.0, min(1.0, value * 1.4)), 3) for value in row])
+        return derived
 
     @staticmethod
     def _scale(matrix: List[List[float]]) -> tuple[float, float]:
@@ -312,201 +277,41 @@ class LiveProvider:
         return -max_abs, max_abs
 
     @staticmethod
-    def _state_matrix(matrix: List[List[float]]) -> List[List[float]]:
-        derived: List[List[float]] = []
-        for row in matrix:
-            derived.append([round(max(-1.0, min(1.0, value * 1.4)), 3) for value in row])
-        return derived
+    def _empty_prediction() -> PredictionPayload:
+        return PredictionPayload(
+            pUp=0.5,
+            q10=-0.01,
+            q50=0.0,
+            q90=0.01,
+            intervalWidth=0.02,
+            confidence=0.0,
+            signal="FLAT",
+        )
 
-    @staticmethod
-    def _status_from_metrics(direction_accuracy: float, interval_coverage: float, ece: float) -> tuple[str, float, float, str]:
-        coverage_drop = max(0.0, (0.80 - interval_coverage) * 100.0)
-        psi = min(0.35, max(0.02, abs(ece - 0.03) * 4.0 + (coverage_drop / 100.0) * 0.35))
-        if direction_accuracy <= 0.01 or interval_coverage <= 0.01:
-            return 'IN_REVIEW', round(psi, 3), round(coverage_drop, 2), 'Insufficient coverage for reliable drift evaluation.'
-        if psi >= 0.20 or coverage_drop >= 6.0:
-            return 'DRIFT_DETECTED', round(psi, 3), round(coverage_drop, 2), 'Recent coverage decline exceeded drift threshold.'
-        if psi >= 0.12 or coverage_drop >= 3.0:
-            return 'IN_REVIEW', round(psi, 3), round(coverage_drop, 2), 'Moderate instability detected; monitoring recommended.'
-        return 'HEALTHY', round(psi, 3), round(coverage_drop, 2), 'Stable error profile and healthy interval coverage.'
-
-    def _metric_for(self, model: str, horizon: str, payload: dict) -> PerformancePayload:
+    def _metric_for(self, model: str, horizon: str, payload: Optional[dict] = None) -> PerformancePayload:
         self._load_artifacts()
         if self._bundle:
             model_metrics = self._bundle.metrics.get(model, {}) if isinstance(self._bundle.metrics, dict) else {}
             horizon_metrics = model_metrics.get(horizon, {}) if isinstance(model_metrics, dict) else {}
             if isinstance(horizon_metrics, dict) and horizon_metrics:
                 return self._parse_performance(horizon_metrics)
-        return self._parse_performance(payload.get('performance') or {})
+        return self._parse_performance((payload or {}).get("performance") or {})
 
-    def _aggregate_heatmap(self, asset: str, horizon: str) -> dict:
-        x_labels: List[str] = []
-        y_labels: List[str] = []
-        matrices: List[List[List[float]]] = []
-        for model_id in MODEL_KEYS:
-            payload = self._lookup(model_id, asset, horizon)
-            heatmap = payload.get('heatmap') or {}
-            model_x = list(heatmap.get('xLabels') or [])
-            model_y = list(heatmap.get('yLabels') or [])
-            model_matrix = list(heatmap.get('matrix') or [])
-            if not model_x or not model_y or not model_matrix:
-                continue
-            if not x_labels:
-                x_labels = model_x
-            if not y_labels:
-                y_labels = model_y
-            if model_x == x_labels and model_y == y_labels:
-                matrices.append(model_matrix)
+    def _resolve_runtime_horizon(self, asset: str, horizon: str, model: Optional[str] = None) -> tuple[Optional[str], Optional[str]]:
+        if not self._worker:
+            return horizon, None
+        return self._worker.resolve_selection(asset, horizon, model=model)
 
-        if not x_labels or not y_labels or not matrices:
-            return {'xLabels': ['W0'], 'yLabels': ['missing_coverage'], 'matrix': [[0.0]]}
+    def _runtime_snapshot(self, model: str, asset: str, horizon: str) -> Optional[dict]:
+        if not self._worker:
+            return None
+        return self._worker.get_snapshot(model, asset, horizon)
 
-        merged: List[List[float]] = []
-        for row_idx in range(len(y_labels)):
-            row: List[float] = []
-            for col_idx in range(len(x_labels)):
-                values: List[float] = []
-                for matrix in matrices:
-                    try:
-                        values.append(float(matrix[row_idx][col_idx]))
-                    except Exception:
-                        values.append(0.0)
-                row.append(round(sum(values) / len(values), 6))
-            merged.append(row)
-        return {'xLabels': x_labels, 'yLabels': y_labels, 'matrix': merged}
-
-    def predict(self, model: str, asset: str, horizon: str) -> PredictResponse:
-        payload = self._lookup(model, asset, horizon)
-        payload = self._apply_realtime_adjustment(payload, asset)
-
-        pred = payload.get('prediction') or {}
-        explanation = payload.get('explanation') or {}
-
-        return PredictResponse(
-            meta=self._meta(),
-            prediction=PredictionPayload(
-                pUp=float(pred.get('pUp') or 0.5),
-                q10=float(pred.get('q10') or -0.01),
-                q50=float(pred.get('q50') or 0.0),
-                q90=float(pred.get('q90') or 0.01),
-                intervalWidth=float(pred.get('intervalWidth') or 0.02),
-                confidence=float(pred.get('confidence') or 0.5),
-                signal=str(pred.get('signal') or 'FLAT'),
-            ),
-            explanation=ExplanationPayload(
-                summary=str(explanation.get('summary') or 'Live artifact explanation unavailable.'),
-                topFeatures=self._parse_features(explanation.get('topFeatures') or []),
-            ),
-            performance=self._parse_performance(payload.get('performance') or {}),
-        )
-
-    def heatmap(self, model: str, asset: str, horizon: str) -> HeatmapResponse:
-        payload = self._lookup(model, asset, horizon)
-        heatmap = payload.get('heatmap') or {}
-        matrix = list(heatmap.get('matrix') or [])
-        scale_min, scale_max = self._scale(matrix)
-        return HeatmapResponse(
-            meta=MetaPayload(
-                mode='live',
-                modelVersion=self.model_version,
-                timestamp=datetime.now(timezone.utc),
-                scaleMin=round(scale_min, 6),
-                scaleMax=round(scale_max, 6),
-                stateSource='local_derived_proxy',
-            ),
-            xLabels=list(heatmap.get('xLabels') or []),
-            yLabels=list(heatmap.get('yLabels') or []),
-            matrix=matrix,
-            stateMatrix=self._state_matrix(matrix),
-        )
-
-    def heatmap_scoped(self, model: str, asset: str, horizon: str, scope: str = 'local') -> HeatmapResponse:
-        if scope == 'global':
-            merged = self._aggregate_heatmap(asset, horizon)
-            matrix = list(merged.get('matrix') or [])
-            scale_min, scale_max = self._scale(matrix)
-            return HeatmapResponse(
-                meta=MetaPayload(
-                    mode='live',
-                    modelVersion=self.model_version,
-                    timestamp=datetime.now(timezone.utc),
-                    scaleMin=round(scale_min, 6),
-                    scaleMax=round(scale_max, 6),
-                    stateSource='global_aggregate_proxy',
-                ),
-                xLabels=list(merged.get('xLabels') or []),
-                yLabels=list(merged.get('yLabels') or []),
-                matrix=matrix,
-                stateMatrix=self._state_matrix(matrix),
-            )
-        return self.heatmap(model, asset, horizon)
-
-    def performance(self, model: str, asset: str, horizon: str) -> PerformanceResponse:
-        payload = self._lookup(model, asset, horizon)
-        return PerformanceResponse(meta=self._meta(), performance=self._parse_performance(payload.get('performance') or {}))
-
-    def insights(self, asset: str, horizon: str) -> InsightsResponse:
-        current_price = self._fetch_current_price(asset)
-        predictions: Dict[str, PredictionPayload] = {}
-        performances: Dict[str, PerformancePayload] = {}
-        top_features: Dict[str, List[FeatureContribution]] = {}
-
-        for model_id in MODEL_KEYS:
-            base_payload = self._lookup(model_id, asset, horizon)
-            adjusted_payload = self._apply_realtime_adjustment(base_payload, asset, current_price=current_price)
-            pred = adjusted_payload.get('prediction') or {}
-            predictions[model_id] = PredictionPayload(
-                pUp=float(pred.get('pUp') or 0.5),
-                q10=float(pred.get('q10') or -0.01),
-                q50=float(pred.get('q50') or 0.0),
-                q90=float(pred.get('q90') or 0.01),
-                intervalWidth=float(pred.get('intervalWidth') or 0.02),
-                confidence=float(pred.get('confidence') or 0.5),
-                signal=str(pred.get('signal') or 'FLAT'),
-            )
-            performances[model_id] = self._metric_for(model_id, horizon, adjusted_payload)
-            top_features[model_id] = self._parse_features((adjusted_payload.get('explanation') or {}).get('topFeatures') or [])
-
-        weighted = lambda key: sum(getattr(predictions[model_id], key) * ENSEMBLE_WEIGHTS[model_id] for model_id in MODEL_KEYS)
-        p_up_values = [predictions[model_id].pUp for model_id in MODEL_KEYS]
-        disagreement = min(1.0, statistics.pstdev(p_up_values) if len(p_up_values) > 1 else 0.0)
-        fused_confidence = max(0.0, min(1.0, weighted('confidence') + max(0.0, 0.10 - disagreement)))
-        fused_p_up = weighted('pUp')
-        if fused_p_up >= 0.55:
-            fused_signal = 'LONG'
-        elif fused_p_up <= 0.45:
-            fused_signal = 'SHORT'
-        else:
-            fused_signal = 'FLAT'
-
-        fused = PredictionPayload(
-            pUp=round(fused_p_up, 3),
-            q10=round(weighted('q10'), 4),
-            q50=round(weighted('q50'), 4),
-            q90=round(weighted('q90'), 4),
-            intervalWidth=round(weighted('q90') - weighted('q10'), 4),
-            confidence=round(fused_confidence, 3),
-            signal=fused_signal,
-        )
-
-        lead = top_features.get('ensemble') or []
-        leader = lead[0].name if lead else 'volatility_score'
-        ensemble_payload = EnsemblePayload(
-            enabled=True,
-            fusedPrediction=fused,
-            blend=[EnsembleBlendItem(model=model_id, weight=weight) for model_id, weight in ENSEMBLE_WEIGHTS.items()],
-            explanation=(
-                'Ensemble boosts confidence by averaging divergent views; '
-                f'{leader} remains the dominant driver.'
-            ),
-            disagreementScore=round(disagreement, 3),
-        )
-
-        comparison: List[ModelComparisonItem] = []
+    def _quality_health(self, horizon: str) -> Dict[str, ModelHealthPayload]:
         health: Dict[str, ModelHealthPayload] = {}
         for model_id in MODEL_KEYS:
-            perf = performances[model_id]
-            status, psi, coverage_drop, reason = self._status_from_metrics(
+            perf = self._metric_for(model_id, horizon)
+            status, psi, coverage_drop, reason = quality_status_from_metrics(
                 perf.directionAccuracy,
                 perf.intervalCoverage,
                 perf.ece,
@@ -517,6 +322,167 @@ class LiveProvider:
                 coverageDropPct=coverage_drop,
                 reason=reason,
             )
+        return health
+
+    def catalog_assets(self) -> List[dict]:
+        self._load_artifacts()
+        rows: List[dict] = []
+        for spec in ASSETS:
+            available = self._worker.available_horizons(spec.symbol) if self._worker else []
+            rows.append(
+                {
+                    "symbol": spec.symbol,
+                    "label": spec.label,
+                    "market": spec.market,
+                    "horizons": list(spec.horizons),
+                    "availableHorizons": available,
+                    "runtimeEnabled": bool(available),
+                }
+            )
+        return rows
+
+    def predict(self, model: str, asset: str, horizon: str) -> PredictResponse:
+        resolved_horizon, auto_switched_from = self._resolve_runtime_horizon(asset, horizon, model=model)
+        if resolved_horizon is None:
+            raise RuntimeError(f"No runtime-enabled horizon is available for {asset}/{model}.")
+
+        snapshot = self._runtime_snapshot(model, asset, resolved_horizon)
+        if not snapshot:
+            raise RuntimeError(f"Runtime snapshot is unavailable for {model}/{asset}/{resolved_horizon}.")
+
+        prediction = snapshot.get("prediction") or {}
+        explanation = snapshot.get("explanation") or {}
+
+        return PredictResponse(
+            meta=self._meta(),
+            prediction=PredictionPayload(
+                pUp=float(prediction.get("pUp") or 0.5),
+                q10=float(prediction.get("q10") or -0.01),
+                q50=float(prediction.get("q50") or 0.0),
+                q90=float(prediction.get("q90") or 0.01),
+                intervalWidth=float(prediction.get("intervalWidth") or 0.02),
+                confidence=float(prediction.get("confidence") or 0.0),
+                signal=str(prediction.get("signal") or "FLAT"),
+            ),
+            explanation=ExplanationPayload(
+                summary=str(explanation.get("summary") or "Realtime explanation unavailable."),
+                topFeatures=self._parse_features(explanation.get("topFeatures") or []),
+            ),
+            performance=self._metric_for(model, resolved_horizon, snapshot),
+            runtime=RuntimeMetaPayload(
+                snapshotAt=self._parse_dt(snapshot.get("snapshotAt")),
+                priceAsOf=self._parse_dt(snapshot.get("priceAsOf")),
+                featureAsOf=self._parse_dt(snapshot.get("featureAsOf")),
+                currentPrice=self._safe_float(snapshot.get("currentPrice")),
+                autoSwitchedFrom=auto_switched_from,
+                runtimeSource=str(snapshot.get("runtimeSource") or "realtime_worker"),
+            ),
+        )
+
+    def heatmap(self, model: str, asset: str, horizon: str) -> HeatmapResponse:
+        resolved_horizon, _ = self._resolve_runtime_horizon(asset, horizon, model=model)
+        if resolved_horizon is None:
+            raise RuntimeError(f"No runtime-enabled horizon is available for {asset}/{model}.")
+        snapshot = self._runtime_snapshot(model, asset, resolved_horizon)
+        if not snapshot:
+            raise RuntimeError(f"Runtime heatmap is unavailable for {model}/{asset}/{resolved_horizon}.")
+        heatmap = snapshot.get("heatmap") or {}
+        matrix = list(heatmap.get("matrix") or [])
+        scale_min, scale_max = self._scale(matrix)
+        return HeatmapResponse(
+            meta=MetaPayload(
+                mode="live",
+                modelVersion=self.model_version,
+                timestamp=datetime.now(timezone.utc),
+                scaleMin=round(scale_min, 6),
+                scaleMax=round(scale_max, 6),
+                stateSource="realtime_worker_local",
+            ),
+            xLabels=list(heatmap.get("xLabels") or []),
+            yLabels=list(heatmap.get("yLabels") or []),
+            matrix=matrix,
+            stateMatrix=self._state_matrix(matrix),
+        )
+
+    def heatmap_scoped(self, model: str, asset: str, horizon: str, scope: str = "local") -> HeatmapResponse:
+        if scope != "global":
+            return self.heatmap(model, asset, horizon)
+
+        resolved_horizon, _ = self._resolve_runtime_horizon(asset, horizon, model=model)
+        if resolved_horizon is None:
+            raise RuntimeError(f"No runtime-enabled horizon is available for {asset}.")
+
+        matrices: List[List[List[float]]] = []
+        x_labels: List[str] = []
+        y_labels: List[str] = []
+        for model_id in MODEL_KEYS:
+            snapshot = self._runtime_snapshot(model_id, asset, resolved_horizon)
+            heatmap = (snapshot or {}).get("heatmap") or {}
+            model_matrix = list(heatmap.get("matrix") or [])
+            model_x = list(heatmap.get("xLabels") or [])
+            model_y = list(heatmap.get("yLabels") or [])
+            if not model_matrix or not model_x or not model_y:
+                continue
+            if not x_labels:
+                x_labels = model_x
+            if not y_labels:
+                y_labels = model_y
+            if model_x == x_labels and model_y == y_labels:
+                matrices.append(model_matrix)
+
+        if not matrices:
+            return self.heatmap(model, asset, resolved_horizon)
+
+        merged: List[List[float]] = []
+        for row_idx in range(len(y_labels)):
+            row: List[float] = []
+            for col_idx in range(len(x_labels)):
+                values = [float(matrix[row_idx][col_idx]) for matrix in matrices]
+                row.append(round(sum(values) / len(values), 6))
+            merged.append(row)
+
+        scale_min, scale_max = self._scale(merged)
+        return HeatmapResponse(
+            meta=MetaPayload(
+                mode="live",
+                modelVersion=self.model_version,
+                timestamp=datetime.now(timezone.utc),
+                scaleMin=round(scale_min, 6),
+                scaleMax=round(scale_max, 6),
+                stateSource="realtime_worker_global",
+            ),
+            xLabels=x_labels,
+            yLabels=y_labels,
+            matrix=merged,
+            stateMatrix=self._state_matrix(merged),
+        )
+
+    def performance(self, model: str, asset: str, horizon: str) -> PerformanceResponse:
+        resolved_horizon, _ = self._resolve_runtime_horizon(asset, horizon, model=model)
+        if resolved_horizon is None:
+            raise RuntimeError(f"No runtime-enabled horizon is available for {asset}/{model}.")
+        return PerformanceResponse(meta=self._meta(), performance=self._metric_for(model, resolved_horizon))
+
+    def insights(self, asset: str, horizon: str, model: Optional[str] = None) -> InsightsResponse:
+        resolved_horizon, auto_switched_from = self._resolve_runtime_horizon(asset, horizon, model=model)
+        target_horizon = resolved_horizon or horizon
+
+        quality_health = self._quality_health(target_horizon)
+        runtime_health = {
+            model_id: self._worker.get_runtime_health(model_id, asset, target_horizon) if self._worker else {
+                "status": "UNAVAILABLE",
+                "sessionState": "PAUSED",
+                "lastUpdateAt": None,
+                "priceAgeSec": None,
+                "featureAgeSec": None,
+                "reason": "Realtime worker is not running.",
+            }
+            for model_id in MODEL_KEYS
+        }
+
+        comparison: List[ModelComparisonItem] = []
+        for model_id in MODEL_KEYS:
+            perf = self._metric_for(model_id, target_horizon, self._lookup_output(model_id, asset, target_horizon))
             comparison.append(
                 ModelComparisonItem(
                     model=model_id,
@@ -526,16 +492,57 @@ class LiveProvider:
                     intervalCoverage=round(perf.intervalCoverage, 3),
                     inferenceMs=INFERENCE_MS[model_id],
                     trainingMinutes=TRAINING_MINUTES[model_id],
-                    latencySource='estimated',
-                    trainingTimeSource='estimated',
+                    latencySource="estimated",
+                    trainingTimeSource="estimated",
                 )
             )
+
+        fused = self._worker.fused_snapshot(asset, target_horizon) if self._worker and resolved_horizon else None
+        if fused:
+            fused_prediction = PredictionPayload(
+                pUp=float(fused["prediction"]["pUp"]),
+                q10=float(fused["prediction"]["q10"]),
+                q50=float(fused["prediction"]["q50"]),
+                q90=float(fused["prediction"]["q90"]),
+                intervalWidth=float(fused["prediction"]["intervalWidth"]),
+                confidence=float(fused["prediction"]["confidence"]),
+                signal=str(fused["prediction"]["signal"]),
+            )
+            available_models = [entry["model"] for entry in fused["blend"]]
+            explanation = (
+                "Realtime ensemble is blending currently available model snapshots; "
+                f"active models: {', '.join(available_models)}."
+            )
+            blend = [EnsembleBlendItem(model=entry["model"], weight=float(entry["weight"])) for entry in fused["blend"]]
+            disagreement_score = float(fused["disagreementScore"])
+        else:
+            fused_prediction = self._empty_prediction()
+            explanation = "Runtime unavailable for the selected asset/horizon. No live ensemble snapshot is currently available."
+            blend = []
+            disagreement_score = 0.0
+
+        ensemble_payload = EnsemblePayload(
+            enabled=bool(fused),
+            fusedPrediction=fused_prediction,
+            blend=blend,
+            explanation=explanation,
+            disagreementScore=round(disagreement_score, 3),
+        )
 
         return InsightsResponse(
             meta=self._meta(),
             ensemble=ensemble_payload,
-            compatibility=COMPATIBILITY,
-            health=health,
+            compatibility=MODEL_COMPATIBILITY,
+            health=quality_health,
+            qualityHealth=quality_health,
+            runtimeHealth=runtime_health,
+            selection={
+                "requestedAsset": asset,
+                "requestedHorizon": horizon,
+                "resolvedHorizon": resolved_horizon,
+                "autoSwitchedFrom": auto_switched_from,
+                "requestedModel": model,
+            },
             comparison=comparison,
         )
 
@@ -774,13 +781,20 @@ class LiveProvider:
             json.dump({"summary": summary, "trades": trades, "equity": equity}, fp, indent=2)
         return BacktestRunResponse(meta=self._meta(), cacheKey=key, summary=summary, trades=trades, equity=equity)
 
-    def health(self) -> Dict[str, str]:
+    def health(self) -> Dict[str, object]:
         self._load_artifacts()
+        worker_summary = self._worker.summary() if self._worker else {
+            "workerRunning": False,
+            "lastRefreshAt": None,
+            "refreshIntervalSec": 10,
+            "feedErrors": {},
+        }
         return {
-            'provider': 'live',
-            'artifactDir': str(self.artifact_dir),
-            'loadedAt': self._loaded_at.isoformat(),
-            'generatedAt': self._bundle.generated_at if self._bundle else 'unknown',
-            'hasEvaluation': str(bool(self._bundle and self._bundle.evaluation_summary)),
-            'hasBacktest': str(bool(self._bundle and self._bundle.backtest_summary)),
+            "provider": "live",
+            "artifactDir": str(self.artifact_dir),
+            "loadedAt": self._loaded_at.isoformat(),
+            "generatedAt": self._bundle.generated_at if self._bundle else "unknown",
+            "hasEvaluation": bool(self._bundle and self._bundle.evaluation_summary),
+            "hasBacktest": bool(self._bundle and self._bundle.backtest_summary),
+            **worker_summary,
         }

@@ -21,6 +21,12 @@ class ProviderFactory:
     def __init__(self) -> None:
         self._ctx: Optional[ProviderContext] = None
 
+    @staticmethod
+    def _close_provider(provider: object) -> None:
+        closer = getattr(provider, 'close', None)
+        if callable(closer):
+            closer()
+
     def _build(self) -> ProviderContext:
         mode = str(os.getenv('MODEL_EXPLORER_MODE', 'mock')).strip().lower()
         artifact_dir = str(os.getenv('MODEL_ARTIFACT_DIR', 'ml-service/artifacts/latest'))
@@ -46,6 +52,8 @@ class ProviderFactory:
         return self._ctx
 
     def reload(self) -> ProviderContext:
+        if self._ctx is not None:
+            self._close_provider(self._ctx.provider)
         self._ctx = self._build()
         return self._ctx
 

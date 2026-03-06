@@ -1,0 +1,2257 @@
+{
+  "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+  "modelVersion": "model-explorer-20260305165803",
+  "refreshIntervalSec": 10,
+  "assets": {
+    "BTCUSDT": {
+      "market": "CRYPTO",
+      "availableHorizons": [
+        "1H",
+        "4H",
+        "1D"
+      ],
+      "horizons": {
+        "1H": {
+          "availableModels": [
+            "lstm",
+            "transformer",
+            "tcn"
+          ],
+          "models": {
+            "ensemble": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "fallback_output",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": null,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "return_12",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z",
+                "asset_id"
+              ],
+              "assetId": null,
+              "requiresAssetId": true,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1H\\ensemble.joblib",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "lstm": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1H\\lstm.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "transformer": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1H\\transformer.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "tcn": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1H\\tcn.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            }
+          }
+        },
+        "4H": {
+          "availableModels": [
+            "lstm",
+            "transformer",
+            "tcn"
+          ],
+          "models": {
+            "ensemble": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "fallback_output",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": null,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "return_12",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z",
+                "asset_id"
+              ],
+              "assetId": null,
+              "requiresAssetId": true,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\4H\\ensemble.joblib",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "lstm": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\4H\\lstm.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "transformer": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\4H\\transformer.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "tcn": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\4H\\tcn.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            }
+          }
+        },
+        "1D": {
+          "availableModels": [
+            "lstm",
+            "transformer",
+            "tcn"
+          ],
+          "models": {
+            "ensemble": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "fallback_output",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": null,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "return_12",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z",
+                "asset_id"
+              ],
+              "assetId": null,
+              "requiresAssetId": true,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1D\\ensemble.joblib",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "lstm": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1D\\lstm.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "transformer": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1D\\transformer.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "tcn": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1D\\tcn.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            }
+          }
+        },
+        "3D": {
+          "availableModels": [],
+          "models": {
+            "ensemble": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "missing_checkpoint",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": null,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "return_12",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z",
+                "asset_id"
+              ],
+              "assetId": null,
+              "requiresAssetId": true,
+              "modelPath": "e:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\3D\\ensemble.joblib",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "lstm": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "missing_checkpoint",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "e:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\3D\\lstm.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "transformer": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "missing_checkpoint",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "e:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\3D\\transformer.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "tcn": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "missing_checkpoint",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "e:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\3D\\tcn.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            }
+          }
+        }
+      }
+    },
+    "ETHUSDT": {
+      "market": "CRYPTO",
+      "availableHorizons": [
+        "1H",
+        "4H",
+        "1D"
+      ],
+      "horizons": {
+        "1H": {
+          "availableModels": [
+            "lstm",
+            "transformer",
+            "tcn"
+          ],
+          "models": {
+            "ensemble": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "fallback_output",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": null,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "return_12",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z",
+                "asset_id"
+              ],
+              "assetId": null,
+              "requiresAssetId": true,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1H\\ensemble.joblib",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "lstm": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1H\\lstm.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "transformer": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1H\\transformer.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "tcn": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1H\\tcn.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            }
+          }
+        },
+        "4H": {
+          "availableModels": [
+            "lstm",
+            "transformer",
+            "tcn"
+          ],
+          "models": {
+            "ensemble": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "fallback_output",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": null,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "return_12",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z",
+                "asset_id"
+              ],
+              "assetId": null,
+              "requiresAssetId": true,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\4H\\ensemble.joblib",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "lstm": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\4H\\lstm.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "transformer": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\4H\\transformer.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "tcn": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\4H\\tcn.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            }
+          }
+        },
+        "1D": {
+          "availableModels": [
+            "lstm",
+            "transformer",
+            "tcn"
+          ],
+          "models": {
+            "ensemble": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "fallback_output",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": null,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "return_12",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z",
+                "asset_id"
+              ],
+              "assetId": null,
+              "requiresAssetId": true,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1D\\ensemble.joblib",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "lstm": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1D\\lstm.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "transformer": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1D\\transformer.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "tcn": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1D\\tcn.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            }
+          }
+        },
+        "3D": {
+          "availableModels": [],
+          "models": {
+            "ensemble": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "missing_checkpoint",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": null,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "return_12",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z",
+                "asset_id"
+              ],
+              "assetId": null,
+              "requiresAssetId": true,
+              "modelPath": "e:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\3D\\ensemble.joblib",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "lstm": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "missing_checkpoint",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "e:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\3D\\lstm.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "transformer": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "missing_checkpoint",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "e:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\3D\\transformer.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "tcn": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "missing_checkpoint",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "e:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\3D\\tcn.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            }
+          }
+        }
+      }
+    },
+    "SOLUSDT": {
+      "market": "CRYPTO",
+      "availableHorizons": [
+        "1H",
+        "4H",
+        "1D"
+      ],
+      "horizons": {
+        "1H": {
+          "availableModels": [
+            "lstm",
+            "transformer",
+            "tcn"
+          ],
+          "models": {
+            "ensemble": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "fallback_output",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": null,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "return_12",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z",
+                "asset_id"
+              ],
+              "assetId": null,
+              "requiresAssetId": true,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1H\\ensemble.joblib",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "lstm": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1H\\lstm.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "transformer": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1H\\transformer.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "tcn": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1H\\tcn.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            }
+          }
+        },
+        "4H": {
+          "availableModels": [
+            "lstm",
+            "transformer",
+            "tcn"
+          ],
+          "models": {
+            "ensemble": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "fallback_output",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": null,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "return_12",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z",
+                "asset_id"
+              ],
+              "assetId": null,
+              "requiresAssetId": true,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\4H\\ensemble.joblib",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "lstm": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\4H\\lstm.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "transformer": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\4H\\transformer.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "tcn": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\4H\\tcn.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            }
+          }
+        },
+        "1D": {
+          "availableModels": [
+            "lstm",
+            "transformer",
+            "tcn"
+          ],
+          "models": {
+            "ensemble": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "fallback_output",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": null,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "return_12",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z",
+                "asset_id"
+              ],
+              "assetId": null,
+              "requiresAssetId": true,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1D\\ensemble.joblib",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "lstm": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1D\\lstm.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "transformer": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1D\\transformer.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "tcn": {
+              "valid": true,
+              "artifactOutputValid": false,
+              "reason": "checkpoint_only_runtime",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1D\\tcn.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            }
+          }
+        },
+        "3D": {
+          "availableModels": [],
+          "models": {
+            "ensemble": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "missing_checkpoint",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": null,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "return_12",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z",
+                "asset_id"
+              ],
+              "assetId": null,
+              "requiresAssetId": true,
+              "modelPath": "e:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\3D\\ensemble.joblib",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "lstm": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "missing_checkpoint",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "e:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\3D\\lstm.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "transformer": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "missing_checkpoint",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "e:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\3D\\transformer.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "tcn": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "missing_checkpoint",
+              "market": "CRYPTO",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "e:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\3D\\tcn.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            }
+          }
+        }
+      }
+    },
+    "000001.SS": {
+      "market": "CN",
+      "availableHorizons": [
+        "1H",
+        "4H",
+        "1D"
+      ],
+      "horizons": {
+        "1H": {
+          "availableModels": [
+            "lstm",
+            "transformer",
+            "tcn"
+          ],
+          "models": {
+            "ensemble": {
+              "valid": false,
+              "artifactOutputValid": true,
+              "reason": "missing_asset_id",
+              "market": "CN",
+              "lookbackBars": 64,
+              "sequenceLength": null,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "return_12",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z",
+                "asset_id"
+              ],
+              "assetId": null,
+              "requiresAssetId": true,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1H\\ensemble.joblib",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "lstm": {
+              "valid": true,
+              "artifactOutputValid": true,
+              "reason": "ready",
+              "market": "CN",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1H\\lstm.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "transformer": {
+              "valid": true,
+              "artifactOutputValid": true,
+              "reason": "ready",
+              "market": "CN",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1H\\transformer.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "tcn": {
+              "valid": true,
+              "artifactOutputValid": true,
+              "reason": "ready",
+              "market": "CN",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1H\\tcn.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            }
+          }
+        },
+        "4H": {
+          "availableModels": [
+            "lstm",
+            "transformer",
+            "tcn"
+          ],
+          "models": {
+            "ensemble": {
+              "valid": false,
+              "artifactOutputValid": true,
+              "reason": "missing_asset_id",
+              "market": "CN",
+              "lookbackBars": 64,
+              "sequenceLength": null,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "return_12",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z",
+                "asset_id"
+              ],
+              "assetId": null,
+              "requiresAssetId": true,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\4H\\ensemble.joblib",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "lstm": {
+              "valid": true,
+              "artifactOutputValid": true,
+              "reason": "ready",
+              "market": "CN",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\4H\\lstm.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "transformer": {
+              "valid": true,
+              "artifactOutputValid": true,
+              "reason": "ready",
+              "market": "CN",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\4H\\transformer.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "tcn": {
+              "valid": true,
+              "artifactOutputValid": true,
+              "reason": "ready",
+              "market": "CN",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\4H\\tcn.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            }
+          }
+        },
+        "1D": {
+          "availableModels": [
+            "lstm",
+            "transformer",
+            "tcn"
+          ],
+          "models": {
+            "ensemble": {
+              "valid": false,
+              "artifactOutputValid": true,
+              "reason": "missing_asset_id",
+              "market": "CN",
+              "lookbackBars": 64,
+              "sequenceLength": null,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "return_12",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z",
+                "asset_id"
+              ],
+              "assetId": null,
+              "requiresAssetId": true,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1D\\ensemble.joblib",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "lstm": {
+              "valid": true,
+              "artifactOutputValid": true,
+              "reason": "ready",
+              "market": "CN",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1D\\lstm.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "transformer": {
+              "valid": true,
+              "artifactOutputValid": true,
+              "reason": "ready",
+              "market": "CN",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1D\\transformer.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "tcn": {
+              "valid": true,
+              "artifactOutputValid": true,
+              "reason": "ready",
+              "market": "CN",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1D\\tcn.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            }
+          }
+        },
+        "3D": {
+          "availableModels": [],
+          "models": {
+            "ensemble": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "missing_checkpoint",
+              "market": "CN",
+              "lookbackBars": 64,
+              "sequenceLength": null,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "return_12",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z",
+                "asset_id"
+              ],
+              "assetId": null,
+              "requiresAssetId": true,
+              "modelPath": "e:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\3D\\ensemble.joblib",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "lstm": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "missing_checkpoint",
+              "market": "CN",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "e:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\3D\\lstm.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "transformer": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "missing_checkpoint",
+              "market": "CN",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "e:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\3D\\transformer.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "tcn": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "missing_checkpoint",
+              "market": "CN",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "e:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\3D\\tcn.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            }
+          }
+        }
+      }
+    },
+    "^GSPC": {
+      "market": "US",
+      "availableHorizons": [
+        "1H",
+        "4H",
+        "1D"
+      ],
+      "horizons": {
+        "1H": {
+          "availableModels": [
+            "lstm",
+            "transformer",
+            "tcn"
+          ],
+          "models": {
+            "ensemble": {
+              "valid": false,
+              "artifactOutputValid": true,
+              "reason": "missing_asset_id",
+              "market": "US",
+              "lookbackBars": 64,
+              "sequenceLength": null,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "return_12",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z",
+                "asset_id"
+              ],
+              "assetId": null,
+              "requiresAssetId": true,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1H\\ensemble.joblib",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "lstm": {
+              "valid": true,
+              "artifactOutputValid": true,
+              "reason": "ready",
+              "market": "US",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1H\\lstm.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "transformer": {
+              "valid": true,
+              "artifactOutputValid": true,
+              "reason": "ready",
+              "market": "US",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1H\\transformer.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "tcn": {
+              "valid": true,
+              "artifactOutputValid": true,
+              "reason": "ready",
+              "market": "US",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1H\\tcn.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            }
+          }
+        },
+        "4H": {
+          "availableModels": [
+            "lstm",
+            "transformer",
+            "tcn"
+          ],
+          "models": {
+            "ensemble": {
+              "valid": false,
+              "artifactOutputValid": true,
+              "reason": "missing_asset_id",
+              "market": "US",
+              "lookbackBars": 64,
+              "sequenceLength": null,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "return_12",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z",
+                "asset_id"
+              ],
+              "assetId": null,
+              "requiresAssetId": true,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\4H\\ensemble.joblib",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "lstm": {
+              "valid": true,
+              "artifactOutputValid": true,
+              "reason": "ready",
+              "market": "US",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\4H\\lstm.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "transformer": {
+              "valid": true,
+              "artifactOutputValid": true,
+              "reason": "ready",
+              "market": "US",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\4H\\transformer.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "tcn": {
+              "valid": true,
+              "artifactOutputValid": true,
+              "reason": "ready",
+              "market": "US",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\4H\\tcn.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            }
+          }
+        },
+        "1D": {
+          "availableModels": [
+            "lstm",
+            "transformer",
+            "tcn"
+          ],
+          "models": {
+            "ensemble": {
+              "valid": false,
+              "artifactOutputValid": true,
+              "reason": "missing_asset_id",
+              "market": "US",
+              "lookbackBars": 64,
+              "sequenceLength": null,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "return_12",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z",
+                "asset_id"
+              ],
+              "assetId": null,
+              "requiresAssetId": true,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1D\\ensemble.joblib",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "lstm": {
+              "valid": true,
+              "artifactOutputValid": true,
+              "reason": "ready",
+              "market": "US",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1D\\lstm.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "transformer": {
+              "valid": true,
+              "artifactOutputValid": true,
+              "reason": "ready",
+              "market": "US",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1D\\transformer.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "tcn": {
+              "valid": true,
+              "artifactOutputValid": true,
+              "reason": "ready",
+              "market": "US",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "E:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\1D\\tcn.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            }
+          }
+        },
+        "3D": {
+          "availableModels": [],
+          "models": {
+            "ensemble": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "missing_checkpoint",
+              "market": "US",
+              "lookbackBars": 64,
+              "sequenceLength": null,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "return_12",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z",
+                "asset_id"
+              ],
+              "assetId": null,
+              "requiresAssetId": true,
+              "modelPath": "e:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\3D\\ensemble.joblib",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "lstm": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "missing_checkpoint",
+              "market": "US",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "e:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\3D\\lstm.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "transformer": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "missing_checkpoint",
+              "market": "US",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "e:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\3D\\transformer.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            },
+            "tcn": {
+              "valid": false,
+              "artifactOutputValid": false,
+              "reason": "missing_checkpoint",
+              "market": "US",
+              "lookbackBars": 64,
+              "sequenceLength": 32,
+              "featureColumns": [
+                "return_1",
+                "return_3",
+                "return_6",
+                "momentum_6",
+                "momentum_12",
+                "vol_6",
+                "vol_12",
+                "hl_spread",
+                "oc_spread",
+                "volume_z"
+              ],
+              "assetId": null,
+              "requiresAssetId": false,
+              "modelPath": "e:\\NewStockandCrypto\\ml-service\\artifacts\\latest\\models\\3D\\tcn.pt",
+              "generatedAt": "2026-03-05T16:58:03.739785+00:00",
+              "runtimeSource": "artifact_manifest"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -29,7 +29,10 @@ from app.schemas import (
     PerformanceResponse,
     PredictResponse,
     PredictionPayload,
+    RuntimeHealthPayload,
+    RuntimeMetaPayload,
 )
+from app.services.health_logic import quality_status_from_metrics
 
 FEATURE_NAMES = [
     'momentum_20d',
@@ -79,18 +82,6 @@ class MockProvider:
 
     def _meta(self) -> MetaPayload:
         return MetaPayload(mode='mock', modelVersion=self.model_version, timestamp=datetime.now(timezone.utc))
-
-    @staticmethod
-    def _status_from_metrics(direction_accuracy: float, interval_coverage: float, ece: float) -> tuple[str, float, float, str]:
-        coverage_drop = max(0.0, (0.80 - interval_coverage) * 100.0)
-        psi = min(0.35, max(0.02, abs(ece - 0.03) * 4.0 + (coverage_drop / 100.0) * 0.35))
-        if direction_accuracy <= 0.01 or interval_coverage <= 0.01:
-            return 'IN_REVIEW', round(psi, 3), round(coverage_drop, 2), 'Insufficient coverage for reliable drift evaluation.'
-        if psi >= 0.20 or coverage_drop >= 6.0:
-            return 'DRIFT_DETECTED', round(psi, 3), round(coverage_drop, 2), 'Recent coverage decline exceeded drift threshold.'
-        if psi >= 0.12 or coverage_drop >= 3.0:
-            return 'IN_REVIEW', round(psi, 3), round(coverage_drop, 2), 'Moderate instability detected; monitoring recommended.'
-        return 'HEALTHY', round(psi, 3), round(coverage_drop, 2), 'Stable error profile and healthy interval coverage.'
 
     def _performance(self, model: str, asset: str, horizon: str) -> PerformancePayload:
         rng = random.Random(self._seed(model, asset, horizon) + 73)
@@ -184,6 +175,14 @@ class MockProvider:
             prediction=prediction,
             explanation=explanation,
             performance=self._performance(model, asset, horizon),
+            runtime=RuntimeMetaPayload(
+                snapshotAt=datetime.now(timezone.utc),
+                priceAsOf=datetime.now(timezone.utc),
+                featureAsOf=datetime.now(timezone.utc),
+                currentPrice=None,
+                autoSwitchedFrom=None,
+                runtimeSource='mock_runtime',
+            ),
         )
 
     def heatmap(self, model: str, asset: str, horizon: str, scope: str = 'local') -> HeatmapResponse:
@@ -220,7 +219,7 @@ class MockProvider:
     def performance(self, model: str, asset: str, horizon: str) -> PerformanceResponse:
         return PerformanceResponse(meta=self._meta(), performance=self._performance(model, asset, horizon))
 
-    def insights(self, asset: str, horizon: str) -> InsightsResponse:
+    def insights(self, asset: str, horizon: str, model: str | None = None) -> InsightsResponse:
         predictions: Dict[str, PredictionPayload] = {}
         performances: Dict[str, PerformancePayload] = {}
         for model_id in MODEL_KEYS:
@@ -263,20 +262,29 @@ class MockProvider:
             disagreementScore=round(disagreement, 3),
         )
 
-        health: Dict[str, ModelHealthPayload] = {}
+        quality_health: Dict[str, ModelHealthPayload] = {}
+        runtime_health: Dict[str, RuntimeHealthPayload] = {}
         comparison: List[ModelComparisonItem] = []
         for model_id in MODEL_KEYS:
             perf = performances[model_id]
-            status, psi, coverage_drop, reason = self._status_from_metrics(
+            status, psi, coverage_drop, reason = quality_status_from_metrics(
                 perf.directionAccuracy,
                 perf.intervalCoverage,
                 perf.ece,
             )
-            health[model_id] = ModelHealthPayload(
+            quality_health[model_id] = ModelHealthPayload(
                 status=status,
                 psi=psi,
                 coverageDropPct=coverage_drop,
                 reason=reason,
+            )
+            runtime_health[model_id] = RuntimeHealthPayload(
+                status='LIVE',
+                sessionState='OPEN',
+                lastUpdateAt=datetime.now(timezone.utc),
+                priceAgeSec=0.0,
+                featureAgeSec=0.0,
+                reason='Mock runtime snapshot is always available.',
             )
             comparison.append(
                 ModelComparisonItem(
@@ -296,7 +304,15 @@ class MockProvider:
             meta=self._meta(),
             ensemble=ensemble_payload,
             compatibility=COMPATIBILITY,
-            health=health,
+            health=quality_health,
+            qualityHealth=quality_health,
+            runtimeHealth=runtime_health,
+            selection={
+                'requestedHorizon': horizon,
+                'resolvedHorizon': horizon,
+                'autoSwitchedFrom': None,
+                'requestedModel': model,
+            },
             comparison=comparison,
         )
 
@@ -496,9 +512,13 @@ class MockProvider:
             equity=detail.equity,
         )
 
-    def health(self) -> Dict[str, str]:
+    def health(self) -> Dict[str, object]:
         return {
             'provider': 'mock',
-            'deterministic': 'true',
+            'deterministic': True,
             'note': 'Use this mode for quick UI validation before live artifacts are ready.',
+            'workerRunning': False,
+            'lastRefreshAt': None,
+            'refreshIntervalSec': 10,
+            'feedErrors': {},
         }

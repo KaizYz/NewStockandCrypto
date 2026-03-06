@@ -9,3 +9,4 @@ lightgbm>=4.5.0
 joblib>=1.4.0
 torch>=2.4.0
 pyarrow>=17.0.0
+APScheduler>=3.10.4

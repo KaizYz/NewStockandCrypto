@@ -858,7 +858,7 @@
               <div class="model-card-desc">Direction + intervals (Primary)</div>
               <div class="model-meta-row">
                 <span class="compat-tag" data-compat-for="lstm">Best: 1H-4H</span>
-                <span class="model-health-badge review" data-health-for="lstm" title="Model health status">IN REVIEW</span>
+                <span class="model-health-badge review" data-health-for="lstm" title="Model quality status">QUALITY --</span>
               </div>
             </div>
             
@@ -867,7 +867,7 @@
               <div class="model-card-desc">Temporal encoder (Enhancement)</div>
               <div class="model-meta-row">
                 <span class="compat-tag" data-compat-for="transformer">Best: 4H-3D</span>
-                <span class="model-health-badge review" data-health-for="transformer" title="Model health status">IN REVIEW</span>
+                <span class="model-health-badge review" data-health-for="transformer" title="Model quality status">QUALITY --</span>
               </div>
             </div>
             
@@ -876,7 +876,7 @@
               <div class="model-card-desc">Direction + quantiles (Primary)</div>
               <div class="model-meta-row">
                 <span class="compat-tag" data-compat-for="ensemble">Best: All Horizons</span>
-                <span class="model-health-badge review" data-health-for="ensemble" title="Model health status">IN REVIEW</span>
+                <span class="model-health-badge review" data-health-for="ensemble" title="Model quality status">QUALITY --</span>
               </div>
             </div>
             
@@ -885,7 +885,7 @@
               <div class="model-card-desc">Temporal convolution (Alternative)</div>
               <div class="model-meta-row">
                 <span class="compat-tag" data-compat-for="tcn">Best: 1H-4H</span>
-                <span class="model-health-badge review" data-health-for="tcn" title="Model health status">IN REVIEW</span>
+                <span class="model-health-badge review" data-health-for="tcn" title="Model quality status">QUALITY --</span>
               </div>
             </div>
           </div>
@@ -930,11 +930,16 @@
               <div id="predictionContext" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">
                 BTC/USDT | 1H Horizon | Model v3.2
               </div>
+              <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-top: 0.75rem;">
+                <span id="runtimeStatusBadge" class="status-badge info">RUNTIME --</span>
+                <span id="runtimeStatusText" style="font-size: 0.78rem; color: var(--text-muted);">Waiting for runtime snapshot.</span>
+              </div>
             </div>
             <span id="predictionConfidenceTag" class="status-badge success">95% Confidence</span>
           </div>
           
           <div class="card-body" style="padding: 2rem;">
+            <div id="runtimeNoticeBanner" style="display: none; margin-bottom: 1rem; padding: 0.9rem 1rem; border: 1px solid rgba(34, 211, 238, 0.25); border-radius: 12px; background: rgba(15, 23, 42, 0.65); color: var(--text-secondary);"></div>
             <!-- Three Key Metrics -->
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin-bottom: 2rem;">
               <div class="prediction-metric">

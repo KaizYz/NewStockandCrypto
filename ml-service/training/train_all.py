@@ -44,6 +44,7 @@ from training.models import (
     train_torch_model,
     validate_gpu_runtime,
 )
+from training.runtime_manifest import build_runtime_manifest
 
 MODEL_IDS = ["ensemble", "lstm", "transformer", "tcn"]
 SERVE_ASSETS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "000001.SS", "^GSPC"]
@@ -351,6 +352,7 @@ def train_and_export(
     global_metrics: Dict[str, Dict[str, dict]] = {model_id: {} for model_id in MODEL_IDS}
     all_training_warnings: List[str] = []
     evaluation_horizon_map: Dict[str, Dict[str, object]] = {}
+    asset_id_maps: Dict[str, Dict[str, int]] = {}
     fold_metrics_frames: List[pd.DataFrame] = []
     asset_metrics_frames: List[pd.DataFrame] = []
     prediction_frames: List[pd.DataFrame] = []
@@ -399,6 +401,11 @@ def train_and_export(
             continue
 
         train_df, test_df = split_train_test(dataset.table, train_ratio=0.8)
+        asset_id_maps[horizon] = {
+            str(row["asset"]): int(row["asset_id"])
+            for _, row in dataset.table[["asset", "asset_id"]].drop_duplicates("asset").iterrows()
+            if str(row["asset"]) in SERVE_ASSETS
+        }
         x_train = train_df[dataset.feature_columns].to_numpy(dtype=np.float32)
         x_test = test_df[dataset.feature_columns].to_numpy(dtype=np.float32)
         y_train = train_df["target_direction"].to_numpy(dtype=np.int64)
@@ -651,6 +658,10 @@ def train_and_export(
             "allow_runtime_backtest": bool(allow_runtime_backtest),
             "cache_dir": str((artifact_dir / "backtest_runtime_cache").resolve()),
         },
+        "runtime": {
+            "sequence_length": int(sequence_length),
+            "refresh_interval_sec": 10,
+        },
         "coverage_report": coverage_report,
         "coverage_warnings": coverage_warnings,
         "gpu": {
@@ -673,6 +684,16 @@ def train_and_export(
 
     with (artifact_dir / "metrics.json").open("w", encoding="utf-8") as fp:
         json.dump(global_metrics, fp, indent=2)
+
+    runtime_manifest = build_runtime_manifest(
+        artifact_dir=artifact_dir,
+        outputs=outputs,
+        meta=artifact_meta,
+        sequence_length=int(sequence_length),
+        asset_id_map=asset_id_maps,
+    )
+    with (artifact_dir / "runtime_manifest.json").open("w", encoding="utf-8") as fp:
+        json.dump(runtime_manifest, fp, indent=2)
 
     with (artifact_dir / "coverage_diagnostics.json").open("w", encoding="utf-8") as fp:
         json.dump(diagnostics, fp, indent=2)

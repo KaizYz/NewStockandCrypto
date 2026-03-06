@@ -42,6 +42,15 @@ class PerformancePayload(BaseModel):
     intervalCoverage: float
 
 
+class RuntimeMetaPayload(BaseModel):
+    snapshotAt: Optional[datetime] = None
+    priceAsOf: Optional[datetime] = None
+    featureAsOf: Optional[datetime] = None
+    currentPrice: Optional[float] = None
+    autoSwitchedFrom: Optional[str] = None
+    runtimeSource: Optional[str] = None
+
+
 class PredictRequest(BaseModel):
     model: str
     asset: str
@@ -54,6 +63,7 @@ class PredictResponse(BaseModel):
     prediction: PredictionPayload
     explanation: ExplanationPayload
     performance: PerformancePayload
+    runtime: RuntimeMetaPayload
 
 
 class HeatmapResponse(BaseModel):
@@ -74,7 +84,7 @@ class HealthResponse(BaseModel):
     mode: str
     modelVersion: str
     loadedAt: datetime
-    details: Dict[str, str]
+    details: Dict[str, Any]
 
 
 class ModelCatalogItem(BaseModel):
@@ -88,6 +98,8 @@ class AssetCatalogItem(BaseModel):
     label: str
     market: str
     horizons: List[str]
+    availableHorizons: List[str] = Field(default_factory=list)
+    runtimeEnabled: bool = False
 
 
 class ModelCatalogResponse(BaseModel):
@@ -118,6 +130,15 @@ class ModelHealthPayload(BaseModel):
     reason: str
 
 
+class RuntimeHealthPayload(BaseModel):
+    status: str
+    sessionState: str
+    lastUpdateAt: Optional[datetime] = None
+    priceAgeSec: Optional[float] = None
+    featureAgeSec: Optional[float] = None
+    reason: str
+
+
 class ModelComparisonItem(BaseModel):
     model: str
     directionAccuracy: float
@@ -135,6 +156,9 @@ class InsightsResponse(BaseModel):
     ensemble: EnsemblePayload
     compatibility: Dict[str, List[str]]
     health: Dict[str, ModelHealthPayload]
+    qualityHealth: Dict[str, ModelHealthPayload]
+    runtimeHealth: Dict[str, RuntimeHealthPayload]
+    selection: Dict[str, Any] = Field(default_factory=dict)
     comparison: List[ModelComparisonItem]
 
 

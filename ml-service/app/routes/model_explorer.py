@@ -61,9 +61,32 @@ def get_models() -> ModelCatalogResponse:
 
 @router.get('/v1/catalog/assets', response_model=AssetCatalogResponse)
 def get_assets() -> AssetCatalogResponse:
+    ctx = provider_factory.get()
+    if hasattr(ctx.provider, 'catalog_assets'):
+        assets = ctx.provider.catalog_assets()
+        return AssetCatalogResponse(
+            assets=[
+                AssetCatalogItem(
+                    symbol=asset['symbol'],
+                    label=asset['label'],
+                    market=asset['market'],
+                    horizons=list(asset.get('horizons') or []),
+                    availableHorizons=list(asset.get('availableHorizons') or []),
+                    runtimeEnabled=bool(asset.get('runtimeEnabled')),
+                )
+                for asset in assets
+            ]
+        )
     return AssetCatalogResponse(
         assets=[
-            AssetCatalogItem(symbol=asset.symbol, label=asset.label, market=asset.market, horizons=asset.horizons)
+            AssetCatalogItem(
+                symbol=asset.symbol,
+                label=asset.label,
+                market=asset.market,
+                horizons=asset.horizons,
+                availableHorizons=[],
+                runtimeEnabled=False,
+            )
             for asset in ASSETS
         ]
     )
@@ -152,16 +175,18 @@ def service_meta() -> dict:
 def insights(
     asset: str = Query(...),
     horizon: str = Query(...),
+    model: str = Query(''),
 ) -> InsightsResponse:
     try:
         normalized_asset = normalize_asset(asset)
         normalized_horizon = normalize_horizon(horizon)
+        normalized_model = normalize_model(model) if model else None
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     ctx = provider_factory.get()
     try:
-        return ctx.provider.insights(normalized_asset, normalized_horizon)
+        return ctx.provider.insights(normalized_asset, normalized_horizon, normalized_model)
     except Exception as exc:  # pragma: no cover
         raise HTTPException(status_code=502, detail=f'Insights request failed: {exc}') from exc
 
