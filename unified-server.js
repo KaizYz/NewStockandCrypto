@@ -1239,11 +1239,18 @@ function leverageCostScale(leverage) {
 
 function buildDecisionByLeverage(decision) {
     const result = {};
-    const entry = Number(decision.entry);
-    const baseStop = Number(decision.stopLoss);
-    const baseTp1 = Number(decision.takeProfit1);
-    const baseTp2 = Number(decision.takeProfit2);
+    const entry = Number.isFinite(Number(decision.entry)) ? Number(decision.entry) : null;
+    const baseStop = decision.stopLoss === null || decision.stopLoss === undefined
+        ? null
+        : (Number.isFinite(Number(decision.stopLoss)) ? Number(decision.stopLoss) : null);
+    const baseTp1 = decision.takeProfit1 === null || decision.takeProfit1 === undefined
+        ? null
+        : (Number.isFinite(Number(decision.takeProfit1)) ? Number(decision.takeProfit1) : null);
+    const baseTp2 = decision.takeProfit2 === null || decision.takeProfit2 === undefined
+        ? null
+        : (Number.isFinite(Number(decision.takeProfit2)) ? Number(decision.takeProfit2) : null);
     const action = String(decision.action || 'FLAT').toUpperCase();
+    const actionable = Boolean(decision.actionable ?? (action.includes('LONG') || action.includes('SHORT')));
     const baseGross = Number(decision.grossReturnPct);
     const baseCost = Number(decision.costPct);
     const slPct = Number.isFinite(entry) && entry > 0 && Number.isFinite(baseStop) ? Math.abs(entry - baseStop) / entry : 0;
@@ -1257,7 +1264,7 @@ function buildDecisionByLeverage(decision) {
         let takeProfit1 = baseTp1;
         let takeProfit2 = baseTp2;
 
-        if (Number.isFinite(entry) && entry > 0) {
+        if (actionable && Number.isFinite(entry) && entry > 0) {
             if (action.includes('LONG')) {
                 stopLoss = entry * (1 - slPct * scale);
                 takeProfit1 = entry * (1 + tp1Pct * scale);
@@ -1267,6 +1274,10 @@ function buildDecisionByLeverage(decision) {
                 takeProfit1 = entry * (1 - tp1Pct * scale);
                 takeProfit2 = entry * (1 - tp2Pct * scale);
             }
+        } else {
+            stopLoss = null;
+            takeProfit1 = null;
+            takeProfit2 = null;
         }
 
         const gross = baseGross * scale;
@@ -1358,20 +1369,27 @@ function buildCryptoSessionPayload(symbol, quoteRow, predictionPayload, history7
     const costPct = Number(clamp(activeSession.volatilityPct * 0.16, 0.18, 1.5).toFixed(2));
     const grossReturnPct = Number((basePrediction.q50 * 100).toFixed(2));
     const action = String(predictionPayload?.signal?.action || prediction.signal || 'FLAT').toUpperCase();
+    const actionable = action.includes('LONG') || action.includes('SHORT');
+    const referencePrice = Number(Number(quoteRow.price).toFixed(4));
 
     const decision = {
         action,
         confidence: Number(basePrediction.confidence.toFixed(4)),
-        entry: Number(Number(quoteRow.price).toFixed(4)),
-        stopLoss: Number(Number(predictionPayload?.signal?.stop_loss ?? quoteRow.price).toFixed(4)),
-        takeProfit1: Number(Number(predictionPayload?.signal?.take_profit_1 ?? quoteRow.price).toFixed(4)),
-        takeProfit2: Number(Number(predictionPayload?.signal?.take_profit_2 ?? quoteRow.price).toFixed(4)),
+        actionable,
+        presentation: actionable ? 'TRADE' : 'NO_TRADE',
+        entry: referencePrice,
+        referencePrice,
+        longTriggerPUp: 0.55,
+        shortTriggerPUp: 0.45,
+        stopLoss: actionable ? Number(Number(predictionPayload?.signal?.stop_loss ?? quoteRow.price).toFixed(4)) : null,
+        takeProfit1: actionable ? Number(Number(predictionPayload?.signal?.take_profit_1 ?? quoteRow.price).toFixed(4)) : null,
+        takeProfit2: actionable ? Number(Number(predictionPayload?.signal?.take_profit_2 ?? quoteRow.price).toFixed(4)) : null,
         grossReturnPct,
         costPct,
         netEdgePct: Number((grossReturnPct - costPct).toFixed(2)),
         riskLevel: activeSession.riskLevel,
-        rr1: Number(predictionPayload?.signal?.rr_1 ?? 0),
-        rr2: Number(predictionPayload?.signal?.rr_2 ?? 0),
+        rr1: actionable ? Number(predictionPayload?.signal?.rr_1 ?? 0) : null,
+        rr2: actionable ? Number(predictionPayload?.signal?.rr_2 ?? 0) : null,
         reason: predictionPayload?.explanation?.summary || 'Generated from live model session engine.'
     };
 

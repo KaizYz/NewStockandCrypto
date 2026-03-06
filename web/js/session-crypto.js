@@ -128,9 +128,9 @@
       const decision = state.vm?.decision;
       if (!decision) return;
       const action = String(decision.action || 'WAIT').toUpperCase();
-      if (action === 'WAIT') return;
+      if (!isActionableDecision(decision)) return;
       const modalBody = document.getElementById('executeModalBody');
-      const entry = Number.isFinite(decision.entry) ? utils.formatCurrency(decision.entry) : '--';
+      const entry = Number.isFinite(decision.referencePrice) ? utils.formatCurrency(decision.referencePrice) : '--';
       const expected = fmtPct(decision.netEdgePct);
       modalBody.textContent = `Simulated ${action} executed at ${entry} | Leverage ${state.leverage}x | Est. PNL: ${expected} (Net Edge)`;
       openModal();
@@ -278,22 +278,30 @@
 
     const decisionRaw = payload?.decision;
     if (!decisionRaw) throw new Error('Session payload missing decision block.');
+    const action = normAction(decisionRaw.action);
+    const actionable = typeof decisionRaw.actionable === 'boolean'
+      ? decisionRaw.actionable
+      : action.includes('LONG') || action.includes('SHORT');
     const decision = {
-      action: normAction(decisionRaw.action),
+      action,
+      actionable,
+      presentation: String(decisionRaw.presentation || (actionable ? 'TRADE' : 'NO_TRADE')).toUpperCase(),
       confidence: clamp(num(decisionRaw.confidence, 0.5), 0, 1),
       entry: num(decisionRaw.entry, NaN),
-      stopLoss: num(decisionRaw.stopLoss, NaN),
-      takeProfit1: num(decisionRaw.takeProfit1, NaN),
-      takeProfit2: num(decisionRaw.takeProfit2, NaN),
+      referencePrice: num(decisionRaw.referencePrice, num(decisionRaw.entry, NaN)),
+      longTriggerPUp: clamp(num(decisionRaw.longTriggerPUp, 0.55), 0, 1),
+      shortTriggerPUp: clamp(num(decisionRaw.shortTriggerPUp, 0.45), 0, 1),
+      stopLoss: nullableNum(decisionRaw.stopLoss, NaN),
+      takeProfit1: nullableNum(decisionRaw.takeProfit1, NaN),
+      takeProfit2: nullableNum(decisionRaw.takeProfit2, NaN),
       grossReturnPct: num(decisionRaw.grossReturnPct, NaN),
       costPct: num(decisionRaw.costPct, NaN),
       netEdgePct: num(decisionRaw.netEdgePct, NaN),
       riskLevel: normRisk(decisionRaw.riskLevel || currentSessionRow.riskLevel),
-      rr1: num(decisionRaw.rr1, NaN),
-      rr2: num(decisionRaw.rr2, NaN),
+      rr1: nullableNum(decisionRaw.rr1, NaN),
+      rr2: nullableNum(decisionRaw.rr2, NaN),
       reason: String(decisionRaw.reason || 'Generated from live model session engine.'),
-      leverage: 1,
-      disableReason: ''
+      leverage: 1
     };
 
     const decisionByLeverage = normalizeDecisionByLeverage(payload?.decisionByLeverage || {}, decision);
@@ -381,9 +389,9 @@
       const row = map[key] || {};
       result[key] = {
         netEdgePct: num(row.netEdgePct, baseDecision.netEdgePct),
-        stopLoss: num(row.stopLoss, baseDecision.stopLoss),
-        takeProfit1: num(row.takeProfit1, baseDecision.takeProfit1),
-        takeProfit2: num(row.takeProfit2, baseDecision.takeProfit2)
+        stopLoss: nullableNum(row.stopLoss, baseDecision.stopLoss),
+        takeProfit1: nullableNum(row.takeProfit1, baseDecision.takeProfit1),
+        takeProfit2: nullableNum(row.takeProfit2, baseDecision.takeProfit2)
       };
     });
     return result;
@@ -604,39 +612,69 @@
     applyLeverage(decision, vm.decisionByLeverage, state.leverage);
 
     const action = String(decision.action || 'WAIT').toUpperCase();
+    const actionable = isActionableDecision(decision);
+    const displayAction = actionable ? action : 'NO TRADE';
+    const currentPrice = Number.isFinite(decision.referencePrice) ? decision.referencePrice : decision.entry;
+    const card = document.getElementById('quickDecisionCard');
+    card.classList.toggle('no-trade', !actionable);
+
     const actionNode = document.getElementById('decisionAction');
-    actionNode.textContent = action;
-    actionNode.className = action.includes('LONG') ? 'text-positive' : action.includes('SHORT') ? 'text-negative' : 'text-neutral';
-    document.getElementById('decisionReason').textContent = decision.reason || 'No explanation available.';
+    actionNode.textContent = displayAction;
+    actionNode.className = actionable
+      ? (action.includes('LONG') ? 'text-positive' : 'text-negative')
+      : 'text-neutral';
+    document.getElementById('decisionReason').textContent = actionable
+      ? (decision.reason || 'No explanation available.')
+      : buildNeutralDecisionReason(decision);
 
     const confidencePct = clamp(decision.confidence * 100, 0, 100);
     const ring = document.getElementById('decisionConfidenceRing');
-    ring.style.background = `conic-gradient(#00ff88 0deg, #00ff88 ${(confidencePct / 100) * 360}deg, rgba(255,255,255,0.12) ${(confidencePct / 100) * 360}deg)`;
+    const ringColor = decisionRingColor(action, actionable);
+    ring.className = `decision-confidence-ring ${decisionRingTone(action, actionable)}`;
+    ring.style.background = `conic-gradient(${ringColor} 0deg, ${ringColor} ${(confidencePct / 100) * 360}deg, rgba(255,255,255,0.12) ${(confidencePct / 100) * 360}deg)`;
     document.getElementById('decisionConfidenceText').textContent = `${confidencePct.toFixed(1)}%`;
 
-    document.getElementById('decisionEntry').textContent = Number.isFinite(decision.entry) ? utils.formatCurrency(decision.entry) : '--';
-    document.getElementById('decisionStopLoss').textContent = Number.isFinite(decision.stopLoss) ? utils.formatCurrency(decision.stopLoss) : '--';
-    document.getElementById('decisionTakeProfit').textContent = Number.isFinite(decision.takeProfit1) ? utils.formatCurrency(decision.takeProfit1) : '--';
-    document.getElementById('decisionTakeProfit2').textContent = Number.isFinite(decision.takeProfit2) ? utils.formatCurrency(decision.takeProfit2) : '--';
+    if (actionable) {
+      setDecisionLevelTile('decisionEntryTile', 'entry', 'decisionEntryLabel', 'Entry', 'decisionEntry', Number.isFinite(currentPrice) ? utils.formatCurrency(currentPrice) : '--');
+      setDecisionLevelTile('decisionStopTile', 'stop', 'decisionStopLossLabel', 'Stop Loss', 'decisionStopLoss', Number.isFinite(decision.stopLoss) ? utils.formatCurrency(decision.stopLoss) : '--');
+      setDecisionLevelTile('decisionTp1Tile', 'tp1', 'decisionTakeProfitLabel', 'Take Profit', 'decisionTakeProfit', Number.isFinite(decision.takeProfit1) ? utils.formatCurrency(decision.takeProfit1) : '--');
+      setDecisionLevelTile('decisionTp2Tile', 'tp2', 'decisionTakeProfit2Label', 'Take Profit 2', 'decisionTakeProfit2', Number.isFinite(decision.takeProfit2) ? utils.formatCurrency(decision.takeProfit2) : '--');
+    } else {
+      setDecisionLevelTile('decisionEntryTile', 'reference', 'decisionEntryLabel', 'Reference Price', 'decisionEntry', Number.isFinite(currentPrice) ? utils.formatCurrency(currentPrice) : '--');
+      setDecisionLevelTile('decisionStopTile', 'trigger-long', 'decisionStopLossLabel', 'Long Trigger', 'decisionStopLoss', `P(UP) >= ${(decision.longTriggerPUp * 100).toFixed(0)}%`);
+      setDecisionLevelTile('decisionTp1Tile', 'trigger-short', 'decisionTakeProfitLabel', 'Short Trigger', 'decisionTakeProfit', `P(UP) <= ${(decision.shortTriggerPUp * 100).toFixed(0)}%`);
+      setDecisionLevelTile('decisionTp2Tile', 'edge', 'decisionTakeProfit2Label', 'Current Edge', 'decisionTakeProfit2', fmtPct(decision.netEdgePct));
+    }
 
-    badge(document.getElementById('decisionStatusBadge'), signalClass(action), action);
+    badge(document.getElementById('decisionStatusBadge'), actionable ? signalClass(action) : 'warning', actionable ? action : 'NO TRADE');
 
     const executeButton = document.getElementById('executeBtn');
-    const blocked = action === 'WAIT' || vm.meta.unavailable;
+    const blocked = !actionable || vm.meta.unavailable;
     executeButton.disabled = blocked;
+    executeButton.textContent = vm.meta.unavailable ? 'Unavailable' : blocked ? 'Await Signal' : 'Execute (Mock)';
     executeButton.style.opacity = blocked ? '0.58' : '1';
     executeButton.style.cursor = blocked ? 'not-allowed' : 'pointer';
-    executeButton.title = blocked ? 'Directional signal neutral - awaiting stronger confirmation' : '';
+    executeButton.title = vm.meta.unavailable
+      ? 'Execution unavailable until live data is restored'
+      : blocked
+        ? 'Neutral signal - awaiting clearer directional confirmation'
+        : '';
 
     const disclaimer = document.getElementById('executeDisclaimer');
-    disclaimer.textContent = 'Simulation only. Not investment advice. Execute action does not place real trades.';
+    disclaimer.textContent = actionable
+      ? 'Simulation only. Not investment advice. Execute action does not place real trades.'
+      : 'Neutral regime. No simulated order will be submitted until a directional edge appears.';
     disclaimer.className = 'warning-inline';
     disclaimer.style.color = 'var(--text-secondary)';
 
     const hint = document.getElementById('executeHint');
-    const advisory = blocked ? ' | Advisory: WAIT signal - awaiting stronger confirmation.' : '';
-    hint.textContent = `Leverage ${decision.leverage}x | R:R(TP1/TP2): ${fmtRatio(decision.rr1)} / ${fmtRatio(decision.rr2)}${advisory}`;
-    hint.className = blocked ? 'warning-inline text-neutral' : 'warning-inline';
+    if (actionable) {
+      hint.textContent = `Leverage ${decision.leverage}x | R:R(TP1/TP2): ${fmtRatio(decision.rr1)} / ${fmtRatio(decision.rr2)}`;
+      hint.className = 'warning-inline';
+    } else {
+      hint.textContent = `Wait for LONG at P(UP) >= ${(decision.longTriggerPUp * 100).toFixed(0)}% or SHORT at P(UP) <= ${(decision.shortTriggerPUp * 100).toFixed(0)}% | Refresh ${state.refreshSec}s`;
+      hint.className = 'warning-inline text-neutral';
+    }
 
     document.getElementById('grossReturnValue').textContent = fmtPct(decision.grossReturnPct);
     document.getElementById('costValue').textContent = fmtPct(-decision.costPct);
@@ -671,9 +709,38 @@
     decision.leverage = leverage;
     if (!row) return;
     decision.netEdgePct = num(row.netEdgePct, decision.netEdgePct);
-    decision.stopLoss = num(row.stopLoss, decision.stopLoss);
-    decision.takeProfit1 = num(row.takeProfit1, decision.takeProfit1);
-    decision.takeProfit2 = num(row.takeProfit2, decision.takeProfit2);
+    decision.stopLoss = nullableNum(row.stopLoss, decision.stopLoss);
+    decision.takeProfit1 = nullableNum(row.takeProfit1, decision.takeProfit1);
+    decision.takeProfit2 = nullableNum(row.takeProfit2, decision.takeProfit2);
+  }
+
+  function isActionableDecision(decision) {
+    if (!decision) return false;
+    if (typeof decision.actionable === 'boolean') return decision.actionable;
+    const action = String(decision.action || '').toUpperCase();
+    return action.includes('LONG') || action.includes('SHORT');
+  }
+
+  function decisionRingColor(action, actionable) {
+    if (!actionable) return '#f59e0b';
+    return action.includes('SHORT') ? '#ff4d4f' : '#00ff88';
+  }
+
+  function decisionRingTone(action, actionable) {
+    if (!actionable) return 'no-trade';
+    return action.includes('SHORT') ? 'actionable-short' : 'actionable-long';
+  }
+
+  function buildNeutralDecisionReason(decision) {
+    const edgeText = Number.isFinite(decision.netEdgePct) ? fmtPct(decision.netEdgePct) : '--';
+    return `No directional edge right now. Stay flat until model bias reaches LONG at ${(decision.longTriggerPUp * 100).toFixed(0)}% or SHORT at ${(decision.shortTriggerPUp * 100).toFixed(0)}% P(UP). Current edge: ${edgeText}.`;
+  }
+
+  function setDecisionLevelTile(tileId, modeClass, labelId, label, valueId, value) {
+    const tile = document.getElementById(tileId);
+    tile.className = `level-item ${modeClass}`;
+    document.getElementById(labelId).textContent = label;
+    document.getElementById(valueId).textContent = value;
   }
 
   function renderHealth(health) {
@@ -909,9 +976,22 @@
     document.getElementById('currentPriceChange').textContent = '--';
     document.getElementById('modeLabel').textContent = 'Mode: Unavailable';
     badge(document.getElementById('liveDataStatus'), 'danger', 'UNAVAILABLE');
+    document.getElementById('decisionAction').textContent = 'UNAVAILABLE';
+    document.getElementById('decisionAction').className = 'text-negative';
+    document.getElementById('decisionReason').textContent = 'Quick Decision is unavailable until the live session feed recovers.';
+    badge(document.getElementById('decisionStatusBadge'), 'danger', 'UNAVAILABLE');
+    const decisionRing = document.getElementById('decisionConfidenceRing');
+    decisionRing.className = 'decision-confidence-ring no-trade';
+    decisionRing.style.background = 'conic-gradient(#64748b 0deg, #64748b 0deg, rgba(255,255,255,0.12) 0deg)';
+    document.getElementById('decisionConfidenceText').textContent = '--';
+    setDecisionLevelTile('decisionEntryTile', 'reference', 'decisionEntryLabel', 'Reference Price', 'decisionEntry', '--');
+    setDecisionLevelTile('decisionStopTile', 'trigger-long', 'decisionStopLossLabel', 'Long Trigger', 'decisionStopLoss', '--');
+    setDecisionLevelTile('decisionTp1Tile', 'trigger-short', 'decisionTakeProfitLabel', 'Short Trigger', 'decisionTakeProfit', '--');
+    setDecisionLevelTile('decisionTp2Tile', 'edge', 'decisionTakeProfit2Label', 'Current Edge', 'decisionTakeProfit2', '--');
 
     const executeButton = document.getElementById('executeBtn');
     executeButton.disabled = true;
+    executeButton.textContent = 'Unavailable';
     executeButton.style.opacity = '0.55';
     executeButton.style.cursor = 'not-allowed';
     const hint = document.getElementById('executeHint');
@@ -1260,6 +1340,12 @@
   }
 
   function num(value, fallback = 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  function nullableNum(value, fallback = NaN) {
+    if (value === null || value === undefined || value === '') return fallback;
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : fallback;
   }

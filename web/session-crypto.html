@@ -208,25 +208,63 @@
             gap: 1rem;
             margin-bottom: 1.5rem;
         }
-        .confidence-ring {
-            width: 95px;
-            height: 95px;
-            border-radius: 50%;
-            display: grid;
-            place-items: center;
-            background: conic-gradient(#00ff88 0deg, #00ff88 0deg, rgba(255, 255, 255, 0.12) 0deg);
-            border: 1px solid var(--border-default);
+        .decision-confidence-ring {
+            width: 96px !important;
+            height: 96px !important;
+            min-width: 96px !important;
+            border-radius: 50% !important;
+            display: grid !important;
+            place-items: center !important;
+            background: conic-gradient(#f59e0b 0deg, #f59e0b 0deg, rgba(255, 255, 255, 0.12) 0deg) !important;
+            border: 1px solid rgba(148, 163, 184, 0.22) !important;
+            box-shadow: none !important;
+            animation: none !important;
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0 !important;
         }
-        .confidence-ring-inner {
-            width: 70px;
-            height: 70px;
-            border-radius: 50%;
-            background: var(--primary-bg);
-            display: grid;
-            place-items: center;
+        .decision-confidence-ring::before,
+        .decision-confidence-ring::after,
+        .decision-confidence-ring .decision-confidence-ring-inner::before,
+        .decision-confidence-ring .decision-confidence-ring-inner::after {
+            content: none !important;
+            display: none !important;
+        }
+        .decision-confidence-ring .decision-confidence-ring-inner {
+            width: 68px !important;
+            height: 68px !important;
+            border-radius: 50% !important;
+            background: rgba(5, 10, 26, 0.96) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            flex-direction: column !important;
+            gap: 0.2rem;
             font-family: var(--font-mono);
-            font-size: 0.85rem;
             color: var(--text-primary);
+            text-shadow: none !important;
+            padding: 0.3rem;
+        }
+        .decision-confidence-label {
+            font-size: 0.5rem;
+            letter-spacing: 0.12em;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            line-height: 1;
+        }
+        .decision-confidence-value {
+            font-size: 0.95rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+        .decision-confidence-ring.actionable-long {
+            border-color: rgba(16, 185, 129, 0.38) !important;
+        }
+        .decision-confidence-ring.actionable-short {
+            border-color: rgba(239, 68, 68, 0.38) !important;
+        }
+        .decision-confidence-ring.no-trade {
+            border-color: rgba(245, 158, 11, 0.38) !important;
         }
         .leverage-toggle {
             display: flex;
@@ -437,6 +475,22 @@
         border-left: 3px solid #8B5CF6;
         background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(15, 23, 42, 0.6) 100%);
     }
+    .level-item.reference {
+        border-left: 3px solid #00E5FF;
+        background: linear-gradient(135deg, rgba(0, 229, 255, 0.12) 0%, rgba(15, 23, 42, 0.6) 100%);
+    }
+    .level-item.trigger-long {
+        border-left: 3px solid #00FF88;
+        background: linear-gradient(135deg, rgba(0, 255, 136, 0.12) 0%, rgba(15, 23, 42, 0.6) 100%);
+    }
+    .level-item.trigger-short {
+        border-left: 3px solid #FF4D4F;
+        background: linear-gradient(135deg, rgba(255, 77, 79, 0.12) 0%, rgba(15, 23, 42, 0.6) 100%);
+    }
+    .level-item.edge {
+        border-left: 3px solid #F59E0B;
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(15, 23, 42, 0.6) 100%);
+    }
     .level-label {
         font-size: 0.72rem;
         text-transform: uppercase;
@@ -454,6 +508,13 @@
     .level-item.stop .level-value { color: #FF4D4F; }
     .level-item.tp1 .level-value { color: #00FF88; }
     .level-item.tp2 .level-value { color: #8B5CF6; }
+    .level-item.reference .level-value { color: #67E8F9; }
+    .level-item.trigger-long .level-value { color: #6EE7B7; }
+    .level-item.trigger-short .level-value { color: #FCA5A5; }
+    .level-item.edge .level-value { color: #FCD34D; }
+    .quick-decision-card.no-trade .card-title {
+        color: #F8FAFC;
+    }
     @media (max-width: 600px) {
         .decision-levels-grid { grid-template-columns: 1fr; }
     }</style>
@@ -616,7 +677,7 @@
             </section>
 
             <section class="decision-grid">
-                <div class="card" id="quickDecisionCard">
+                <div class="card quick-decision-card" id="quickDecisionCard">
                     <div class="card-header">
                         <h3 class="card-title">Quick Decision</h3>
                         <span class="status-badge info" id="decisionStatusBadge">--</span>
@@ -627,16 +688,19 @@
                                 <div style="font-size: 2rem; font-weight: 800;" id="decisionAction">--</div>
                                 <div style="color:var(--text-secondary);" id="decisionReason">Awaiting live data</div>
                             </div>
-                            <div class="confidence-ring" id="decisionConfidenceRing">
-                                <div class="confidence-ring-inner" id="decisionConfidenceText">--</div>
+                            <div class="decision-confidence-ring no-trade" id="decisionConfidenceRing">
+                                <div class="decision-confidence-ring-inner">
+                                    <div class="decision-confidence-label">Model Conf.</div>
+                                    <div class="decision-confidence-value" id="decisionConfidenceText">--</div>
+                                </div>
                             </div>
                         </div>
                         <div style="display:grid; gap:0.5rem; font-family:var(--font-mono);">
                             <div class="decision-levels-grid">
-                    <div class="level-item entry"><div class="level-label">Entry</div><div class="level-value" id="decisionEntry">--</div></div>
-                    <div class="level-item stop"><div class="level-label">Stop Loss</div><div class="level-value" id="decisionStopLoss">--</div></div>
-                    <div class="level-item tp1"><div class="level-label">Take Profit</div><div class="level-value" id="decisionTakeProfit">--</div></div>
-                    <div class="level-item tp2"><div class="level-label">Take Profit 2</div><div class="level-value" id="decisionTakeProfit2">--</div></div>
+                    <div class="level-item entry" id="decisionEntryTile"><div class="level-label" id="decisionEntryLabel">Entry</div><div class="level-value" id="decisionEntry">--</div></div>
+                    <div class="level-item stop" id="decisionStopTile"><div class="level-label" id="decisionStopLossLabel">Stop Loss</div><div class="level-value" id="decisionStopLoss">--</div></div>
+                    <div class="level-item tp1" id="decisionTp1Tile"><div class="level-label" id="decisionTakeProfitLabel">Take Profit</div><div class="level-value" id="decisionTakeProfit">--</div></div>
+                    <div class="level-item tp2" id="decisionTp2Tile"><div class="level-label" id="decisionTakeProfit2Label">Take Profit 2</div><div class="level-value" id="decisionTakeProfit2">--</div></div>
                 </div>
                         </div>
                         <button class="btn btn-primary" id="executeBtn" style="width:100%; margin-top:1rem;" type="button">Execute (Mock)</button>
@@ -774,7 +838,7 @@
     <footer style="background: var(--bg-secondary); border-top: 1px solid var(--border-color); padding: 2rem 0; margin-top: 2rem;">
         <div class="container">
             <div style="text-align: center;">
-                <p style="color: var(--text-muted); font-size: 0.875rem;">© 2026 StockandCrypto. AI-powered quantitative trading platform.</p>
+                <p style="color: var(--text-muted); font-size: 0.875rem;">&copy; 2026 StockandCrypto. AI-powered quantitative trading platform.</p>
                 <p id="sessionFooterDisclaimer" style="margin-top: 0.4rem; color: var(--text-secondary); font-size: 0.8rem;">Mock Mode | Simulated Data | For Educational Use Only</p>
             </div>
         </div>
