@@ -1,0 +1,402 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - link "◇ StockandCrypto" [ref=e5] [cursor=pointer]:
+        - /url: index.html
+      - navigation [ref=e6]:
+        - list [ref=e7]:
+          - listitem [ref=e8]:
+            - link "Home" [ref=e9] [cursor=pointer]:
+              - /url: index.html
+          - listitem [ref=e10]:
+            - button "Markets" [ref=e11] [cursor=pointer]
+          - listitem [ref=e12]:
+            - button "Analysis" [ref=e13] [cursor=pointer]
+          - listitem [ref=e14]:
+            - button "Session Forecast" [ref=e15] [cursor=pointer]
+          - listitem [ref=e16]:
+            - link "Tracking" [ref=e17] [cursor=pointer]:
+              - /url: tracking.html
+      - link "Login" [ref=e19] [cursor=pointer]:
+        - /url: login.html
+  - main [ref=e20]:
+    - generic [ref=e21]:
+      - generic [ref=e22]:
+        - text: Live Data
+        - heading "Crypto Market Analysis" [level=1] [ref=e23]
+        - paragraph [ref=e24]: Interactive quantitative demo for BTC, ETH, SOL with execution-ready policy context.
+      - generic [ref=e25]:
+        - generic [ref=e26]:
+          - generic [ref=e27]:
+            - generic [ref=e28]: Focus Symbol
+            - combobox [ref=e29]:
+              - option "BTC/USDT" [selected]
+              - option "ETH/USDT"
+              - option "SOL/USDT"
+          - generic [ref=e30]:
+            - button "Refresh Now" [ref=e31] [cursor=pointer]
+            - 'button "Auto Refresh: ON" [pressed] [ref=e32] [cursor=pointer]'
+            - generic [ref=e33]:
+              - button "Save Preset" [ref=e34] [cursor=pointer]
+              - button "Export Report" [ref=e35] [cursor=pointer]
+            - generic [ref=e36]: Live Feed
+            - generic [ref=e37]: Polling
+            - generic [ref=e38]: Updated 08:49:18 PM
+        - generic [ref=e39]:
+          - strong [ref=e41]: Live Feed
+          - generic [ref=e42]: "| Tick: 1"
+          - generic [ref=e43]: "| Transport: Polling"
+          - generic [ref=e44]: "| Last Tick: 20:49:18"
+        - generic [ref=e45]:
+          - generic [ref=e46]:
+            - generic [ref=e47]: BTC/USDT
+            - generic [ref=e48]: $71,285.29
+            - generic [ref=e49]: "-1.62%"
+            - generic [ref=e51]: Live
+          - generic [ref=e52]:
+            - generic [ref=e53]: ETH/USDT
+            - generic [ref=e54]: $2,087.52
+            - generic [ref=e55]: "-1.61%"
+            - generic [ref=e57]: Live
+          - generic [ref=e58]:
+            - generic [ref=e59]: SOL/USDT
+            - generic [ref=e60]: $88.75
+            - generic [ref=e61]: "-1.78%"
+            - generic [ref=e63]: Live
+          - generic [ref=e64]:
+            - generic [ref=e65]: Model Accuracy
+            - generic [ref=e66]: "0.45"
+            - generic [ref=e68]: Direction (Daily)
+            - generic [ref=e70]: IN REVIEW
+        - generic [ref=e71]:
+          - generic [ref=e72]:
+            - generic [ref=e73]:
+              - heading "BTC/USDT Price Movement" [level=3] [ref=e74]
+              - generic [ref=e75]:
+                - button "1H" [ref=e76] [cursor=pointer]
+                - button "24H" [ref=e77] [cursor=pointer]
+                - button "7D" [pressed] [ref=e78] [cursor=pointer]
+            - generic [ref=e81]:
+              - generic [ref=e82]: Actual
+              - generic [ref=e84]: Predicted (q50)
+              - generic [ref=e86]: Confidence Band (q10-q90)
+            - paragraph [ref=e88]: "Live history. Actual: Binance US candles | Projection: live prediction q10/q50/q90."
+          - generic [ref=e89]:
+            - generic [ref=e90]:
+              - generic [ref=e91]:
+                - heading "Comparison Mode" [level=3] [ref=e92]
+                - generic [ref=e93]: BTC vs ETH vs SOL
+              - paragraph [ref=e97]: Direction probabilities refresh with the same tick cycle. Hover to inspect per-tick deltas.
+            - generic [ref=e98]:
+              - generic [ref=e99]:
+                - heading "Volatility Regime" [level=3] [ref=e100]
+                - generic [ref=e101]: Rolling
+              - generic [ref=e102]:
+                - generic [ref=e103]:
+                  - generic "NORMAL volatility" [ref=e104]
+                  - generic "NORMAL volatility" [ref=e105]
+                  - generic "LOW volatility" [ref=e106]
+                  - generic "HIGH volatility" [ref=e107]
+                  - generic "LOW volatility" [ref=e108]
+                  - generic "NORMAL volatility" [ref=e109]
+                  - generic "NORMAL volatility" [ref=e110]
+                  - generic "HIGH volatility" [ref=e111]
+                  - generic "LOW volatility" [ref=e112]
+                  - generic "HIGH volatility" [ref=e113]
+                  - generic "LOW volatility" [ref=e114]
+                  - generic "HIGH volatility" [ref=e115]
+                  - generic "LOW volatility" [ref=e116]
+                  - generic "HIGH volatility" [ref=e117]
+                  - generic "HIGH volatility" [ref=e118]
+                  - generic "LOW volatility" [ref=e119]
+                  - generic "NORMAL volatility" [ref=e120]
+                  - generic "HIGH volatility" [ref=e121]
+                - paragraph [ref=e122]: "Regime: normal volatility."
+        - generic [ref=e123]:
+          - generic [ref=e124]:
+            - generic [ref=e125]:
+              - heading "Direction Forecast" [level=3] [ref=e126]
+              - generic [ref=e127]: H1 Horizon
+            - generic [ref=e128]:
+              - generic [ref=e129]:
+                - generic [ref=e130]:
+                  - generic "Probability of Upward Movement (next interval)" [ref=e131]: P(UP)
+                  - generic [ref=e132]: "0.46"
+                - generic [ref=e133]:
+                  - generic [ref=e134]: P(DOWN)
+                  - generic [ref=e135]: "0.54"
+              - generic [ref=e136]:
+                - generic [ref=e138]: 53%
+                - generic [ref=e139]:
+                  - generic [ref=e140]: Signal
+                  - generic [ref=e142]: FLAT
+                  - generic [ref=e143]: Confidence
+                  - generic [ref=e144]: "0.53"
+                  - generic [ref=e145]: Threshold Rule
+                  - generic [ref=e146]: LONG >= 0.55, SHORT <= 0.45
+              - paragraph [ref=e147]: Prediction sourced from live derived feed.
+          - generic [ref=e148]:
+            - generic [ref=e149]:
+              - heading "Start Window Forecast" [level=3] [ref=e150]
+              - generic [ref=e151]: W0-W3
+            - generic [ref=e152]:
+              - generic [ref=e153]:
+                - generic [ref=e154]:
+                  - generic [ref=e155]: W0
+                  - generic [ref=e158]: "0.23"
+                - generic [ref=e159]:
+                  - generic [ref=e160]: W1
+                  - generic [ref=e163]: "0.37"
+                - generic [ref=e164]:
+                  - generic [ref=e165]: W2
+                  - generic [ref=e168]: "0.33"
+                - generic [ref=e169]:
+                  - generic [ref=e170]: W3
+                  - generic [ref=e173]: "0.08"
+              - generic [ref=e174]:
+                - generic [ref=e175]: Most Likely
+                - generic [ref=e176]: W1
+                - generic [ref=e177]: Expected Start
+                - generic [ref=e178]: Within 1 hour
+          - generic [ref=e179]:
+            - generic [ref=e180]:
+              - heading "Magnitude Intervals" [level=3] [ref=e181]
+              - generic [ref=e182]: 1-Hour
+            - generic [ref=e184]:
+              - generic "Prediction Quantiles" [ref=e185]: q10
+              - generic [ref=e186]: "-2.17%"
+              - generic "Prediction Quantiles" [ref=e187]: q50
+              - generic [ref=e188]: "-0.53%"
+              - generic "Prediction Quantiles" [ref=e189]: q90
+              - generic [ref=e190]: +1.12%
+              - generic [ref=e191]: Interval Width
+              - generic [ref=e192]: 3.29%
+              - generic [ref=e193]: Expected Return
+              - generic [ref=e194]: "-0.53%"
+              - generic [ref=e195]: Coverage Target
+              - generic [ref=e196]: 80%
+          - generic [ref=e197]:
+            - generic [ref=e198]:
+              - heading "Signal & Risk Packet" [level=3] [ref=e199]
+              - generic [ref=e200]: Policy Engine
+            - generic [ref=e201]:
+              - generic [ref=e202]:
+                - generic [ref=e203]: Action
+                - generic [ref=e205]: FLAT
+                - generic [ref=e206]: Position Size
+                - generic [ref=e207]: 0.00x
+                - generic [ref=e208]: Entry
+                - generic [ref=e209]: $71,285.29
+                - generic [ref=e210]: Stop Loss
+                - generic [ref=e211]: $71,285.29
+                - generic [ref=e212]: Take Profit 1
+                - generic [ref=e213]: $71,285.29
+                - generic [ref=e214]: Take Profit 2
+                - generic [ref=e215]: $71,285.29
+                - generic [ref=e216]: R:R (TP1)
+                - generic [ref=e217]: "0.00"
+                - generic [ref=e218]: R:R (TP2)
+                - generic [ref=e219]: "0.00"
+              - generic "Negative Sharpe indicates low volatility regime, strategy in review." [ref=e220]: "Current Regime: Defensive"
+              - heading "Execution Rules" [level=4] [ref=e221]
+              - list [ref=e222]:
+                - listitem [ref=e223]: LONG if P(UP) >= 0.55 and Confidence >= 0.45
+                - listitem [ref=e224]: SHORT if P(UP) <= 0.45 and Confidence >= 0.45
+                - listitem [ref=e225]: FLAT otherwise
+                - listitem [ref=e226]: Position capped by max leverage and risk gate
+          - generic [ref=e227]:
+            - generic [ref=e228]:
+              - heading "Dynamic Position Sizer" [level=3] [ref=e229]
+              - generic [ref=e230]: Max 2.0x
+            - generic [ref=e231]:
+              - generic [ref=e232]:
+                - generic [ref=e233]:
+                  - generic [ref=e234]: Confidence
+                  - spinbutton "Confidence" [ref=e235]: "0.53"
+                - generic [ref=e236]:
+                  - generic "Probability of Upward Movement (next interval)" [ref=e237]: P(UP)
+                  - spinbutton "P(UP)" [ref=e238]: "0.46"
+                - generic [ref=e239]:
+                  - generic [ref=e240]: Entry Price
+                  - spinbutton "Entry Price" [ref=e241]: "71285.29"
+                - generic [ref=e242]:
+                  - generic "Prediction Quantiles" [ref=e243]: q10
+                  - spinbutton "q10" [ref=e244]: "-0.022"
+                - generic [ref=e245]:
+                  - generic "Prediction Quantiles" [ref=e246]: q50
+                  - spinbutton "q50" [ref=e247]: "-0.005"
+                - generic [ref=e248]:
+                  - generic "Prediction Quantiles" [ref=e249]: q90
+                  - spinbutton "q90" [ref=e250]: "0.011"
+              - generic [ref=e251]:
+                - generic [ref=e252]: Suggested Action
+                - generic [ref=e254]: FLAT
+                - generic [ref=e255]: Suggested Size
+                - generic [ref=e256]: 0.00x
+                - generic [ref=e257]: TP1 / TP2
+                - generic [ref=e258]: $71,285.29 / $71,285.29
+                - generic [ref=e259]: Stop Loss
+                - generic [ref=e260]: $71,285.29
+                - generic [ref=e261]: RR (TP1 / TP2)
+                - generic [ref=e262]: 0.00 / 0.00
+              - button "Apply to Live" [ref=e264] [cursor=pointer]
+              - paragraph
+          - generic [ref=e265]:
+            - generic [ref=e266]:
+              - heading "What-If Simulator" [level=3] [ref=e267]
+              - generic [ref=e268]: Preview Only
+            - generic [ref=e269]:
+              - generic [ref=e270]:
+                - generic [ref=e271]:
+                  - text: Momentum Delta
+                  - generic [ref=e272]: "0.00"
+                - slider "Momentum Delta 0.00" [ref=e273]: "0"
+              - generic [ref=e274]:
+                - generic [ref=e275]:
+                  - text: Volatility Multiplier
+                  - generic [ref=e276]: 1.00x
+                - slider "Volatility Multiplier 1.00x" [ref=e277]: "1"
+              - generic [ref=e278]:
+                - generic [ref=e279]: Adjusted P(UP)
+                - generic [ref=e280]: "0.46"
+                - generic [ref=e281]: Suggested Action
+                - generic [ref=e283]: FLAT
+                - generic [ref=e284]: Confidence Shift
+                - generic [ref=e285]: "0.00"
+              - paragraph
+          - generic [ref=e286]:
+            - generic [ref=e287]:
+              - heading "Alert Setup" [level=3] [ref=e288]
+              - generic [ref=e289]: Hybrid Mode
+            - generic [ref=e290]:
+              - generic [ref=e291]:
+                - generic [ref=e292]:
+                  - generic [ref=e293]: Symbol
+                  - combobox "Symbol" [ref=e294]:
+                    - option "BTC/USDT" [selected]
+                    - option "ETH/USDT"
+                    - option "SOL/USDT"
+                - generic [ref=e295]:
+                  - generic [ref=e296]: 24h Move Threshold (%)
+                  - spinbutton "24h Move Threshold (%)" [ref=e297]: "5"
+                - button "Set Alert" [ref=e298] [cursor=pointer]
+                - button "Set Drift Alert for BTC > 5%" [ref=e299] [cursor=pointer]
+                - button "Test Alert" [ref=e300] [cursor=pointer]
+              - generic [ref=e301]:
+                - generic [ref=e302]: Alert Status
+                - generic [ref=e303]: No alert triggered yet.
+              - list [ref=e304]:
+                - listitem [ref=e305]: No alerts configured.
+        - generic [ref=e306]:
+          - generic [ref=e307]:
+            - generic [ref=e308]:
+              - heading "Explainable AI" [level=3] [ref=e309]
+              - generic [ref=e310]: SHAP Signals
+            - generic [ref=e311]:
+              - generic [ref=e312]:
+                - generic [ref=e313]: Summary
+                - generic [ref=e314]: Generated from live market regime and momentum factors.
+              - heading "Top Features" [level=4] [ref=e315]
+              - list [ref=e316]:
+                - listitem [ref=e317]:
+                  - strong [ref=e318]: momentum_24h
+                  - text: (-0.065) - 24h momentum contribution to direction bias.
+                - listitem [ref=e319]:
+                  - strong [ref=e320]: volume_regime
+                  - text: (0.015) - Volume regime adjusts confidence and direction weight.
+                - listitem [ref=e321]:
+                  - strong [ref=e322]: volatility_proxy
+                  - text: (0.036) - Volatility proxy penalizes unstable regimes.
+              - heading "Reason Codes" [level=4] [ref=e323]
+              - list [ref=e324]:
+                - listitem [ref=e325]:
+                  - strong [ref=e326]: risk_cap
+                  - text: "- Position size capped by risk controls."
+          - generic [ref=e327]:
+            - generic [ref=e328]:
+              - heading "Model Health Snapshot" [level=3] [ref=e329]
+              - generic [ref=e330]: MONITORED
+            - generic [ref=e331]:
+              - generic [ref=e332]:
+                - generic [ref=e333]: Drift Alerts
+                - generic [ref=e334]: "5"
+                - generic "Negative Sharpe indicates low volatility regime, strategy in review." [ref=e335]: Sharpe Ratio
+                - generic [ref=e336]: "-0.26"
+                - generic [ref=e337]: Sharpe Stability (Std)
+                - generic [ref=e338]: "1.83"
+                - generic [ref=e339]: Data Freshness
+                - generic [ref=e340]: live
+                - generic [ref=e341]: Last Training
+                - generic [ref=e342]: N/A (live derived)
+              - generic "Negative Sharpe indicates low volatility regime, strategy in review." [ref=e344]
+              - paragraph [ref=e345]: Sharpe is negative in the current regime. Strategy is in defensive review mode.
+        - generic [ref=e346]:
+          - generic [ref=e347]:
+            - generic [ref=e348]: Direction Accuracy
+            - generic [ref=e349]: 45.0%
+            - generic [ref=e350]: 30-day paper trading
+          - generic [ref=e351]:
+            - generic [ref=e352]: Interval Coverage
+            - generic [ref=e353]: 85.8%
+            - generic [ref=e354]: "Target: 80%"
+          - generic [ref=e355]:
+            - generic [ref=e356]: Brier Score
+            - generic [ref=e357]: "0.291"
+            - generic [ref=e358]: Lower is better
+          - generic [ref=e359]:
+            - generic [ref=e360]: Win Rate
+            - generic [ref=e361]: 7.8%
+            - generic [ref=e362]: Last 30 days
+        - paragraph [ref=e363]: Performance estimated from live prediction packet.
+        - generic [ref=e364]:
+          - generic [ref=e365]:
+            - heading "Top Cryptocurrencies" [level=3] [ref=e366]
+            - generic [ref=e367]:
+              - textbox "Search symbol..." [ref=e368]
+              - 'button "Signal: ALL" [ref=e369]'
+          - table [ref=e370]:
+            - rowgroup [ref=e371]:
+              - row "Symbol ↕ Price ↕ 24h Change ↕ P(UP) ↓ Signal ↕ 24h Volume ↕ Status ↕" [ref=e372]:
+                - columnheader "Symbol ↕" [ref=e373] [cursor=pointer]
+                - columnheader "Price ↕" [ref=e374] [cursor=pointer]
+                - columnheader "24h Change ↕" [ref=e375] [cursor=pointer]
+                - columnheader "P(UP) ↓" [ref=e376] [cursor=pointer]
+                - columnheader "Signal ↕" [ref=e377] [cursor=pointer]
+                - columnheader "24h Volume ↕" [ref=e378] [cursor=pointer]
+                - columnheader "Status ↕" [ref=e379] [cursor=pointer]
+            - rowgroup [ref=e380]:
+              - row "ETH/USDT $2,087.52 -1.61% 0.46 FLAT $5.56M LIVE" [ref=e381] [cursor=pointer]:
+                - cell "ETH/USDT" [ref=e382]:
+                  - strong [ref=e383]: ETH/USDT
+                - cell "$2,087.52" [ref=e384]
+                - cell "-1.61%" [ref=e385]
+                - cell "0.46" [ref=e386]
+                - cell "FLAT" [ref=e387]:
+                  - generic [ref=e388]: FLAT
+                - cell "$5.56M" [ref=e389]
+                - cell "LIVE" [ref=e390]:
+                  - generic [ref=e391]: LIVE
+              - row "BTC/USDT $71,285.29 -1.62% 0.46 FLAT $3.45M LIVE" [ref=e392] [cursor=pointer]:
+                - cell "BTC/USDT" [ref=e393]:
+                  - strong [ref=e394]: BTC/USDT
+                - cell "$71,285.29" [ref=e395]
+                - cell "-1.62%" [ref=e396]
+                - cell "0.46" [ref=e397]
+                - cell "FLAT" [ref=e398]:
+                  - generic [ref=e399]: FLAT
+                - cell "$3.45M" [ref=e400]
+                - cell "LIVE" [ref=e401]:
+                  - generic [ref=e402]: LIVE
+              - row "SOL/USDT $88.75 -1.78% 0.43 SHORT $181,925.66 LIVE" [ref=e403] [cursor=pointer]:
+                - cell "SOL/USDT" [ref=e404]:
+                  - strong [ref=e405]: SOL/USDT
+                - cell "$88.75" [ref=e406]
+                - cell "-1.78%" [ref=e407]
+                - cell "0.43" [ref=e408]
+                - cell "SHORT" [ref=e409]:
+                  - generic [ref=e410]: SHORT
+                - cell "$181,925.66" [ref=e411]
+                - cell "LIVE" [ref=e412]:
+                  - generic [ref=e413]: LIVE
+  - contentinfo [ref=e414]:
+    - paragraph [ref=e417]: (c) 2026 StockandCrypto. AI-powered quantitative trading platform. v3.2 - Last Update 2026-03-03

@@ -263,7 +263,7 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 88px;
+            min-width: 108px;
             border-radius: 999px;
             padding: 0.22rem 0.75rem;
             font-size: 0.76rem;
@@ -785,7 +785,7 @@
                                     <div class="kv-key">Confidence</div>
                                     <div class="kv-value" id="directionConfidence">0.95</div>
                                     <div class="kv-key">Threshold Rule</div>
-                                    <div class="kv-value">LONG >= 0.55, SHORT <= 0.45</div>
+                                    <div class="kv-value">LONG &gt;= 0.55 / SHORT &lt;= 0.45; Conf &gt;= 0.45</div>
                                 </div>
                             </div>
                             <p class="data-note" id="predictionDataNote"></p>
@@ -843,21 +843,21 @@
                         </div>
                         <div class="card-body">
                             <div class="kv-grid">
-                                <div class="kv-key">Action</div>
+                                <div class="kv-key" id="actionLabel">Action</div>
                                 <div><span class="signal-pill long" id="actionPill">LONG</span></div>
-                                <div class="kv-key">Position Size</div>
+                                <div class="kv-key" id="positionSizeLabel">Position Size</div>
                                 <div class="kv-value" id="positionSize">1.20x</div>
-                                <div class="kv-key">Entry</div>
+                                <div class="kv-key" id="entryPriceLabel">Entry</div>
                                 <div class="kv-value" id="entryPrice">$0.00</div>
-                                <div class="kv-key">Stop Loss</div>
+                                <div class="kv-key" id="stopLossLabel">Stop Loss</div>
                                 <div class="kv-value" id="stopLoss">$0.00</div>
-                                <div class="kv-key">Take Profit 1</div>
+                                <div class="kv-key" id="takeProfit1Label">Take Profit 1</div>
                                 <div class="kv-value" id="takeProfit1">$0.00</div>
-                                <div class="kv-key">Take Profit 2</div>
+                                <div class="kv-key" id="takeProfit2Label">Take Profit 2</div>
                                 <div class="kv-value" id="takeProfit2">$0.00</div>
-                                <div class="kv-key">R:R (TP1)</div>
+                                <div class="kv-key" id="rrRatio1Label">R:R (TP1)</div>
                                 <div class="kv-value" id="rrRatio1">0.00</div>
-                                <div class="kv-key">R:R (TP2)</div>
+                                <div class="kv-key" id="rrRatio2Label">R:R (TP2)</div>
                                 <div class="kv-value" id="rrRatio2">0.00</div>
                             </div>
                             <div class="regime-chip defensive" id="regimeChip" title="Negative Sharpe indicates low volatility regime, strategy in review.">Current Regime: Defensive</div>
@@ -865,7 +865,7 @@
                             <ul class="rules-list">
                                 <li>LONG if P(UP) >= 0.55 and Confidence >= 0.45</li>
                                 <li>SHORT if P(UP) <= 0.45 and Confidence >= 0.45</li>
-                                <li>FLAT otherwise</li>
+                                <li>NO TRADE otherwise</li>
                                 <li>Position capped by max leverage and risk gate</li>
                             </ul>
                         </div>
@@ -886,7 +886,7 @@
                                 <div class="input-row"><label for="sizerQ90" title="Prediction Quantiles">q90</label><input id="sizerQ90" class="control-input" type="number" step="0.001" value="0.021"></div>
                             </div>
                             <div class="sizer-output kv-grid">
-                                <div class="kv-key">Suggested Action</div><div><span class="signal-pill flat" id="sizerAction">FLAT</span></div>
+                                <div class="kv-key">Suggested Action</div><div><span class="signal-pill flat" id="sizerAction">NO TRADE</span></div>
                                 <div class="kv-key">Suggested Size</div><div class="kv-value" id="sizerSize">0.00x</div>
                                 <div class="kv-key">TP1 / TP2</div><div class="kv-value" id="sizerTp">$0.00 / $0.00</div>
                                 <div class="kv-key">Stop Loss</div><div class="kv-value" id="sizerSl">$0.00</div>
@@ -915,7 +915,7 @@
                             </div>
                             <div class="kv-grid" style="margin-top: 0.8rem;">
                                 <div class="kv-key">Adjusted P(UP)</div><div class="kv-value" id="whatIfPUp">0.62</div>
-                                <div class="kv-key">Suggested Action</div><div><span class="signal-pill flat" id="whatIfAction">FLAT</span></div>
+                                <div class="kv-key">Suggested Action</div><div><span class="signal-pill flat" id="whatIfAction">NO TRADE</span></div>
                                 <div class="kv-key">Confidence Shift</div><div class="kv-value" id="whatIfConfidence">0.00</div>
                             </div>
                             <p class="data-note" id="whatIfAvailabilityNote"></p>

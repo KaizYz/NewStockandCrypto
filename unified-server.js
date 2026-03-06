@@ -792,6 +792,41 @@ function calculateRiskReward(entryPrice, stopLoss, takeProfit) {
     return reward / risk;
 }
 
+const CRYPTO_LONG_TRIGGER_P_UP = 0.55;
+const CRYPTO_SHORT_TRIGGER_P_UP = 0.45;
+const CRYPTO_MIN_ACTIONABLE_CONFIDENCE = 0.45;
+
+function resolveCryptoTradeSignal(pUp, confidence) {
+    const normalizedPUp = clamp(Number.isFinite(pUp) ? pUp : 0.5, 0, 1);
+    const normalizedConfidence = clamp(Number.isFinite(confidence) ? confidence : 0, 0, 1);
+    if (normalizedConfidence >= CRYPTO_MIN_ACTIONABLE_CONFIDENCE && normalizedPUp >= CRYPTO_LONG_TRIGGER_P_UP) {
+        return 'LONG';
+    }
+    if (normalizedConfidence >= CRYPTO_MIN_ACTIONABLE_CONFIDENCE && normalizedPUp <= CRYPTO_SHORT_TRIGGER_P_UP) {
+        return 'SHORT';
+    }
+    return 'FLAT';
+}
+
+function resolveCryptoReasonCodes(action, pUp, confidence) {
+    if (action === 'LONG') {
+        return ['p_bull_gate', 'momentum_gate', 'volume_gate'];
+    }
+    if (action === 'SHORT') {
+        return ['p_bear_gate', 'volatility_gate', 'risk_cap'];
+    }
+
+    const reasonCodes = [];
+    if (pUp > CRYPTO_SHORT_TRIGGER_P_UP && pUp < CRYPTO_LONG_TRIGGER_P_UP) {
+        reasonCodes.push('neutral_zone');
+    }
+    if ((pUp >= CRYPTO_LONG_TRIGGER_P_UP || pUp <= CRYPTO_SHORT_TRIGGER_P_UP) && confidence < CRYPTO_MIN_ACTIONABLE_CONFIDENCE) {
+        reasonCodes.push('confidence_gate');
+    }
+    reasonCodes.push('risk_cap');
+    return reasonCodes;
+}
+
 function buildCryptoPredictionPayload(symbol, row, stale = false, staleReason = null) {
     const changePct = Number.isFinite(row.change) ? row.change : 0;
     const volume = Math.max(Number.isFinite(row.volume) ? row.volume : 0, 1);
@@ -836,15 +871,15 @@ function buildCryptoPredictionPayload(symbol, row, stale = false, staleReason = 
                 ? 'Within 2 hours'
                 : 'Within 3 hours';
 
-    const action = pUp >= 0.55 ? 'LONG' : pUp <= 0.45 ? 'SHORT' : 'FLAT';
+    const action = resolveCryptoTradeSignal(pUp, confidence);
     const positionSize = action === 'FLAT'
         ? 0
         : clamp((confidence - 0.45) / 0.55, 0, 1) * 2;
     const entryPrice = row.price;
 
-    let stopLoss = entryPrice;
-    let takeProfit1 = entryPrice;
-    let takeProfit2 = entryPrice;
+    let stopLoss = null;
+    let takeProfit1 = null;
+    let takeProfit2 = null;
     if (action === 'LONG') {
         stopLoss = entryPrice * (1 + q10 * 0.8);
         takeProfit1 = entryPrice * (1 + q50 * 0.8);
@@ -862,11 +897,10 @@ function buildCryptoPredictionPayload(symbol, row, stale = false, staleReason = 
     const trendShap = Number((trendComponent * 0.32).toFixed(3));
     const volumeShap = Number((volumeComponent * 0.14).toFixed(3));
     const volatilityShap = Number((-(volatilityProxy - 0.02) * 7).toFixed(3));
-    const reasonCodes = action === 'LONG'
-        ? ['p_bull_gate', 'momentum_gate', 'volume_gate']
-        : action === 'SHORT'
-            ? ['p_bear_gate', 'volatility_gate', 'risk_cap']
-            : ['risk_cap'];
+    const reasonCodes = resolveCryptoReasonCodes(action, pUp, confidence);
+    const actionable = action !== 'FLAT';
+    const rr1 = actionable ? Number(calculateRiskReward(entryPrice, stopLoss, takeProfit1).toFixed(4)) : null;
+    const rr2 = actionable ? Number(calculateRiskReward(entryPrice, stopLoss, takeProfit2).toFixed(4)) : null;
 
     const payload = {
         meta: {
@@ -896,13 +930,18 @@ function buildCryptoPredictionPayload(symbol, row, stale = false, staleReason = 
         },
         signal: {
             action,
+            actionable,
+            presentation: actionable ? 'TRADE' : 'NO_TRADE',
             position_size: Number(positionSize.toFixed(4)),
             entry_price: Number(entryPrice.toFixed(4)),
-            stop_loss: Number(stopLoss.toFixed(4)),
-            take_profit_1: Number(takeProfit1.toFixed(4)),
-            take_profit_2: Number(takeProfit2.toFixed(4)),
-            rr_1: Number(calculateRiskReward(entryPrice, stopLoss, takeProfit1).toFixed(4)),
-            rr_2: Number(calculateRiskReward(entryPrice, stopLoss, takeProfit2).toFixed(4))
+            reference_price: Number(entryPrice.toFixed(4)),
+            long_trigger_p_up: CRYPTO_LONG_TRIGGER_P_UP,
+            short_trigger_p_up: CRYPTO_SHORT_TRIGGER_P_UP,
+            stop_loss: actionable ? Number(stopLoss.toFixed(4)) : null,
+            take_profit_1: actionable ? Number(takeProfit1.toFixed(4)) : null,
+            take_profit_2: actionable ? Number(takeProfit2.toFixed(4)) : null,
+            rr_1: rr1,
+            rr_2: rr2
         },
         explanation: {
             summary: 'Generated from live market regime and momentum factors.',

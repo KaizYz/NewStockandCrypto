@@ -7,6 +7,9 @@ const SIGNAL_FILTERS = ['ALL', 'LONG', 'SHORT', 'FLAT'];
 const ALERT_STORAGE_KEY = 'crypto_alerts_v1';
 const PRESET_STORAGE_KEY = 'crypto_ui_preset_v1';
 const MAX_LEVERAGE = 2.0;
+const LONG_SIGNAL_THRESHOLD = 0.55;
+const SHORT_SIGNAL_THRESHOLD = 0.45;
+const MIN_ACTIONABLE_CONFIDENCE = 0.45;
 const POLL_INTERVAL_MS = 10000;
 const ALERT_COOLDOWN_MS = 60000;
 const COMPARISON_HISTORY_LIMIT = 30;
@@ -33,6 +36,8 @@ const REASON_CODE_TEXT = {
     momentum_gate: 'Momentum confirms the directional signal.',
     volatility_gate: 'Volatility remains in an accepted range.',
     volume_gate: 'Volume supports move quality.',
+    neutral_zone: 'Direction probability remains inside the neutral zone.',
+    confidence_gate: 'Confidence has not cleared the execution gate.',
     drift_block: 'Drift monitor reduces confidence.',
     risk_cap: 'Position size capped by risk controls.'
 };
@@ -185,13 +190,21 @@ function cacheElements() {
         intervalWidth: byId('intervalWidth'),
         expectedReturn: byId('expectedReturn'),
         actionPill: byId('actionPill'),
+        actionLabel: byId('actionLabel'),
         regimeChip: byId('regimeChip'),
+        positionSizeLabel: byId('positionSizeLabel'),
         positionSize: byId('positionSize'),
+        entryPriceLabel: byId('entryPriceLabel'),
         entryPrice: byId('entryPrice'),
+        stopLossLabel: byId('stopLossLabel'),
         stopLoss: byId('stopLoss'),
+        takeProfit1Label: byId('takeProfit1Label'),
         takeProfit1: byId('takeProfit1'),
+        takeProfit2Label: byId('takeProfit2Label'),
         takeProfit2: byId('takeProfit2'),
+        rrRatio1Label: byId('rrRatio1Label'),
         rrRatio1: byId('rrRatio1'),
+        rrRatio2Label: byId('rrRatio2Label'),
         rrRatio2: byId('rrRatio2'),
         explanationSummary: byId('explanationSummary'),
         topFeaturesList: byId('topFeaturesList'),
@@ -286,7 +299,7 @@ function bindEvents() {
         els.filterBtn.addEventListener('click', () => {
             const index = SIGNAL_FILTERS.indexOf(state.signalFilter);
             state.signalFilter = SIGNAL_FILTERS[(index + 1) % SIGNAL_FILTERS.length];
-            els.filterBtn.textContent = `Signal: ${state.signalFilter}`;
+            els.filterBtn.textContent = formatSignalFilterLabel(state.signalFilter);
             state.visibleRows = 8;
             renderUniverseTable();
         });
@@ -797,7 +810,7 @@ function normalizePrediction(payload, symbol) {
         ?? predictionRaw.direction?.confidence,
         Math.abs(pUp - 0.5) * 2
     ));
-    const signal = String(predictionRaw.signal ?? signalRaw.action ?? inferSignal(pUp)).toUpperCase();
+    const signal = String(predictionRaw.signal ?? signalRaw.action ?? resolveTradeSignal(pUp, confidence)).toUpperCase();
 
     const startRaw = predictionRaw.start_window || predictionRaw.startWindow || {};
     const window = normalizeWindowFromPayload(startRaw, pUp, confidence);
@@ -812,17 +825,45 @@ function normalizePrediction(payload, symbol) {
     const entryPrice = asNumber(
         signalRaw.entry_price
         ?? signalRaw.entryPrice
+        ?? signalRaw.reference_price
+        ?? signalRaw.referencePrice
         ?? predictionRaw.current_price
         ?? currentPrice(symbol)
     );
     if (!Number.isFinite(entryPrice) || entryPrice <= 0) return null;
-    const action = String(signalRaw.action ?? signal).toUpperCase();
-    const stopLoss = asNumber(signalRaw.stop_loss ?? signalRaw.stopLoss, estimateStopLoss(entryPrice, sorted[0], action));
-    const takeProfit1 = asNumber(signalRaw.take_profit_1 ?? signalRaw.takeProfit1, estimateTakeProfit(entryPrice, sorted[1], action));
-    const takeProfit2 = asNumber(signalRaw.take_profit_2 ?? signalRaw.takeProfit2, estimateTakeProfit(entryPrice, sorted[2], action));
+    const action = String(signalRaw.action ?? signal ?? resolveTradeSignal(pUp, confidence)).toUpperCase();
+    const actionable = typeof signalRaw.actionable === 'boolean'
+        ? signalRaw.actionable
+        : String(signalRaw.presentation || '').toUpperCase() === 'TRADE'
+            ? true
+            : isActionableSignal(action);
+    const presentation = String(signalRaw.presentation || (actionable ? 'TRADE' : 'NO_TRADE')).toUpperCase();
+    const referencePrice = nullableNumber(signalRaw.reference_price ?? signalRaw.referencePrice, entryPrice);
+    const stopLoss = actionable
+        ? nullableNumber(signalRaw.stop_loss ?? signalRaw.stopLoss, estimateStopLoss(entryPrice, sorted[0], action))
+        : nullableNumber(signalRaw.stop_loss ?? signalRaw.stopLoss, null);
+    const takeProfit1 = actionable
+        ? nullableNumber(signalRaw.take_profit_1 ?? signalRaw.takeProfit1, estimateTakeProfit(entryPrice, sorted[1], action))
+        : nullableNumber(signalRaw.take_profit_1 ?? signalRaw.takeProfit1, null);
+    const takeProfit2 = actionable
+        ? nullableNumber(signalRaw.take_profit_2 ?? signalRaw.takeProfit2, estimateTakeProfit(entryPrice, sorted[2], action))
+        : nullableNumber(signalRaw.take_profit_2 ?? signalRaw.takeProfit2, null);
+    const rr1 = actionable
+        ? nullableNumber(signalRaw.rr_1 ?? signalRaw.rr1, calculateRiskReward(entryPrice, stopLoss, takeProfit1))
+        : nullableNumber(signalRaw.rr_1 ?? signalRaw.rr1, null);
+    const rr2 = actionable
+        ? nullableNumber(signalRaw.rr_2 ?? signalRaw.rr2, calculateRiskReward(entryPrice, stopLoss, takeProfit2))
+        : nullableNumber(signalRaw.rr_2 ?? signalRaw.rr2, null);
+    const longTriggerPUp = normalizeProbability(asNumber(signalRaw.long_trigger_p_up ?? signalRaw.longTriggerPUp, LONG_SIGNAL_THRESHOLD));
+    const shortTriggerPUp = normalizeProbability(asNumber(signalRaw.short_trigger_p_up ?? signalRaw.shortTriggerPUp, SHORT_SIGNAL_THRESHOLD));
 
     const topFeatures = normalizeTopFeatures(payload.explanation?.top_features ?? payload.explanation?.topFeatures);
-    const reasonCodes = normalizeReasonCodes(payload.explanation?.reason_codes ?? payload.explanation?.reasonCodes, signal);
+    const reasonCodes = normalizeReasonCodes(
+        payload.explanation?.reason_codes ?? payload.explanation?.reasonCodes,
+        action,
+        pUp,
+        confidence
+    );
 
     return {
         symbol,
@@ -838,16 +879,21 @@ function normalizePrediction(payload, symbol) {
         },
         signal: {
             action,
-            positionSize: asNumber(signalRaw.position_size ?? signalRaw.positionSize, action === 'FLAT' ? 0 : clamp((confidence - 0.45) / 0.55, 0, 1) * MAX_LEVERAGE),
+            actionable,
+            presentation,
+            positionSize: asNumber(signalRaw.position_size ?? signalRaw.positionSize, actionable ? clamp((confidence - MIN_ACTIONABLE_CONFIDENCE) / (1 - MIN_ACTIONABLE_CONFIDENCE), 0, 1) * MAX_LEVERAGE : 0),
             entryPrice,
+            referencePrice,
+            longTriggerPUp,
+            shortTriggerPUp,
             stopLoss,
             takeProfit1,
             takeProfit2,
-            rr1: calculateRiskReward(entryPrice, stopLoss, takeProfit1),
-            rr2: calculateRiskReward(entryPrice, stopLoss, takeProfit2)
+            rr1,
+            rr2
         },
         explanation: {
-            summary: String(payload.explanation?.summary || `Live ${signal} signal derived from current market regime.`),
+            summary: String(payload.explanation?.summary || `Live ${displaySignalLabel(action)} view derived from current market regime.`),
             topFeatures,
             reasonCodes
         },
@@ -961,13 +1007,21 @@ function normalizeTopFeatures(featuresRaw) {
         }));
 }
 
-function normalizeReasonCodes(reasonCodesRaw, signal) {
+function normalizeReasonCodes(reasonCodesRaw, signal, pUp = 0.5, confidence = 0.5) {
     if (Array.isArray(reasonCodesRaw) && reasonCodesRaw.length > 0) {
         return reasonCodesRaw.map((value) => String(value));
     }
     if (signal === 'LONG') return ['p_bull_gate', 'momentum_gate', 'volume_gate'];
     if (signal === 'SHORT') return ['p_bear_gate', 'volatility_gate', 'risk_cap'];
-    return ['risk_cap'];
+    const reasonCodes = [];
+    if (pUp > SHORT_SIGNAL_THRESHOLD && pUp < LONG_SIGNAL_THRESHOLD) {
+        reasonCodes.push('neutral_zone');
+    }
+    if ((pUp >= LONG_SIGNAL_THRESHOLD || pUp <= SHORT_SIGNAL_THRESHOLD) && confidence < MIN_ACTIONABLE_CONFIDENCE) {
+        reasonCodes.push('confidence_gate');
+    }
+    reasonCodes.push('risk_cap');
+    return reasonCodes;
 }
 
 function deriveEstimatedPerformanceFromPrediction(packet) {
@@ -1087,7 +1141,7 @@ function syncControlState() {
         els.symbolSelect.value = state.selectedSymbol;
     }
     if (els.filterBtn) {
-        els.filterBtn.textContent = `Signal: ${state.signalFilter}`;
+        els.filterBtn.textContent = formatSignalFilterLabel(state.signalFilter);
     }
     updateAutoRefreshButton();
 }
@@ -1134,6 +1188,7 @@ function renderPredictionPanel() {
         text(els.directionConfidence, '--');
         setSignalPill(els.signalPill, 'FLAT');
         updateConfidenceRing(0, 'FLAT');
+        applyRiskPacketLabels('TRADE');
         renderWindow(els.w0Fill, els.w0Prob, 0);
         renderWindow(els.w1Fill, els.w1Prob, 0);
         renderWindow(els.w2Fill, els.w2Prob, 0);
@@ -1179,18 +1234,45 @@ function renderPredictionPanel() {
     text(els.expectedReturn, formatSignedPercent(packet.magnitude.expectedReturn));
 
     setSignalPill(els.actionPill, packet.signal.action);
-    text(els.positionSize, `${packet.signal.positionSize.toFixed(2)}x`);
-    text(els.entryPrice, utils.formatCurrency(packet.signal.entryPrice));
-    text(els.stopLoss, utils.formatCurrency(packet.signal.stopLoss));
-    text(els.takeProfit1, utils.formatCurrency(packet.signal.takeProfit1));
-    text(els.takeProfit2, utils.formatCurrency(packet.signal.takeProfit2));
-    text(els.rrRatio1, packet.signal.rr1.toFixed(2));
-    text(els.rrRatio2, packet.signal.rr2.toFixed(2));
+    if (packet.signal.actionable) {
+        applyRiskPacketLabels('TRADE');
+        text(els.positionSize, `${packet.signal.positionSize.toFixed(2)}x`);
+        text(els.entryPrice, formatNullableCurrency(packet.signal.entryPrice));
+        text(els.stopLoss, formatNullableCurrency(packet.signal.stopLoss));
+        text(els.takeProfit1, formatNullableCurrency(packet.signal.takeProfit1));
+        text(els.takeProfit2, formatNullableCurrency(packet.signal.takeProfit2));
+        text(els.rrRatio1, formatNullableRatio(packet.signal.rr1));
+        text(els.rrRatio2, formatNullableRatio(packet.signal.rr2));
+    } else {
+        applyRiskPacketLabels('NO_TRADE');
+        text(els.positionSize, `${packet.signal.positionSize.toFixed(2)}x`);
+        text(els.entryPrice, formatNullableCurrency(packet.signal.referencePrice ?? packet.signal.entryPrice));
+        text(els.stopLoss, formatNullableProbability(packet.signal.longTriggerPUp));
+        text(els.takeProfit1, formatNullableProbability(packet.signal.shortTriggerPUp));
+        text(els.takeProfit2, formatCurrentEdge(packet.direction.pUp, packet.direction.confidence));
+        text(els.rrRatio1, '--');
+        text(els.rrRatio2, '--');
+    }
     if (els.predictionDataNote) {
-        els.predictionDataNote.textContent = state.dataMode === 'Stale Feed'
+        const feedNote = state.dataMode === 'Stale Feed'
             ? 'Prediction derived from stale cache.'
             : 'Prediction sourced from live derived feed.';
+        els.predictionDataNote.textContent = packet.signal.actionable
+            ? feedNote
+            : `${feedNote} NO TRADE until direction and confidence clear the execution gate.`;
     }
+}
+
+function applyRiskPacketLabels(mode) {
+    const noTrade = mode === 'NO_TRADE';
+    text(els.actionLabel, 'Action');
+    text(els.positionSizeLabel, 'Position Size');
+    text(els.entryPriceLabel, noTrade ? 'Reference Price' : 'Entry');
+    text(els.stopLossLabel, noTrade ? 'Long Trigger' : 'Stop Loss');
+    text(els.takeProfit1Label, noTrade ? 'Short Trigger' : 'Take Profit 1');
+    text(els.takeProfit2Label, noTrade ? 'Current Edge' : 'Take Profit 2');
+    text(els.rrRatio1Label, noTrade ? 'Stop / TP' : 'R:R (TP1)');
+    text(els.rrRatio2Label, noTrade ? 'Risk:Reward' : 'R:R (TP2)');
 }
 
 function updateConfidenceRing(confidence, signal) {
@@ -1369,13 +1451,13 @@ function renderSizer() {
         text(els.sizerTp, '--');
         text(els.sizerSl, '--');
         text(els.sizerRr, '--');
+        if (els.applyToLiveBtn) {
+            els.applyToLiveBtn.disabled = true;
+        }
         if (els.sizerAvailabilityNote) {
             els.sizerAvailabilityNote.textContent = 'Requires live prediction.';
         }
         return;
-    }
-    if (els.sizerAvailabilityNote) {
-        els.sizerAvailabilityNote.textContent = '';
     }
 
     if (!state.sizerEdited) {
@@ -1398,23 +1480,35 @@ function renderSizer() {
 
     setSignalPill(els.sizerAction, result.action);
     text(els.sizerSize, `${result.size.toFixed(2)}x`);
-    text(els.sizerTp, `${utils.formatCurrency(result.tp1)} / ${utils.formatCurrency(result.tp2)}`);
-    text(els.sizerSl, utils.formatCurrency(result.sl));
-    text(els.sizerRr, `${result.rr1.toFixed(2)} / ${result.rr2.toFixed(2)}`);
+    text(els.sizerTp, result.actionable
+        ? `${formatNullableCurrency(result.tp1)} / ${formatNullableCurrency(result.tp2)}`
+        : '--');
+    text(els.sizerSl, result.actionable ? formatNullableCurrency(result.sl) : '--');
+    text(els.sizerRr, result.actionable
+        ? `${formatNullableRatio(result.rr1)} / ${formatNullableRatio(result.rr2)}`
+        : '--');
+    if (els.applyToLiveBtn) {
+        els.applyToLiveBtn.disabled = !result.actionable;
+    }
+    if (els.sizerAvailabilityNote) {
+        els.sizerAvailabilityNote.textContent = result.actionable
+            ? ''
+            : 'NO TRADE until P(UP) and confidence clear the execution thresholds.';
+    }
 }
 
 function calculateSizer(confidence, pUp, entry, q10, q50, q90) {
     const sorted = [q10, q50, q90].sort((a, b) => a - b);
-    const action = inferSignal(pUp);
+    const action = resolveTradeSignal(pUp, confidence);
 
-    let size = clamp((confidence - 0.45) / 0.55, 0, 1) * MAX_LEVERAGE;
-    if (confidence < 0.45 || action === 'FLAT') {
+    let size = clamp((confidence - MIN_ACTIONABLE_CONFIDENCE) / (1 - MIN_ACTIONABLE_CONFIDENCE), 0, 1) * MAX_LEVERAGE;
+    if (!isActionableSignal(action)) {
         size = 0;
     }
 
-    let sl = entry;
-    let tp1 = entry;
-    let tp2 = entry;
+    let sl = null;
+    let tp1 = null;
+    let tp2 = null;
 
     if (action === 'LONG') {
         sl = entry * (1 + sorted[0]);
@@ -1430,12 +1524,13 @@ function calculateSizer(confidence, pUp, entry, q10, q50, q90) {
 
     return {
         action,
+        actionable: isActionableSignal(action),
         size,
         sl,
         tp1,
         tp2,
-        rr1: calculateRiskReward(entry, sl, tp1),
-        rr2: calculateRiskReward(entry, sl, tp2)
+        rr1: isActionableSignal(action) ? calculateRiskReward(entry, sl, tp1) : null,
+        rr2: isActionableSignal(action) ? calculateRiskReward(entry, sl, tp2) : null
     };
 }
 
@@ -1460,7 +1555,7 @@ function renderWhatIf() {
 
     const adjustedPUp = clamp(basePrediction.direction.pUp + momentumDelta * 0.6 - (volatilityMultiplier - 1) * 0.12, 0, 1);
     const adjustedConfidence = clamp(basePrediction.direction.confidence + momentumDelta * 0.2 - (volatilityMultiplier - 1) * 0.08, 0, 1);
-    const action = inferSignal(adjustedPUp);
+    const action = resolveTradeSignal(adjustedPUp, adjustedConfidence);
 
     text(els.whatIfPUp, adjustedPUp.toFixed(2));
     setSignalPill(els.whatIfAction, action);
@@ -1493,7 +1588,8 @@ function buildUniverseRows() {
         const symbol = live.symbol;
         const packet = state.symbolPredictions[symbol] || (symbol === state.selectedSymbol ? state.prediction : null);
         const pUp = Number.isFinite(packet?.direction?.pUp) ? packet.direction.pUp : 0.5;
-        const signal = packet?.direction?.signal || inferSignal(pUp);
+        const confidence = Number.isFinite(packet?.direction?.confidence) ? packet.direction.confidence : 0.5;
+        const signal = packet?.signal?.action || packet?.direction?.signal || resolveTradeSignal(pUp, confidence);
         return {
             symbol,
             price: live.price,
@@ -1555,7 +1651,7 @@ function renderUniverseTable() {
                 <td>${utils.formatCurrency(row.price)}</td>
                 <td style="color: ${changeColor};">${utils.formatPercent(row.change / 100)}</td>
                 <td>${row.pUp.toFixed(2)}</td>
-                <td><span class="status-badge ${signalBadge}">${row.signal}</span></td>
+                <td><span class="status-badge ${signalBadge}">${displaySignalLabel(row.signal)}</span></td>
                 <td>${formatLargeMoney(row.volume)}</td>
                 <td><span class="status-badge ${statusBadge}">${row.status.toUpperCase()}</span></td>
             </tr>
@@ -1944,7 +2040,7 @@ function setSignalPill(element, signal) {
     if (!element) return;
     const normalized = (signal || 'FLAT').toUpperCase();
     const type = normalized === 'LONG' ? 'long' : normalized === 'SHORT' ? 'short' : 'flat';
-    element.textContent = normalized;
+    element.textContent = displaySignalLabel(normalized);
     element.className = `signal-pill ${type}`;
 }
 
@@ -2158,10 +2254,61 @@ function setLastUpdated(timestamp) {
     text(els.lastUpdated, `Updated ${utils.formatTimestamp(timestamp, 'time')}`);
 }
 
-function inferSignal(pUp) {
-    if (pUp >= 0.55) return 'LONG';
-    if (pUp <= 0.45) return 'SHORT';
+function displaySignalLabel(signal) {
+    const normalized = String(signal || 'FLAT').toUpperCase();
+    return normalized === 'FLAT' ? 'NO TRADE' : normalized;
+}
+
+function formatSignalFilterLabel(signal) {
+    const normalized = String(signal || 'ALL').toUpperCase();
+    return `Signal: ${normalized === 'ALL' ? 'ALL' : displaySignalLabel(normalized)}`;
+}
+
+function isActionableSignal(signal) {
+    const normalized = String(signal || '').toUpperCase();
+    return normalized === 'LONG' || normalized === 'SHORT';
+}
+
+function resolveTradeSignal(pUp, confidence = 1) {
+    const normalizedPUp = clamp(asNumber(pUp, 0.5), 0, 1);
+    const normalizedConfidence = clamp(asNumber(confidence, 0), 0, 1);
+    if (normalizedConfidence >= MIN_ACTIONABLE_CONFIDENCE && normalizedPUp >= LONG_SIGNAL_THRESHOLD) {
+        return 'LONG';
+    }
+    if (normalizedConfidence >= MIN_ACTIONABLE_CONFIDENCE && normalizedPUp <= SHORT_SIGNAL_THRESHOLD) {
+        return 'SHORT';
+    }
     return 'FLAT';
+}
+
+function inferSignal(pUp) {
+    return resolveTradeSignal(pUp, 1);
+}
+
+function formatNullableCurrency(value) {
+    return Number.isFinite(value) ? utils.formatCurrency(value) : '--';
+}
+
+function formatNullableRatio(value) {
+    return Number.isFinite(value) ? Number(value).toFixed(2) : '--';
+}
+
+function formatNullableProbability(value) {
+    return Number.isFinite(value) ? normalizeProbability(value).toFixed(2) : '--';
+}
+
+function formatCurrentEdge(pUp, confidence) {
+    const normalizedPUp = clamp(asNumber(pUp, 0.5), 0, 1);
+    const normalizedConfidence = clamp(asNumber(confidence, 0), 0, 1);
+    const confidenceGap = MIN_ACTIONABLE_CONFIDENCE - normalizedConfidence;
+    if ((normalizedPUp >= LONG_SIGNAL_THRESHOLD || normalizedPUp <= SHORT_SIGNAL_THRESHOLD) && confidenceGap > 0) {
+        return `Conf gate -${confidenceGap.toFixed(2)}`;
+    }
+
+    const leaningLong = normalizedPUp >= 0.5;
+    const trigger = leaningLong ? LONG_SIGNAL_THRESHOLD : SHORT_SIGNAL_THRESHOLD;
+    const gap = Math.abs(trigger - normalizedPUp);
+    return `${gap.toFixed(2)} from ${leaningLong ? 'LONG' : 'SHORT'}`;
 }
 
 function estimateStopLoss(entry, q10, action) {
@@ -2225,6 +2372,12 @@ function formatLargeMoney(value) {
 
 function currentPrice(symbol) {
     return state.prices[symbol]?.price;
+}
+
+function nullableNumber(value, fallback = null) {
+    if (value === null || value === undefined || value === '') return fallback;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 function asNumber(value, fallback = NaN) {
