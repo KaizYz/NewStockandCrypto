@@ -43,6 +43,9 @@ build/
 # Data (optional - uncomment if needed)
 # data/raw/
 # data/processed/
+data/*.db
+data/*.db-shm
+data/*.db-wal
 
 # Model artifacts (large files)
 # ml-service/artifacts/

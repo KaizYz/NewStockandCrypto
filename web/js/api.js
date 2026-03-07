@@ -32,6 +32,7 @@ const api = {
 
         const config = {
             ...options,
+            credentials: options.credentials || 'same-origin',
             headers
         };
 
@@ -74,6 +75,24 @@ const api = {
     // DELETE request
     async delete(endpoint) {
         return this.request(endpoint, { method: 'DELETE' });
+    },
+
+    // ==================== Auth ====================
+
+    async register(payload) {
+        return this.post('/auth/register', payload);
+    },
+
+    async login(payload) {
+        return this.post('/auth/login', payload);
+    },
+
+    async me() {
+        return this.get('/auth/me');
+    },
+
+    async logout() {
+        return this.post('/auth/logout', {});
     },
 
     // ==================== Market Data ====================

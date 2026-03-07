@@ -5,6 +5,7 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const { createAuthStore } = require('./server/auth-store');
 
 const HOST = process.env.HOST || '127.0.0.1';
 const PORT = Number(process.env.PORT || 9000);
@@ -177,6 +178,7 @@ let trackingActionLog = [];
 let trackingLatestActionAt = null;
 let trackingPreviousTrackedState = new Map();
 let trackingKnownUniverseSymbols = new Set();
+const authStore = createAuthStore({ baseDir: __dirname });
 
 const MIME_TYPES = {
     '.html': 'text/html; charset=utf-8',
@@ -6568,6 +6570,27 @@ const server = http.createServer((req, res) => {
     }
 
     const parsedUrl = new URL(req.url, `http://${req.headers.host || `${HOST}:${PORT}`}`);
+
+    if (parsedUrl.pathname === '/api/auth/register') {
+        authStore.handleRegister(req, res, sendJson, readJsonBody).catch((error) => {
+            sendJson(res, 500, { success: false, error: 'REGISTER_FAILED', message: error.message });
+        });
+        return;
+    }
+    if (parsedUrl.pathname === '/api/auth/login') {
+        authStore.handleLogin(req, res, sendJson, readJsonBody).catch((error) => {
+            sendJson(res, 500, { success: false, error: 'LOGIN_FAILED', message: error.message });
+        });
+        return;
+    }
+    if (parsedUrl.pathname === '/api/auth/me') {
+        authStore.handleMe(req, res, sendJson, parsedUrl);
+        return;
+    }
+    if (parsedUrl.pathname === '/api/auth/logout') {
+        authStore.handleLogout(req, res, sendJson);
+        return;
+    }
 
     if (parsedUrl.pathname === '/api/crypto/prices') {
         handleCryptoPrices(req, res);

@@ -1,0 +1,12 @@
+{
+  "name": "stockandcrypto",
+  "version": "1.0.0",
+  "private": true,
+  "main": "unified-server.js",
+  "scripts": {
+    "start": "node unified-server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0"
+  }
+}

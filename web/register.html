@@ -34,7 +34,7 @@
                 <div class="form-group">
                     <label class="form-label" for="password">Password</label>
                     <input type="password" id="password" class="form-input" placeholder="••••••••" required>
-                    <p class="form-help">Minimum 8 characters with uppercase, lowercase, and numbers</p>
+                    <p class="form-help">Minimum 8 characters.</p>
                 </div>
 
                 <div class="form-group">
@@ -45,7 +45,7 @@
                 <div style="margin-bottom: 1.5rem;">
                     <label class="form-checkbox">
                         <input type="checkbox" id="terms" required>
-                        <span style="font-size: 0.875rem; color: var(--text-secondary);">I agree to the <a href="#" style="color: var(--primary-accent);">Terms of Service</a> and <a href="#" style="color: var(--primary-accent);">Privacy Policy</a></span>
+                        <span style="font-size: 0.875rem; color: var(--text-secondary);">I agree to the demo Terms of Service and Privacy Policy.</span>
                     </label>
                 </div>
 
@@ -69,11 +69,6 @@
         </div>
     </div>
 
-    <script>
-        document.getElementById('registerForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            window.location.href = 'login.html';
-        });
-    </script>
+    <script src="js/auth.js"></script>
 </body>
 </html>
