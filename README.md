@@ -14,7 +14,7 @@ An end-to-end quantitative trading system featuring LSTM+Attention models for di
 
 StockandCrypto provides real-time market data visualization, AI-powered predictions, and trading signal generation with drift detection and model explainability. The platform supports:
 
-- **Multi-Market Coverage**: Crypto (BTC/ETH/SOL + Top 100), CN A-shares (SSE + CSI 300), US Equities (Dow 30, Nasdaq 100, S&P 500)
+- **Multi-Market Coverage**: Crypto (BTC/ETH/SOL + Top 50), CN A-shares (SSE + CSI 300), US Equities (Dow 30, Nasdaq 100, S&P 500)
 - **Multi-Horizon Forecasting**: Hourly (1h/2h/4h) and daily (1d/3d/7d) predictions
 - **Triple Prediction Task**: Direction probability + launch window + magnitude quantiles (q10/q50/q90)
 - **Live Data Integration**: Real-time quotes with session-aware tracking and market phase detection
@@ -321,6 +321,4 @@ Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidel
 - [Yahoo Finance](https://finance.yahoo.com/) - Equity data
 - [EastMoney](https://www.eastmoney.com/) - CN market data
 
----
 
-**Built with ❤️ by the StockandCrypto Team**
