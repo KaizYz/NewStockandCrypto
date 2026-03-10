@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Community Chat - StockandCrypto</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/components.css">
+<style>
+.chat-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 1.5rem;
+  height: calc(100vh - 200px);
+  min-height: 500px;
+}
+
+.chat-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.chat-boards-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.board-item {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  margin-bottom: 0.5rem;
+}
+
+.board-item:hover {
+  background: rgba(0, 229, 255, 0.08);
+  border-color: rgba(0, 229, 255, 0.2);
+}
+
+.board-item.active {
+  background: rgba(0, 229, 255, 0.12);
+  border-color: var(--primary-accent);
+}
+
+.board-item-name {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.board-item-topic {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.board-item-members {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.35rem;
+}
+
+.chat-main {
+  display: flex;
+  flex-direction: column;
+  background: rgba(8, 12, 29, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.chat-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chat-header-info h3 {
+  font-size: 1.1rem;
+  margin-bottom: 0.25rem;
+}
+
+.chat-header-info p {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.message {
+  display: flex;
+  gap: 0.75rem;
+  max-width: 85%;
+}
+
+.message.own {
+  margin-left: auto;
+  flex-direction: row-reverse;
+}
+
+.message-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-accent), var(--success));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.message-content {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  border-top-left-radius: var(--radius-sm);
+}
+
+.message.own .message-content {
+  background: rgba(0, 229, 255, 0.12);
+  border-top-left-radius: var(--radius-md);
+  border-top-right-radius: var(--radius-sm);
+}
+
+.message-header {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+  font-size: 0.78rem;
+}
+
+.message-username {
+  font-weight: 600;
+}
+
+.message-time {
+  color: var(--text-muted);
+}
+
+.message-text {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  word-wrap: break-word;
+}
+
+.chat-input-area {
+  padding: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  gap: 0.75rem;
+}
+
+.chat-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.chat-input:focus {
+  outline: none;
+  border-color: var(--primary-accent);
+}
+
+.online-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--success);
+}
+
+.online-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--success);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.typing-indicator {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 0.5rem 1rem;
+}
+
+.empty-chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 2rem;
+}
+
+.empty-chat h3 {
+  margin-bottom: 0.5rem;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+  .chat-layout {
+    grid-template-columns: 1fr;
+  }
+  .chat-sidebar {
+    display: none;
+  }
+}
+</style>
+</head>
+<body>
+<header class="header">
+<div class="header-container">
+<div class="logo">
+<a href="index.html">
+<span class="logo-icon">&#9671;</span>
+<span class="logo-text">StockandCrypto</span>
+</a>
+</div>
+<nav class="nav" data-site-nav>
+<button class="nav-toggle" id="navToggle" type="button" aria-label="Toggle navigation" aria-controls="navMenu" aria-expanded="false">
+<span></span><span></span><span></span>
+</button>
+<ul class="nav-menu" id="navMenu">
+<li><a href="index.html" class="nav-link">Home</a></li>
+<li class="nav-dropdown">
+<button class="nav-link nav-dropdown-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="marketsMenu">Markets</button>
+<ul class="nav-dropdown-menu" id="marketsMenu">
+<li><a href="crypto.html" class="nav-link">Crypto</a></li>
+<li><a href="cn-equity.html" class="nav-link">CN Equity</a></li>
+<li><a href="us-equity.html" class="nav-link">US Equity</a></li>
+</ul>
+</li>
+<li class="nav-dropdown">
+<button class="nav-link nav-dropdown-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="analysisMenu">Analysis</button>
+<ul class="nav-dropdown-menu" id="analysisMenu">
+<li><a href="model-explorer.html" class="nav-link">AI Models</a></li>
+<li><a href="backtest-lab.html" class="nav-link">Backtest</a></li>
+<li><a href="risk-engine.html" class="nav-link">Risk</a></li>
+</ul>
+</li>
+<li><a href="notes.html" class="nav-link">Notes</a></li>
+<li><a href="chat.html" class="nav-link active">Community</a></li>
+</ul>
+<button class="nav-backdrop" type="button" aria-label="Close navigation"></button>
+</nav>
+<div class="nav-actions">
+<a href="login.html" class="btn btn-secondary btn-sm" id="loginBtn">Login</a>
+<button class="btn btn-primary btn-sm" id="logoutBtn" style="display: none;">Logout</button>
+</div>
+</div>
+</header>
+
+<main style="padding-top: 100px; min-height: 100vh;">
+<div class="container">
+<div class="section-header" style="text-align: left; margin-bottom: 1.5rem;">
+<span class="section-tag">Community</span>
+<h1 class="section-title">Trading Chat</h1>
+<p style="color: var(--text-secondary);">Discuss markets, share insights, and connect with other traders in real-time</p>
+</div>
+
+<div class="chat-layout">
+<!-- Sidebar - Board List -->
+<div class="chat-sidebar">
+<div class="card">
+<div class="card-header">
+<h3 class="card-title">Channels</h3>
+</div>
+<div class="card-body chat-boards-list" id="boardsList">
+<div style="text-align: center; padding: 1rem; color: var(--text-muted);">
+Loading channels...
+</div>
+</div>
+</div>
+
+<div class="card">
+<div class="card-body" style="padding: 0.75rem;">
+<div style="display: flex; justify-content: space-between; align-items: center;">
+<span style="font-size: 0.85rem; color: var(--text-secondary);">Online Users</span>
+<span class="online-indicator" id="onlineCount">
+<span class="online-dot"></span>
+<span>--</span>
+</span>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Main Chat Area -->
+<div class="chat-main">
+<div class="chat-header">
+<div class="chat-header-info">
+<h3 id="currentBoardName">Select a channel</h3>
+<p id="currentBoardTopic">Choose a channel from the sidebar to start chatting</p>
+</div>
+<button class="btn btn-secondary btn-sm" id="joinBtn" style="display: none;">Join Channel</button>
+</div>
+
+<div class="chat-messages" id="messagesContainer">
+<div class="empty-chat">
+<h3>Welcome to Community Chat</h3>
+<p>Select a channel from the sidebar to join the conversation</p>
+</div>
+</div>
+
+<div class="chat-input-area" id="inputArea" style="display: none;">
+<input type="text" class="chat-input" id="messageInput" placeholder="Type a message...">
+<button class="btn btn-primary" id="sendBtn">Send</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+
+<footer style="background: var(--bg-secondary); border-top: 1px solid var(--border-color); padding: 1.5rem 0; margin-top: 2rem;">
+<div class="container">
+<div style="text-align: center;">
+<p style="color: var(--text-muted); font-size: 0.8rem;">
+Real-time chat powered by Supabase • Be respectful and follow community guidelines
+</p>
+</div>
+</div>
+</footer>
+
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/auth.js"></script>
+<script src="js/nav.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/chat.js"></script>
+</body>
+</html>

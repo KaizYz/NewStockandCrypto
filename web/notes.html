@@ -1,97 +1,97 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notes - StockandCrypto</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/components.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notes - StockandCrypto</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/components.css">
 </head>
 <body>
-        <header class="header">
-        <div class="header-container">
-            <div class="logo">
-                <a href="index.html">
-                    <span class="logo-icon">&#9671;</span>
-                    <span class="logo-text">StockandCrypto</span>
-                </a>
-            </div>
-            <nav class="nav" data-site-nav>
-                <button class="nav-toggle" id="navToggle" type="button" aria-label="Toggle navigation" aria-controls="navMenu" aria-expanded="false">
-                    <span></span><span></span><span></span>
-                </button>
-                <ul class="nav-menu" id="navMenu">
-                    <li><a href="index.html" class="nav-link">Home</a></li>
-                    <li class="nav-dropdown">
-                        <button class="nav-link nav-dropdown-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="marketsMenu">Markets</button>
-                        <ul class="nav-dropdown-menu" id="marketsMenu">
-                            <li><a href="crypto.html" class="nav-link">Crypto</a></li>
-                            <li><a href="cn-equity.html" class="nav-link">CN Equity</a></li>
-                            <li><a href="us-equity.html" class="nav-link">US Equity</a></li>
-                        </ul>
-                    </li>
-                    <li class="nav-dropdown">
-                        <button class="nav-link nav-dropdown-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="analysisMenu">Analysis</button>
-                        <ul class="nav-dropdown-menu" id="analysisMenu">
-                            <li><a href="model-explorer.html" class="nav-link">AI Models</a></li>
-                            <li><a href="backtest-lab.html" class="nav-link">Backtest</a></li>
-                            <li><a href="risk-engine.html" class="nav-link">Risk</a></li>
-                        </ul>
-                    </li>
-                    <li class="nav-dropdown">
-                        <button class="nav-link nav-dropdown-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="sessionMenu">Session Forecast</button>
-                        <ul class="nav-dropdown-menu" id="sessionMenu">
-                            <li><a href="session-crypto.html" class="nav-link">Crypto Sessions</a></li>
-                            <li><a href="session-index.html" class="nav-link">A-Share Index Sessions</a></li>
-                            <li><a href="session-index-us.html" class="nav-link">US Index Sessions</a></li>
-                        </ul>
-                    </li>
-                    <li><a href="tracking.html" class="nav-link">Tracking</a></li>
-                </ul>
-                <button class="nav-backdrop" type="button" aria-label="Close navigation"></button>
-            </nav>
-            <div class="nav-actions">
-                <a href="login.html" class="btn btn-secondary btn-sm">Login</a>
-            </div>
-        </div>
-    </header>
+<header class="header">
+<div class="header-container">
+<div class="logo">
+<a href="index.html">
+<span class="logo-icon">&#9671;</span>
+<span class="logo-text">StockandCrypto</span>
+</a>
+</div>
+<nav class="nav" data-site-nav>
+<button class="nav-toggle" id="navToggle" type="button" aria-label="Toggle navigation" aria-controls="navMenu" aria-expanded="false">
+<span></span><span></span><span></span>
+</button>
+<ul class="nav-menu" id="navMenu">
+<li><a href="index.html" class="nav-link">Home</a></li>
+<li class="nav-dropdown">
+<button class="nav-link nav-dropdown-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="marketsMenu">Markets</button>
+<ul class="nav-dropdown-menu" id="marketsMenu">
+<li><a href="crypto.html" class="nav-link">Crypto</a></li>
+<li><a href="cn-equity.html" class="nav-link">CN Equity</a></li>
+<li><a href="us-equity.html" class="nav-link">US Equity</a></li>
+</ul>
+</li>
+<li class="nav-dropdown">
+<button class="nav-link nav-dropdown-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="analysisMenu">Analysis</button>
+<ul class="nav-dropdown-menu" id="analysisMenu">
+<li><a href="model-explorer.html" class="nav-link">AI Models</a></li>
+<li><a href="backtest-lab.html" class="nav-link">Backtest</a></li>
+<li><a href="risk-engine.html" class="nav-link">Risk</a></li>
+</ul>
+</li>
+<li class="nav-dropdown">
+<button class="nav-link nav-dropdown-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="sessionMenu">Session Forecast</button>
+<ul class="nav-dropdown-menu" id="sessionMenu">
+<li><a href="session-crypto.html" class="nav-link">Crypto Sessions</a></li>
+<li><a href="session-index.html" class="nav-link">A-Share Index Sessions</a></li>
+<li><a href="session-index-us.html" class="nav-link">US Index Sessions</a></li>
+</ul>
+</li>
+<li><a href="tracking.html" class="nav-link">Tracking</a></li>
+</ul>
+<button class="nav-backdrop" type="button" aria-label="Close navigation"></button>
+</nav>
+<div class="nav-actions">
+<a href="login.html" class="btn btn-secondary btn-sm" id="loginBtn">Login</a>
+<button class="btn btn-primary btn-sm" id="logoutBtn" style="display: none;">Logout</button>
+</div>
+</div>
+</header>
 
-    <main style="padding-top: 100px; min-height: 100vh;">
-        <div class="container">
-            <div class="section-header" style="text-align: left; margin-bottom: 2rem;">
-                <span class="section-tag">Research</span>
-                <h1 class="section-title">Trading Notes</h1>
-                <p style="color: var(--text-secondary);">Document insights, strategies, and observations for your trading journey</p>
-            </div>
+<main style="padding-top: 100px; min-height: 100vh;">
+<div class="container">
+<div class="section-header" style="text-align: left; margin-bottom: 2rem;">
+<span class="section-tag">Research</span>
+<h1 class="section-title">Trading Notes</h1>
+<p style="color: var(--text-secondary);">Document insights, strategies, and observations for your trading journey</p>
+</div>
 
-            <!-- Note Editor -->
-            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; margin-bottom: 2rem;">
-                <div class="card">
-                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-                        <h3 class="card-title">New Note</h3>
-                        <div style="display: flex; gap: 0.5rem;">
-                            <button class="btn btn-secondary btn-sm">Save Draft</button>
-                            <button class="btn btn-primary btn-sm">Publish</button>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="form-group">
-                            <input type="text" class="form-input" placeholder="Note title..." style="font-size: 1.25rem; font-weight: 600;">
-                        </div>
-                        <div class="form-group">
-                            <select class="form-select">
-                                <option>Select Market</option>
-                                <option>Crypto</option>
-                                <option>CN A-Shares</option>
-                                <option>US Equities</option>
-                                <option>General</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <input type="text" class="form-input" placeholder="Tags (comma separated)...">
-                        </div>
-                        <div class="form-group">
-                            <textarea class="form-textarea" rows="12" placeholder="Write your note here...
+<!-- Note Editor -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+<div class="card">
+<div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+<h3 class="card-title" id="editorTitle">New Note</h3>
+<div style="display: flex; gap: 0.5rem;">
+<button class="btn btn-secondary btn-sm" id="clearBtn">Clear</button>
+<button class="btn btn-primary btn-sm" id="saveBtn">Save Note</button>
+</div>
+</div>
+<div class="card-body">
+<div class="form-group">
+<input type="text" class="form-input" id="noteTitle" placeholder="Note title..." style="font-size: 1.25rem; font-weight: 600;">
+</div>
+<div class="form-group">
+<select class="form-select" id="noteMarket">
+<option value="General">General</option>
+<option value="Crypto">Crypto</option>
+<option value="CN A-Shares">CN A-Shares</option>
+<option value="US Equities">US Equities</option>
+</select>
+</div>
+<div class="form-group">
+<input type="text" class="form-input" id="noteTags" placeholder="Tags (comma separated)...">
+</div>
+<div class="form-group">
+<textarea class="form-textarea" id="noteContent" rows="12" placeholder="Write your note here...
 
 You can include:
 - Market observations
@@ -99,144 +99,107 @@ You can include:
 - Model insights
 - Risk management notes
 - Performance analysis"></textarea>
-                        </div>
-                        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-                            <span class="status-badge info">Markdown Supported</span>
-                            <span class="status-badge success">Auto-saved</span>
-                        </div>
-                    </div>
-                </div>
+</div>
+<div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+<span class="status-badge info">Markdown Supported</span>
+<span class="status-badge success" id="autoSaveStatus">Auto-save enabled</span>
+</div>
+</div>
+</div>
 
-                <div>
-                    <div class="card" style="margin-bottom: 1rem;">
-                        <div class="card-header">
-                            <h3 class="card-title">Quick Stats</h3>
-                        </div>
-                        <div class="card-body">
-                            <div style="margin-bottom: 1rem;">
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                                    <span style="color: var(--text-secondary);">Total Notes:</span>
-                                    <span style="font-weight: 600;">24</span>
-                                </div>
-                            </div>
-                            <div style="margin-bottom: 1rem;">
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                                    <span style="color: var(--text-secondary);">This Week:</span>
-                                    <span style="font-weight: 600; color: var(--success);">+5</span>
-                                </div>
-                            </div>
-                            <div style="margin-bottom: 1rem;">
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                                    <span style="color: var(--text-secondary);">Crypto Notes:</span>
-                                    <span style="font-weight: 600;">12</span>
-                                </div>
-                            </div>
-                            <div>
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                                    <span style="color: var(--text-secondary);">Equity Notes:</span>
-                                    <span style="font-weight: 600;">8</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+<div>
+<div class="card" style="margin-bottom: 1rem;">
+<div class="card-header">
+<h3 class="card-title">Quick Stats</h3>
+</div>
+<div class="card-body" id="statsContainer">
+<div style="margin-bottom: 1rem;">
+<div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+<span style="color: var(--text-secondary);">Total Notes:</span>
+<span style="font-weight: 600;" id="totalNotes">0</span>
+</div>
+</div>
+<div style="margin-bottom: 1rem;">
+<div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+<span style="color: var(--text-secondary);">This Week:</span>
+<span style="font-weight: 600; color: var(--success);" id="weekNotes">+0</span>
+</div>
+</div>
+<div style="margin-bottom: 1rem;">
+<div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+<span style="color: var(--text-secondary);">Crypto Notes:</span>
+<span style="font-weight: 600;" id="cryptoNotes">0</span>
+</div>
+</div>
+<div>
+<div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+<span style="color: var(--text-secondary);">Equity Notes:</span>
+<span style="font-weight: 600;" id="equityNotes">0</span>
+</div>
+</div>
+</div>
+</div>
 
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title">Popular Tags</h3>
-                        </div>
-                        <div class="card-body">
-                            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-                                <span class="status-badge info">strategy</span>
-                                <span class="status-badge success">BTC</span>
-                                <span class="status-badge warning">risk</span>
-                                <span class="status-badge info">model</span>
-                                <span class="status-badge success">ETH</span>
-                                <span class="status-badge warning">volatility</span>
-                                <span class="status-badge info">backtest</span>
-                                <span class="status-badge success">momentum</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+<div class="card">
+<div class="card-header">
+<h3 class="card-title">Popular Tags</h3>
+</div>
+<div class="card-body" id="tagsContainer">
+<div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+<span class="status-badge info">Loading...</span>
+</div>
+</div>
+</div>
+</div>
+</div>
 
-            <!-- Recent Notes -->
-            <div class="table-container">
-                <div class="table-header">
-                    <h3 style="font-size: 1.25rem; font-weight: 600;">Recent Notes</h3>
-                    <div class="table-controls">
-                        <input type="text" class="search-input" placeholder="Search notes...">
-                        <button class="filter-btn">Filter</button>
-                    </div>
-                </div>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Title</th>
-                            <th>Market</th>
-                            <th>Tags</th>
-                            <th>Created</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>BTC Bullish Momentum Analysis</strong></td>
-                            <td>Crypto</td>
-                            <td><span class="status-badge info" style="font-size: 0.7rem;">BTC</span> <span class="status-badge success" style="font-size: 0.7rem;">momentum</span></td>
-                            <td style="color: var(--text-muted);">2026-03-02</td>
-                            <td>
-                                <button class="btn btn-secondary btn-sm">Edit</button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>Risk Management Strategy v2</strong></td>
-                            <td>General</td>
-                            <td><span class="status-badge warning" style="font-size: 0.7rem;">risk</span></td>
-                            <td style="color: var(--text-muted);">2026-03-01</td>
-                            <td>
-                                <button class="btn btn-secondary btn-sm">Edit</button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>SSE Index Session Patterns</strong></td>
-                            <td>CN A-Shares</td>
-                            <td><span class="status-badge info" style="font-size: 0.7rem;">session</span> <span class="status-badge success" style="font-size: 0.7rem;">SSE</span></td>
-                            <td style="color: var(--text-muted);">2026-02-28</td>
-                            <td>
-                                <button class="btn btn-secondary btn-sm">Edit</button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>Model Performance Review</strong></td>
-                            <td>General</td>
-                            <td><span class="status-badge info" style="font-size: 0.7rem;">model</span> <span class="status-badge warning" style="font-size: 0.7rem;">backtest</span></td>
-                            <td style="color: var(--text-muted);">2026-02-27</td>
-                            <td>
-                                <button class="btn btn-secondary btn-sm">Edit</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </main>
+<!-- Recent Notes -->
+<div class="table-container">
+<div class="table-header">
+<h3 style="font-size: 1.25rem; font-weight: 600;">Recent Notes</h3>
+<div class="table-controls">
+<input type="text" class="search-input" id="searchInput" placeholder="Search notes...">
+<button class="filter-btn" id="filterBtn">Filter</button>
+</div>
+</div>
+<table class="data-table">
+<thead>
+<tr>
+<th>Title</th>
+<th>Market</th>
+<th>Tags</th>
+<th>Created</th>
+<th>Actions</th>
+</tr>
+</thead>
+<tbody id="notesList">
+<tr>
+<td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+Loading notes...
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</main>
 
-    <footer style="background: var(--bg-secondary); border-top: 1px solid var(--border-color); padding: 2rem 0; margin-top: 4rem;">
-        <div class="container">
-            <div style="text-align: center;">
-                <p style="color: var(--text-muted); font-size: 0.875rem;">
-                    © 2026 StockandCrypto. AI-powered quantitative trading platform.
-                </p>
-            </div>
-        </div>
-    </footer>
+<footer style="background: var(--bg-secondary); border-top: 1px solid var(--border-color); padding: 2rem 0; margin-top: 4rem;">
+<div class="container">
+<div style="text-align: center;">
+<p style="color: var(--text-muted); font-size: 0.875rem;">
+© 2026 StockandCrypto. AI-powered quantitative trading platform.
+</p>
+</div>
+</div>
+</footer>
 
-    <script src="js/auth.js"></script>
-    <script src="js/nav.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/notes.js"></script>
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/auth.js"></script>
+<script src="js/nav.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/notes.js"></script>
 </body>
 </html>
-
-
