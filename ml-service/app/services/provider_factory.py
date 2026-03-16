@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
-from app.services.live_provider import LiveProvider
 from app.services.mock_provider import MockProvider
 
 
@@ -32,6 +31,8 @@ class ProviderFactory:
         artifact_dir = str(os.getenv('MODEL_ARTIFACT_DIR', 'ml-service/artifacts/latest'))
 
         if mode == 'live':
+            from app.services.live_provider import LiveProvider
+
             provider = LiveProvider(artifact_dir=artifact_dir)
             model_version = provider.model_version
         else:
