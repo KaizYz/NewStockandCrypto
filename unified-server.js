@@ -7111,6 +7111,24 @@ function serveStatic(req, res) {
     });
 }
 
+function handleAsyncRoute(res, promise, errorCode = 'REQUEST_FAILED') {
+    Promise.resolve(promise).catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`${errorCode}: ${message}`);
+        if (error instanceof Error && error.stack) {
+            console.error(error.stack);
+        }
+        if (res.writableEnded) {
+            return;
+        }
+        sendJson(res, 500, {
+            success: false,
+            error: errorCode,
+            message
+        });
+    });
+}
+
 const server = http.createServer((req, res) => {
     if (!req.url) {
         sendJson(res, 400, { error: 'Empty URL' });
@@ -7120,15 +7138,11 @@ const server = http.createServer((req, res) => {
     const parsedUrl = new URL(req.url, `http://${req.headers.host || `${HOST}:${PORT}`}`);
 
     if (parsedUrl.pathname === '/api/auth/register') {
-        authStore.handleRegister(req, res, sendJson, readJsonBody).catch((error) => {
-            sendJson(res, 500, { success: false, error: 'REGISTER_FAILED', message: error.message });
-        });
+        handleAsyncRoute(res, authStore.handleRegister(req, res, sendJson, readJsonBody), 'REGISTER_FAILED');
         return;
     }
     if (parsedUrl.pathname === '/api/auth/login') {
-        authStore.handleLogin(req, res, sendJson, readJsonBody).catch((error) => {
-            sendJson(res, 500, { success: false, error: 'LOGIN_FAILED', message: error.message });
-        });
+        handleAsyncRoute(res, authStore.handleLogin(req, res, sendJson, readJsonBody), 'LOGIN_FAILED');
         return;
     }
     if (parsedUrl.pathname === '/api/auth/me') {
@@ -7140,211 +7154,187 @@ const server = http.createServer((req, res) => {
         return;
     }
     if (parsedUrl.pathname === '/api/notes') {
-        handleNotesCollectionRoute(req, res, parsedUrl).catch((error) => {
-            sendJson(res, 500, { success: false, error: 'NOTES_FAILED', message: error.message });
-        });
+        handleAsyncRoute(res, handleNotesCollectionRoute(req, res, parsedUrl), 'NOTES_FAILED');
         return;
     }
     if (parsedUrl.pathname.startsWith('/api/notes/share/')) {
         const shareId = decodeURIComponent(parsedUrl.pathname.replace('/api/notes/share/', ''));
-        handleNoteShareRoute(req, res, shareId).catch((error) => {
-            sendJson(res, 500, { success: false, error: 'NOTE_SHARE_FAILED', message: error.message });
-        });
+        handleAsyncRoute(res, handleNoteShareRoute(req, res, shareId), 'NOTE_SHARE_FAILED');
         return;
     }
     if (parsedUrl.pathname === '/api/community/ideas') {
-        handleCommunityIdeasRoute(req, res, parsedUrl).catch((error) => {
-            sendJson(res, 500, { success: false, error: 'COMMUNITY_IDEAS_FAILED', message: error.message });
-        });
+        handleAsyncRoute(res, handleCommunityIdeasRoute(req, res, parsedUrl), 'COMMUNITY_IDEAS_FAILED');
         return;
     }
     if (parsedUrl.pathname.startsWith('/api/community/notes/share/')) {
         const shareId = decodeURIComponent(parsedUrl.pathname.replace('/api/community/notes/share/', ''));
-        handleCommunityShareRoute(req, res, shareId).catch((error) => {
-            sendJson(res, 500, { success: false, error: 'COMMUNITY_SHARE_FAILED', message: error.message });
-        });
+        handleAsyncRoute(res, handleCommunityShareRoute(req, res, shareId), 'COMMUNITY_SHARE_FAILED');
         return;
     }
     if (/^\/api\/community\/notes\/\d+$/.test(parsedUrl.pathname)) {
         const noteId = Number(parsedUrl.pathname.split('/')[4]);
-        handleCommunityNoteRoute(req, res, noteId).catch((error) => {
-            sendJson(res, 500, { success: false, error: 'COMMUNITY_NOTE_FAILED', message: error.message });
-        });
+        handleAsyncRoute(res, handleCommunityNoteRoute(req, res, noteId), 'COMMUNITY_NOTE_FAILED');
         return;
     }
     if (/^\/api\/notes\/\d+\/versions$/.test(parsedUrl.pathname)) {
         const noteId = Number(parsedUrl.pathname.split('/')[3]);
-        handleNoteVersionsRoute(req, res, noteId, parsedUrl).catch((error) => {
-            sendJson(res, 500, { success: false, error: 'NOTE_VERSIONS_FAILED', message: error.message });
-        });
+        handleAsyncRoute(res, handleNoteVersionsRoute(req, res, noteId, parsedUrl), 'NOTE_VERSIONS_FAILED');
         return;
     }
     if (/^\/api\/notes\/\d+$/.test(parsedUrl.pathname)) {
         const noteId = Number(parsedUrl.pathname.split('/')[3]);
-        handleNoteItemRoute(req, res, noteId).catch((error) => {
-            sendJson(res, 500, { success: false, error: 'NOTE_ITEM_FAILED', message: error.message });
-        });
+        handleAsyncRoute(res, handleNoteItemRoute(req, res, noteId), 'NOTE_ITEM_FAILED');
         return;
     }
     if (parsedUrl.pathname === '/api/site-positions') {
-        handleSitePositionsCollectionRoute(req, res, parsedUrl).catch((error) => {
-            sendJson(res, 500, { success: false, error: 'SITE_POSITIONS_FAILED', message: error.message });
-        });
+        handleAsyncRoute(res, handleSitePositionsCollectionRoute(req, res, parsedUrl), 'SITE_POSITIONS_FAILED');
         return;
     }
     if (/^\/api\/site-positions\/\d+\/close$/.test(parsedUrl.pathname)) {
         const positionId = Number(parsedUrl.pathname.split('/')[3]);
-        handleSitePositionCloseRoute(req, res, positionId).catch((error) => {
-            sendJson(res, 500, { success: false, error: 'SITE_POSITION_CLOSE_FAILED', message: error.message });
-        });
+        handleAsyncRoute(res, handleSitePositionCloseRoute(req, res, positionId), 'SITE_POSITION_CLOSE_FAILED');
         return;
     }
     if (/^\/api\/site-positions\/\d+\/history$/.test(parsedUrl.pathname)) {
         const positionId = Number(parsedUrl.pathname.split('/')[3]);
-        handleSitePositionHistoryRoute(req, res, positionId, parsedUrl).catch((error) => {
-            sendJson(res, 500, { success: false, error: 'SITE_POSITION_HISTORY_FAILED', message: error.message });
-        });
+        handleAsyncRoute(res, handleSitePositionHistoryRoute(req, res, positionId, parsedUrl), 'SITE_POSITION_HISTORY_FAILED');
         return;
     }
     if (parsedUrl.pathname === '/api/site-stop-orders') {
-        handleSiteStopOrdersCollectionRoute(req, res, parsedUrl).catch((error) => {
-            sendJson(res, 500, { success: false, error: 'SITE_STOP_ORDERS_FAILED', message: error.message });
-        });
+        handleAsyncRoute(res, handleSiteStopOrdersCollectionRoute(req, res, parsedUrl), 'SITE_STOP_ORDERS_FAILED');
         return;
     }
     if (/^\/api\/site-stop-orders\/\d+\/cancel$/.test(parsedUrl.pathname)) {
         const stopOrderId = Number(parsedUrl.pathname.split('/')[3]);
-        handleSiteStopOrderCancelRoute(req, res, stopOrderId).catch((error) => {
-            sendJson(res, 500, { success: false, error: 'SITE_STOP_ORDER_CANCEL_FAILED', message: error.message });
-        });
+        handleAsyncRoute(res, handleSiteStopOrderCancelRoute(req, res, stopOrderId), 'SITE_STOP_ORDER_CANCEL_FAILED');
         return;
     }
 
     if (parsedUrl.pathname === '/api/crypto/prices') {
-        handleCryptoPrices(req, res);
+        handleAsyncRoute(res, handleCryptoPrices(req, res), 'CRYPTO_PRICES_FAILED');
         return;
     }
     if (parsedUrl.pathname === '/api/crypto/universe') {
-        handleCryptoUniverse(req, res);
+        handleAsyncRoute(res, handleCryptoUniverse(req, res), 'CRYPTO_UNIVERSE_FAILED');
         return;
     }
     if (parsedUrl.pathname.startsWith('/api/crypto/history/')) {
         const symbol = decodeURIComponent(parsedUrl.pathname.replace('/api/crypto/history/', ''));
-        handleCryptoHistory(req, res, parsedUrl, symbol);
+        handleAsyncRoute(res, handleCryptoHistory(req, res, parsedUrl, symbol), 'CRYPTO_HISTORY_FAILED');
         return;
     }
     if (parsedUrl.pathname.startsWith('/api/crypto/prediction/')) {
         const symbol = decodeURIComponent(parsedUrl.pathname.replace('/api/crypto/prediction/', ''));
-        handleCryptoPrediction(req, res, symbol);
+        handleAsyncRoute(res, handleCryptoPrediction(req, res, symbol), 'CRYPTO_PREDICTION_FAILED');
         return;
     }
     if (parsedUrl.pathname.startsWith('/api/crypto/performance/')) {
         const symbol = decodeURIComponent(parsedUrl.pathname.replace('/api/crypto/performance/', ''));
-        handleCryptoPerformance(req, res, symbol);
+        handleAsyncRoute(res, handleCryptoPerformance(req, res, symbol), 'CRYPTO_PERFORMANCE_FAILED');
         return;
     }
     if (parsedUrl.pathname === '/api/session/crypto') {
-        handleCryptoSessionForecast(req, res, parsedUrl);
+        handleAsyncRoute(res, handleCryptoSessionForecast(req, res, parsedUrl), 'CRYPTO_SESSION_FAILED');
         return;
     }
 
     if (parsedUrl.pathname === '/api/cn-equity/live') {
-        handleCnLive(req, res);
+        handleAsyncRoute(res, handleCnLive(req, res), 'CN_LIVE_FAILED');
         return;
     }
     if (parsedUrl.pathname === '/api/cn-equity/prices') {
-        handleCnPrices(req, res, parsedUrl);
+        handleAsyncRoute(res, handleCnPrices(req, res, parsedUrl), 'CN_PRICES_FAILED');
         return;
     }
     if (parsedUrl.pathname === '/api/cn-equity/indices/history') {
-        handleCnIndicesHistory(req, res, parsedUrl);
+        handleAsyncRoute(res, handleCnIndicesHistory(req, res, parsedUrl), 'CN_INDICES_HISTORY_FAILED');
         return;
     }
     if (parsedUrl.pathname === '/api/cn-equity/csi300/quotes') {
-        handleCnQuotes(req, res, parsedUrl);
+        handleAsyncRoute(res, handleCnQuotes(req, res, parsedUrl), 'CN_QUOTES_FAILED');
         return;
     }
     if (parsedUrl.pathname === '/api/cn-equity/csi300/ranking') {
-        handleCnRanking(req, res, parsedUrl);
+        handleAsyncRoute(res, handleCnRanking(req, res, parsedUrl), 'CN_RANKING_FAILED');
         return;
     }
     if (parsedUrl.pathname.startsWith('/api/cn-equity/prediction/')) {
         const indexCode = decodeURIComponent(parsedUrl.pathname.replace('/api/cn-equity/prediction/', ''));
-        handleCnIndexPrediction(req, res, indexCode);
+        handleAsyncRoute(res, handleCnIndexPrediction(req, res, indexCode), 'CN_PREDICTION_FAILED');
         return;
     }
     if (parsedUrl.pathname.startsWith('/api/cn-equity/stock/')) {
         const stockCode = decodeURIComponent(parsedUrl.pathname.replace('/api/cn-equity/stock/', ''));
-        handleCnStock(req, res, stockCode);
+        handleAsyncRoute(res, handleCnStock(req, res, stockCode), 'CN_STOCK_FAILED');
         return;
     }
     if (parsedUrl.pathname === '/api/cn-equity/predictions') {
-        handleCnPredictionsAlias(req, res, parsedUrl);
+        handleAsyncRoute(res, handleCnPredictionsAlias(req, res, parsedUrl), 'CN_PREDICTIONS_FAILED');
         return;
     }
 
     if (parsedUrl.pathname === '/api/us-equity/prices') {
-        handleUsPrices(req, res, parsedUrl);
+        handleAsyncRoute(res, handleUsPrices(req, res, parsedUrl), 'US_PRICES_FAILED');
         return;
     }
     if (parsedUrl.pathname === '/api/us-equity/indices/history') {
-        handleUsIndicesHistory(req, res, parsedUrl);
+        handleAsyncRoute(res, handleUsIndicesHistory(req, res, parsedUrl), 'US_INDICES_HISTORY_FAILED');
         return;
     }
     if (parsedUrl.pathname === '/api/us-equity/indices') {
-        handleUsIndices(req, res);
+        handleAsyncRoute(res, handleUsIndices(req, res), 'US_INDICES_FAILED');
         return;
     }
     if (parsedUrl.pathname === '/api/us-equity/sp500/quotes') {
-        handleUsSp500Quotes(req, res, parsedUrl);
+        handleAsyncRoute(res, handleUsSp500Quotes(req, res, parsedUrl), 'US_SP500_QUOTES_FAILED');
         return;
     }
     if (parsedUrl.pathname === '/api/us-equity/top-movers') {
-        handleUsTopMovers(req, res, parsedUrl);
+        handleAsyncRoute(res, handleUsTopMovers(req, res, parsedUrl), 'US_TOP_MOVERS_FAILED');
         return;
     }
     if (parsedUrl.pathname.startsWith('/api/us-equity/prediction/')) {
         const indexSymbol = decodeURIComponent(parsedUrl.pathname.replace('/api/us-equity/prediction/', ''));
-        handleUsIndexPrediction(req, res, indexSymbol);
+        handleAsyncRoute(res, handleUsIndexPrediction(req, res, indexSymbol), 'US_PREDICTION_FAILED');
         return;
     }
     if (parsedUrl.pathname.startsWith('/api/us-equity/stock/')) {
         const symbol = decodeURIComponent(parsedUrl.pathname.replace('/api/us-equity/stock/', ''));
-        handleUsStock(req, res, symbol);
+        handleAsyncRoute(res, handleUsStock(req, res, symbol), 'US_STOCK_FAILED');
         return;
     }
     if (parsedUrl.pathname === '/api/us-equity/predictions') {
-        handleUsPredictionsAlias(req, res, parsedUrl);
+        handleAsyncRoute(res, handleUsPredictionsAlias(req, res, parsedUrl), 'US_PREDICTIONS_FAILED');
         return;
     }
 
     if (parsedUrl.pathname === '/api/tracking/summary') {
-        handleTrackingSummary(req, res);
+        handleAsyncRoute(res, handleTrackingSummary(req, res), 'TRACKING_SUMMARY_FAILED');
         return;
     }
     if (parsedUrl.pathname === '/api/tracking/universe') {
-        handleTrackingUniverse(req, res, parsedUrl);
+        handleAsyncRoute(res, handleTrackingUniverse(req, res, parsedUrl), 'TRACKING_UNIVERSE_FAILED');
         return;
     }
     if (parsedUrl.pathname === '/api/tracking/factors') {
-        handleTrackingFactors(req, res, parsedUrl);
+        handleAsyncRoute(res, handleTrackingFactors(req, res, parsedUrl), 'TRACKING_FACTORS_FAILED');
         return;
     }
     if (parsedUrl.pathname === '/api/tracking/coverage') {
-        handleTrackingCoverage(req, res);
+        handleAsyncRoute(res, handleTrackingCoverage(req, res), 'TRACKING_COVERAGE_FAILED');
         return;
     }
     if (parsedUrl.pathname === '/api/tracking/actions') {
-        handleTrackingActions(req, res, parsedUrl);
+        handleAsyncRoute(res, handleTrackingActions(req, res, parsedUrl), 'TRACKING_ACTIONS_FAILED');
         return;
     }
     if (parsedUrl.pathname === '/api/tracking/simulate') {
-        handleTrackingSimulate(req, res);
+        handleAsyncRoute(res, handleTrackingSimulate(req, res), 'TRACKING_SIMULATE_FAILED');
         return;
     }
 
     if (parsedUrl.pathname === '/api/home/landing') {
-        handleHomeLanding(req, res);
+        handleAsyncRoute(res, handleHomeLanding(req, res), 'HOME_LANDING_FAILED');
         return;
     }
 
@@ -7364,6 +7354,11 @@ const server = http.createServer((req, res) => {
     }
 
     serveStatic(req, res);
+});
+
+process.on('unhandledRejection', (reason) => {
+    const message = reason instanceof Error ? reason.stack || reason.message : String(reason);
+    console.error(`UNHANDLED_REJECTION: ${message}`);
 });
 
 server.listen(PORT, HOST, () => {
