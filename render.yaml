@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: stockandcrypto
+    name: newstockandcrypto
     env: node
     region: oregon
     plan: free
@@ -18,3 +18,22 @@ services:
         value: "0.0.0.0"
       - key: PORT
         value: "10000"
+      - key: MODEL_EXPLORER_SCHEME
+        value: "https"
+      - key: MODEL_EXPLORER_HOST
+        value: "newstockandcrypto-ml.onrender.com"
+      - key: MODEL_EXPLORER_PORT
+        value: "443"
+
+  - type: web
+    name: newstockandcrypto-ml
+    env: python
+    region: oregon
+    plan: free
+    rootDir: ml-service
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: MODEL_EXPLORER_MODE
+        value: "mock"
