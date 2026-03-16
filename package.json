@@ -4,9 +4,19 @@
   "private": true,
   "main": "unified-server.js",
   "scripts": {
-    "start": "node unified-server.js"
+    "start": "node unified-server.js",
+    "position-server": "node server/position-server.js",
+    "start:all": "concurrently \"npm start\" \"npm run position-server\""
   },
   "dependencies": {
-    "better-sqlite3": "^11.10.0"
+    "better-sqlite3": "^11.10.0",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "ws": "^8.14.2",
+    "axios": "^1.6.0",
+    "@supabase/supabase-js": "^2.38.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
   }
 }

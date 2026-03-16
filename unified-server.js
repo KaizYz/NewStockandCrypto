@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const { createAuthStore } = require('./server/auth-store');
 const { createNotesStore } = require('./server/notes-store');
+const { createPositionsStore } = require('./server/positions-store');
 
 const HOST = process.env.HOST || '127.0.0.1';
 const PORT = Number(process.env.PORT || 9000);
@@ -181,6 +182,7 @@ let trackingPreviousTrackedState = new Map();
 let trackingKnownUniverseSymbols = new Set();
 const authStore = createAuthStore({ baseDir: __dirname });
 const notesStore = createNotesStore({ baseDir: __dirname });
+const positionsStore = createPositionsStore({ baseDir: __dirname });
 
 const MIME_TYPES = {
     '.html': 'text/html; charset=utf-8',
@@ -260,6 +262,30 @@ function normalizeNotePayload(body = {}) {
         is_pinned: body.is_pinned,
         is_favorite: body.is_favorite,
         is_public: body.is_public
+    };
+}
+
+function normalizePositionPayload(body = {}) {
+    return {
+        symbol: body.symbol,
+        market: body.market,
+        side: body.side,
+        entry_price: body.entry_price,
+        quantity: body.quantity,
+        notes: body.notes
+    };
+}
+
+function normalizeStopOrderPayload(body = {}) {
+    return {
+        position_id: body.position_id,
+        order_type: body.order_type,
+        trigger_price: body.trigger_price,
+        trigger_type: body.trigger_type,
+        trail_percent: body.trail_percent,
+        highest_price: body.highest_price,
+        lowest_price: body.lowest_price,
+        quantity: body.quantity
     };
 }
 
@@ -368,6 +394,121 @@ async function handleNoteShareRoute(req, res, shareId) {
     }
 
     sendJson(res, 200, { success: true, note });
+}
+
+async function handleSitePositionsCollectionRoute(req, res, parsedUrl) {
+    const user = requireAuthenticatedSiteUser(req, res);
+    if (!user) {
+        return;
+    }
+
+    if (req.method === 'GET') {
+        const positions = positionsStore.listPositions(user.id, {
+            status: parsedUrl.searchParams.get('status'),
+            limit: parsedUrl.searchParams.get('limit')
+        });
+        sendJson(res, 200, { success: true, positions });
+        return;
+    }
+
+    if (req.method === 'POST') {
+        const body = await readJsonBody(req);
+        const position = positionsStore.createPosition(user.id, normalizePositionPayload(body));
+        sendJson(res, 201, { success: true, position });
+        return;
+    }
+
+    sendJson(res, 405, { success: false, error: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' });
+}
+
+async function handleSitePositionCloseRoute(req, res, positionId) {
+    const user = requireAuthenticatedSiteUser(req, res);
+    if (!user) {
+        return;
+    }
+
+    if (req.method !== 'POST') {
+        sendJson(res, 405, { success: false, error: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' });
+        return;
+    }
+
+    const body = await readJsonBody(req);
+    const result = positionsStore.closePosition(user.id, positionId, {
+        price: body.price,
+        quantity: body.quantity,
+        reason: body.reason
+    });
+
+    if (!result) {
+        sendJson(res, 404, { success: false, error: 'NOT_FOUND', message: 'Position not found.' });
+        return;
+    }
+
+    sendJson(res, 200, { success: true, ...result });
+}
+
+async function handleSitePositionHistoryRoute(req, res, positionId, parsedUrl) {
+    const user = requireAuthenticatedSiteUser(req, res);
+    if (!user) {
+        return;
+    }
+
+    if (req.method !== 'GET') {
+        sendJson(res, 405, { success: false, error: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' });
+        return;
+    }
+
+    const history = positionsStore.listPositionHistory(user.id, positionId, parsedUrl.searchParams.get('limit'));
+    if (!history) {
+        sendJson(res, 404, { success: false, error: 'NOT_FOUND', message: 'Position not found.' });
+        return;
+    }
+
+    sendJson(res, 200, { success: true, history });
+}
+
+async function handleSiteStopOrdersCollectionRoute(req, res, parsedUrl) {
+    const user = requireAuthenticatedSiteUser(req, res);
+    if (!user) {
+        return;
+    }
+
+    if (req.method === 'GET') {
+        const orders = positionsStore.listStopOrders(user.id, {
+            status: parsedUrl.searchParams.get('status')
+        });
+        sendJson(res, 200, { success: true, orders });
+        return;
+    }
+
+    if (req.method === 'POST') {
+        const body = await readJsonBody(req);
+        const order = positionsStore.createStopOrder(user.id, normalizeStopOrderPayload(body));
+        sendJson(res, 201, { success: true, order });
+        return;
+    }
+
+    sendJson(res, 405, { success: false, error: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' });
+}
+
+async function handleSiteStopOrderCancelRoute(req, res, stopOrderId) {
+    const user = requireAuthenticatedSiteUser(req, res);
+    if (!user) {
+        return;
+    }
+
+    if (req.method !== 'POST') {
+        sendJson(res, 405, { success: false, error: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' });
+        return;
+    }
+
+    const cancelled = positionsStore.cancelStopOrder(user.id, stopOrderId);
+    if (!cancelled) {
+        sendJson(res, 404, { success: false, error: 'NOT_FOUND', message: 'Stop order not found.' });
+        return;
+    }
+
+    sendJson(res, 200, { success: true });
 }
 
 async function handleCommunityIdeasRoute(req, res, parsedUrl) {
@@ -6843,6 +6984,39 @@ const server = http.createServer((req, res) => {
         const noteId = Number(parsedUrl.pathname.split('/')[3]);
         handleNoteItemRoute(req, res, noteId).catch((error) => {
             sendJson(res, 500, { success: false, error: 'NOTE_ITEM_FAILED', message: error.message });
+        });
+        return;
+    }
+    if (parsedUrl.pathname === '/api/site-positions') {
+        handleSitePositionsCollectionRoute(req, res, parsedUrl).catch((error) => {
+            sendJson(res, 500, { success: false, error: 'SITE_POSITIONS_FAILED', message: error.message });
+        });
+        return;
+    }
+    if (/^\/api\/site-positions\/\d+\/close$/.test(parsedUrl.pathname)) {
+        const positionId = Number(parsedUrl.pathname.split('/')[3]);
+        handleSitePositionCloseRoute(req, res, positionId).catch((error) => {
+            sendJson(res, 500, { success: false, error: 'SITE_POSITION_CLOSE_FAILED', message: error.message });
+        });
+        return;
+    }
+    if (/^\/api\/site-positions\/\d+\/history$/.test(parsedUrl.pathname)) {
+        const positionId = Number(parsedUrl.pathname.split('/')[3]);
+        handleSitePositionHistoryRoute(req, res, positionId, parsedUrl).catch((error) => {
+            sendJson(res, 500, { success: false, error: 'SITE_POSITION_HISTORY_FAILED', message: error.message });
+        });
+        return;
+    }
+    if (parsedUrl.pathname === '/api/site-stop-orders') {
+        handleSiteStopOrdersCollectionRoute(req, res, parsedUrl).catch((error) => {
+            sendJson(res, 500, { success: false, error: 'SITE_STOP_ORDERS_FAILED', message: error.message });
+        });
+        return;
+    }
+    if (/^\/api\/site-stop-orders\/\d+\/cancel$/.test(parsedUrl.pathname)) {
+        const stopOrderId = Number(parsedUrl.pathname.split('/')[3]);
+        handleSiteStopOrderCancelRoute(req, res, stopOrderId).catch((error) => {
+            sendJson(res, 500, { success: false, error: 'SITE_STOP_ORDER_CANCEL_FAILED', message: error.message });
         });
         return;
     }
