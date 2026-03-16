@@ -807,6 +807,7 @@ function normalizePrices(payload) {
         };
     };
 
+    if (Array.isArray(payload.rows)) payload.rows.forEach((row) => addRow(row.symbol, row));
     if (Array.isArray(payload.data)) payload.data.forEach((row) => addRow(row.symbol, row));
     if (Array.isArray(payload)) payload.forEach((row) => addRow(row.symbol, row));
     Object.entries(payload).forEach(([key, value]) => addRow(key, value));
