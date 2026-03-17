@@ -69,6 +69,15 @@
         }
     }
 
+    function withTimeout(promise, timeoutMs, fallbackValue = null) {
+        return Promise.race([
+            promise,
+            new Promise((resolve) => {
+                window.setTimeout(() => resolve(fallbackValue), timeoutMs);
+            })
+        ]);
+    }
+
     async function requestLegacy(endpoint, options = {}) {
         const response = await fetch(`${LEGACY_AUTH_BASE_URL}${endpoint}`, {
             method: options.method || 'GET',
@@ -101,7 +110,7 @@
         }
 
         if (lower.includes('invalid login credentials')) {
-            return 'Invalid login credentials. If this account was created in the older site auth flow, create a new account in Supabase or sign in with a migrated account.';
+            return 'Invalid login credentials. If this account was created with the local site account flow, use that password and the app will keep you on the local community session.';
         }
 
         if (lower.includes('email not confirmed')) {
@@ -463,6 +472,23 @@
         return initPromise;
     }
 
+    async function safeReady() {
+        try {
+            return await ready();
+        } catch (error) {
+            console.warn('Supabase auth dependencies unavailable, continuing with local auth only:', error);
+            authState.session = null;
+            authState.user = null;
+            authState.ready = true;
+            authState.loading = false;
+            authState.legacyUser = await fetchLegacyUser();
+            authState.legacyMismatch = Boolean(authState.legacyUser);
+            renderNavActions();
+            dispatchAuthChange();
+            return { ...authState };
+        }
+    }
+
     async function signInWithSupabase(email, password) {
         const supabase = getSupabaseClient();
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -502,11 +528,17 @@
     async function logout() {
         const supabase = getSupabaseClient();
         if (supabase?.auth) {
-            const { error } = await supabase.auth.signOut();
-            if (error) throw error;
+            try {
+                const result = await withTimeout(supabase.auth.signOut(), 3000, { error: null, timedOut: true });
+                if (result?.error) {
+                    throw result.error;
+                }
+            } catch (error) {
+                console.warn('Supabase sign-out fallback:', error);
+            }
         }
 
-        await clearLegacySession();
+        await withTimeout(clearLegacySession(), 3000, null);
         authState.user = null;
         authState.session = null;
         authState.legacyUser = null;
@@ -523,7 +555,7 @@
         if (reason === 'legacy-session' || state?.legacyMismatch) {
             renderFormMessage(
                 form,
-                'Your site session is from an older login flow. Please sign in again to access Notes and Chat.',
+                'Your local site session is still valid for Notes and Market Lounges. Sign in here only if you want to refresh the optional Supabase community session.',
                 'info'
             );
         }
@@ -560,12 +592,35 @@
             setButtonBusy(submitButton, true, 'Signing In...');
 
             try {
-                await ready();
                 const email = form.querySelector('#email')?.value?.trim() || '';
                 const password = form.querySelector('#password')?.value || '';
                 const rememberMe = Boolean(form.querySelector('#remember')?.checked);
 
                 try {
+                    const legacyResponse = await legacyLogin(email, password, rememberMe);
+                    authState.legacyUser = legacyResponse.user || null;
+                    authState.legacyMismatch = Boolean(authState.legacyUser);
+                    renderNavActions();
+                    dispatchAuthChange();
+
+                    renderFormMessage(form, 'Signed in with your local site account. Redirecting...', 'success');
+
+                    window.setTimeout(() => {
+                        window.location.href = getRedirectTarget();
+                    }, 1200);
+                    return;
+                } catch (legacyError) {
+                    if (Number(legacyError?.status || 0) && Number(legacyError?.status || 0) !== 401) {
+                        throw legacyError;
+                    }
+                }
+
+                await safeReady();
+
+                try {
+                    if (!getSupabaseClient()?.auth) {
+                        throw new Error('SUPABASE_AUTH_UNAVAILABLE');
+                    }
                     await signInWithSupabase(email, password);
                     try {
                         await ensureLegacySession({
@@ -578,43 +633,18 @@
                     }
                 } catch (error) {
                     const lowerMessage = String(error?.message || '').toLowerCase();
-                    const shouldTryLegacy = isInvalidCredentialsError(error) || lowerMessage.includes('email not confirmed');
-                    if (!shouldTryLegacy) {
+                    const shouldSurfaceSupabaseError = !(
+                        lowerMessage.includes('supabase_auth_unavailable')
+                        || lowerMessage.includes('supabase auth client is unavailable')
+                        || lowerMessage.includes('timed out')
+                        || isInvalidCredentialsError(error)
+                        || lowerMessage.includes('email not confirmed')
+                    );
+                    if (shouldSurfaceSupabaseError) {
                         throw error;
                     }
 
-                    const legacyResponse = await legacyLogin(email, password, rememberMe);
-                    authState.legacyUser = legacyResponse.user || null;
-                    authState.legacyMismatch = Boolean(authState.legacyUser);
-                    renderNavActions();
-                    dispatchAuthChange();
-
-                    const migration = await tryLegacyMigration(
-                        email,
-                        password,
-                        legacyResponse.user?.displayName || ''
-                    );
-
-                    if (migration.status === 'complete') {
-                        renderFormMessage(form, 'Legacy account migrated. Redirecting...', 'success');
-                        window.location.href = getRedirectTarget();
-                        return;
-                    }
-
-                    if (migration.status === 'pending_confirmation') {
-                        renderFormMessage(form, 'Legacy account signed in. Check your inbox to confirm community access, then sign in again.', 'success');
-                    } else if (migration.status === 'rate_limited') {
-                        renderFormMessage(form, 'Legacy account signed in. Community migration is temporarily rate-limited. Try again in a few minutes.', 'success');
-                    } else if (migration.status === 'registered_but_password_mismatch') {
-                        renderFormMessage(form, 'Legacy account signed in. A Supabase account already exists for this email with a different password. Use the community password to access Notes and Chat.', 'success');
-                    } else {
-                        renderFormMessage(form, 'Legacy account signed in. Notes and Chat may still require a refreshed community sign-in.', 'success');
-                    }
-
-                    window.setTimeout(() => {
-                        window.location.href = getRedirectTarget();
-                    }, 1200);
-                    return;
+                    throw new Error('Invalid login credentials. Check your email and password, or create a local account first.');
                 }
 
                 renderFormMessage(form, 'Signed in. Redirecting...', 'success');
@@ -649,50 +679,29 @@
             setButtonBusy(submitButton, true, 'Creating Account...');
 
             try {
-                await ready();
-                const result = await signUpWithSupabase({ fullName, email, password });
+                await safeReady();
                 try {
-                    await ensureLegacySession({ fullName, email, password });
-                } catch (legacySyncError) {
-                    console.warn('Legacy session sync skipped after Supabase sign-up:', legacySyncError);
-                }
-
-                if (result.pendingConfirmation) {
-                    renderFormMessage(form, 'Account created. You can use Notes with your site session now. Check your inbox to confirm community access later.', 'success');
-                    window.setTimeout(() => {
-                        window.location.href = getRedirectTarget();
-                    }, 1200);
+                    await legacyRegister(fullName, email, password, confirmPassword);
+                    const loginResponse = await legacyLogin(email, password, true);
+                    authState.legacyUser = loginResponse.user || null;
+                    authState.legacyMismatch = Boolean(authState.legacyUser);
+                    renderNavActions();
+                    dispatchAuthChange();
+                } catch (legacyError) {
+                    renderFormMessage(form, legacyError?.payload?.message || normalizeAuthError(legacyError, 'register'));
                     return;
                 }
 
-                renderFormMessage(form, 'Account created. Redirecting...', 'success');
-                window.location.href = getRedirectTarget();
+                renderFormMessage(
+                    form,
+                    'Account created. Local account is ready now, and Notes plus Market Lounges will work immediately. Redirecting...',
+                    'success'
+                );
+                window.setTimeout(() => {
+                    window.location.href = getRedirectTarget();
+                }, 1200);
             } catch (error) {
-                const normalizedMessage = normalizeAuthError(error, 'register');
-
-                if (String(error?.message || '').toLowerCase().includes('email rate limit exceeded')) {
-                    try {
-                        const legacyResponse = await legacyRegister(fullName, email, password, confirmPassword);
-                        authState.legacyUser = legacyResponse.user || null;
-                        authState.legacyMismatch = Boolean(authState.legacyUser);
-                        renderNavActions();
-                        dispatchAuthChange();
-                        renderFormMessage(
-                            form,
-                            'Legacy account created. You can use the main site now. Community access will require a later Supabase sign-up after the rate limit clears.',
-                            'success'
-                        );
-                        window.setTimeout(() => {
-                            window.location.href = getRedirectTarget();
-                        }, 1400);
-                        return;
-                    } catch (legacyError) {
-                        renderFormMessage(form, legacyError?.payload?.message || normalizedMessage);
-                        return;
-                    }
-                }
-
-                renderFormMessage(form, normalizedMessage);
+                renderFormMessage(form, normalizeAuthError(error, 'register'));
             } finally {
                 setButtonBusy(submitButton, false);
             }
@@ -701,7 +710,7 @@
 
     async function redirectIfAuthenticated(state) {
         if (!isAuthPage()) return;
-        if (!state?.user) return;
+        if (!state?.user && !state?.legacyUser) return;
         window.location.replace(getRedirectTarget());
     }
 
@@ -711,7 +720,7 @@
         bindRegisterForm();
         renderNavActions();
 
-        const state = await ready();
+        const state = await safeReady();
 
         if (isAuthPage()) {
             const form = document.getElementById('loginForm') || document.getElementById('registerForm');
@@ -729,7 +738,7 @@
         },
         async me() {
             const state = await ready();
-            return state.user;
+            return state.user || state.legacyUser;
         },
         async login(payload) {
             await ready();
@@ -745,7 +754,7 @@
         },
         logout,
         getCurrentUser() {
-            return authState.user;
+            return authState.user || authState.legacyUser;
         },
         getState() {
             return { ...authState, displayName: getDisplayName() };

@@ -263,6 +263,35 @@
         return payload;
     }
 
+    async function getChatMode() {
+        const legacyUser = await getLegacyUser();
+        await initSupabase();
+        const user = await auth.getCurrentUser();
+        if (user) {
+            return 'supabase';
+        }
+        return legacyUser ? 'legacy' : null;
+    }
+
+    async function legacyChatRequest(endpoint, options = {}) {
+        const response = await fetch(`${window.location.origin}/api/chat${endpoint}`, {
+            method: options.method || 'GET',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                ...(options.headers || {})
+            },
+            body: options.body ? JSON.stringify(options.body) : undefined
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(payload.message || payload.error || `Legacy chat HTTP ${response.status}`);
+        }
+        return payload;
+    }
+
     // ==================== NOTES ====================
 
     const notes = {
@@ -606,10 +635,13 @@
     // ==================== CHAT ====================
 
     const chat = {
-        /**
-         * Get all public boards
-         */
         async getBoards() {
+            const mode = await getChatMode();
+            if (mode !== 'supabase') {
+                const payload = await legacyChatRequest('/boards');
+                return payload.boards || [];
+            }
+
             await initSupabase();
             const { data, error } = await supabase
                 .from('chat_boards')
@@ -619,10 +651,12 @@
             return data || [];
         },
 
-        /**
-         * Get user's joined boards
-         */
         async getMyBoards() {
+            const mode = await getChatMode();
+            if (mode !== 'supabase') {
+                return this.getBoards();
+            }
+
             await initSupabase();
             const user = await auth.getCurrentUser();
             if (!user) return [];
@@ -636,10 +670,16 @@
             return data || [];
         },
 
-        /**
-         * Join a board
-         */
         async join(boardId) {
+            const mode = await getChatMode();
+            if (mode === 'legacy') {
+                const payload = await legacyChatRequest(`/boards/${encodeURIComponent(boardId)}/join`, {
+                    method: 'POST',
+                    body: {}
+                });
+                return payload.board || null;
+            }
+
             await initSupabase();
             const user = await auth.getCurrentUser();
             if (!user) throw new Error('Not authenticated');
@@ -654,10 +694,12 @@
             return data;
         },
 
-        /**
-         * Leave a board
-         */
         async leave(boardId) {
+            const mode = await getChatMode();
+            if (mode === 'legacy') {
+                return null;
+            }
+
             await initSupabase();
             const user = await auth.getCurrentUser();
             if (!user) throw new Error('Not authenticated');
@@ -671,10 +713,13 @@
             if (error) throw error;
         },
 
-        /**
-         * Get messages for a board
-         */
         async getMessages(boardId, limit = 100) {
+            const mode = await getChatMode();
+            if (mode !== 'supabase') {
+                const payload = await legacyChatRequest(`/boards/${encodeURIComponent(boardId)}/messages?limit=${encodeURIComponent(limit)}`);
+                return payload.messages || [];
+            }
+
             await initSupabase();
             let result = await supabase
                 .from('chat_messages')
@@ -701,10 +746,22 @@
             return result.data || [];
         },
 
-        /**
-         * Send a message
-         */
         async send(boardId, content, options = {}) {
+            const mode = await getChatMode();
+            if (mode === 'legacy') {
+                const payload = await legacyChatRequest(`/boards/${encodeURIComponent(boardId)}/messages`, {
+                    method: 'POST',
+                    body: {
+                        content,
+                        reply_to: options.replyTo || null,
+                        attachment_url: options.attachmentUrl || null,
+                        attachment_type: options.attachmentType || null,
+                        attachment_name: options.attachmentName || null
+                    }
+                });
+                return payload.message || null;
+            }
+
             await initSupabase();
             const user = await auth.getCurrentUser();
             if (!user) throw new Error('Not authenticated');
@@ -725,10 +782,16 @@
             return data;
         },
 
-        /**
-         * Edit a message
-         */
         async editMessage(messageId, content) {
+            const mode = await getChatMode();
+            if (mode === 'legacy') {
+                const payload = await legacyChatRequest(`/messages/${encodeURIComponent(messageId)}`, {
+                    method: 'PUT',
+                    body: { content }
+                });
+                return payload.message || null;
+            }
+
             await initSupabase();
             const { data, error } = await supabase
                 .from('chat_messages')
@@ -745,10 +808,15 @@
             return data;
         },
 
-        /**
-         * Soft delete a message
-         */
         async deleteMessage(messageId) {
+            const mode = await getChatMode();
+            if (mode === 'legacy') {
+                await legacyChatRequest(`/messages/${encodeURIComponent(messageId)}`, {
+                    method: 'DELETE'
+                });
+                return;
+            }
+
             await initSupabase();
             const { error } = await supabase
                 .from('chat_messages')
@@ -761,10 +829,34 @@
             if (error) throw error;
         },
 
-        /**
-         * Add reaction to message
-         */
+        async getReactions(messageId) {
+            const mode = await getChatMode();
+            if (mode !== 'supabase') {
+                const payload = await legacyChatRequest(`/messages/${encodeURIComponent(messageId)}/reactions`);
+                return payload.reactions || [];
+            }
+
+            await initSupabase();
+            const { data, error } = await supabase
+                .from('message_reactions')
+                .select('*')
+                .eq('message_id', messageId)
+                .order('created_at', { ascending: true });
+
+            if (error) throw error;
+            return data || [];
+        },
+
         async addReaction(messageId, emoji) {
+            const mode = await getChatMode();
+            if (mode === 'legacy') {
+                const payload = await legacyChatRequest(`/messages/${encodeURIComponent(messageId)}/reactions`, {
+                    method: 'POST',
+                    body: { emoji }
+                });
+                return payload.reactions || [];
+            }
+
             await initSupabase();
             const user = await auth.getCurrentUser();
             if (!user) throw new Error('Not authenticated');
@@ -779,10 +871,15 @@
             return data;
         },
 
-        /**
-         * Remove reaction
-         */
         async removeReaction(messageId, emoji) {
+            const mode = await getChatMode();
+            if (mode === 'legacy') {
+                const payload = await legacyChatRequest(`/messages/${encodeURIComponent(messageId)}/reactions?emoji=${encodeURIComponent(emoji)}`, {
+                    method: 'DELETE'
+                });
+                return payload.reactions || [];
+            }
+
             await initSupabase();
             const user = await auth.getCurrentUser();
             if (!user) throw new Error('Not authenticated');
@@ -797,12 +894,28 @@
             if (error) throw error;
         },
 
-        /**
-         * Subscribe to new messages (realtime)
-         */
         subscribe(boardId, onMessage) {
+            const state = window.Auth?.getState?.() || {};
+            if (!state.user && state.legacyUser) {
+                let lastMessageId = null;
+                return {
+                    type: 'legacy-poll',
+                    timer: window.setInterval(async () => {
+                        try {
+                            const messages = await chat.getMessages(boardId, 100);
+                            const latest = messages[messages.length - 1];
+                            if (latest && latest.id !== lastMessageId) {
+                                lastMessageId = latest.id;
+                                onMessage(latest);
+                            }
+                        } catch (error) {
+                            console.warn('Legacy chat polling failed:', error.message);
+                        }
+                    }, 5000)
+                };
+            }
+
             if (!supabase) {
-                console.warn('Supabase not initialized');
                 return null;
             }
 
@@ -821,28 +934,82 @@
             return channel;
         },
 
-        /**
-         * Unsubscribe from channel
-         */
+        subscribeReactions(boardId, onChange) {
+            const state = window.Auth?.getState?.() || {};
+            if (!state.user && state.legacyUser) {
+                return { type: 'legacy-reactions', timer: null, onChange };
+            }
+
+            if (!supabase) {
+                return null;
+            }
+
+            const channel = supabase
+                .channel(`board-reactions:${boardId}`)
+                .on('postgres_changes', {
+                    event: '*',
+                    schema: 'public',
+                    table: 'message_reactions'
+                }, onChange)
+                .subscribe();
+            return channel;
+        },
+
         unsubscribe(channel) {
-            if (channel && supabase) {
+            if (!channel) return;
+            if (channel.type && channel.timer) {
+                window.clearInterval(channel.timer);
+                return;
+            }
+            if (supabase) {
                 supabase.removeChannel(channel);
             }
         },
 
-        /**
-         * Get online users count
-         */
         async getOnlineCount(boardId) {
-            await initSupabase();
-            const { count, error } = await supabase
-                .from('user_presence')
-                .select('*', { count: 'exact', head: true })
-                .eq('current_channel', boardId)
-                .eq('status', 'online');
+            const users = await presence.getOnline(boardId);
+            return users.length;
+        },
 
-            if (error) return 0;
-            return count || 0;
+        async edit(messageId, content) {
+            return this.editMessage(messageId, content);
+        },
+
+        async delete(messageId) {
+            return this.deleteMessage(messageId);
+        }
+    };
+
+    const channels = {
+        async getPublic() {
+            return chat.getBoards();
+        },
+
+        async create(payload) {
+            const mode = await getChatMode();
+            if (mode === 'legacy') {
+                const response = await legacyChatRequest('/boards', {
+                    method: 'POST',
+                    body: payload
+                });
+                return response.board || null;
+            }
+
+            await initSupabase();
+            const user = await auth.getCurrentUser();
+            if (!user) throw new Error('Not authenticated');
+            const { data, error } = await supabase
+                .from('chat_boards')
+                .insert({
+                    name: payload.name,
+                    topic: payload.topic || '',
+                    is_public: payload.isPublic !== false,
+                    created_by: user.id
+                })
+                .select()
+                .single();
+            if (error) throw error;
+            return data;
         }
     };
 
@@ -886,6 +1053,19 @@
 
     const presence = {
         async setOnline(channelId = null, page = null) {
+            const mode = await getChatMode();
+            if (mode === 'legacy') {
+                await legacyChatRequest('/presence', {
+                    method: 'POST',
+                    body: {
+                        status: 'online',
+                        boardId: channelId,
+                        page
+                    }
+                });
+                return;
+            }
+
             await initSupabase();
             const user = await auth.getCurrentUser();
             if (!user) return;
@@ -903,6 +1083,15 @@
         },
 
         async setOffline() {
+            const mode = await getChatMode();
+            if (mode === 'legacy') {
+                await legacyChatRequest('/presence', {
+                    method: 'POST',
+                    body: { status: 'offline', boardId: null }
+                });
+                return;
+            }
+
             await initSupabase();
             const user = await auth.getCurrentUser();
             if (!user) return;
@@ -918,6 +1107,11 @@
         },
 
         async setTyping(channelId, isTyping) {
+            const mode = await getChatMode();
+            if (mode === 'legacy') {
+                return;
+            }
+
             await initSupabase();
             const user = await auth.getCurrentUser();
             if (!user) return;
@@ -938,6 +1132,62 @@
                     .eq('channel_id', channelId)
                     .eq('user_id', user.id);
             }
+        },
+
+        async getOnline(channelId = null) {
+            const mode = await getChatMode();
+            if (mode !== 'supabase') {
+                const suffix = channelId ? `?boardId=${encodeURIComponent(channelId)}` : '';
+                const payload = await legacyChatRequest(`/presence${suffix}`);
+                return payload.users || [];
+            }
+
+            await initSupabase();
+            let query = supabase
+                .from('user_presence')
+                .select('user_id, status, current_channel, profiles:user_id(username, avatar_url)')
+                .eq('status', 'online');
+
+            if (channelId) {
+                query = query.eq('current_channel', channelId);
+            }
+
+            const { data, error } = await query;
+            if (error) {
+                return [];
+            }
+            return data || [];
+        },
+
+        async update(status, channelId = null, page = null) {
+            if (status === 'offline') {
+                return this.setOffline();
+            }
+            return this.setOnline(channelId, page);
+        },
+
+        subscribe(boardId, callback) {
+            const state = window.Auth?.getState?.() || {};
+            if (!state.user && state.legacyUser) {
+                return {
+                    type: 'legacy-presence',
+                    timer: window.setInterval(() => callback({ boardId }), 10000)
+                };
+            }
+
+            if (!supabase) {
+                return null;
+            }
+
+            const channel = supabase
+                .channel(`presence:${boardId || 'global'}`)
+                .on('postgres_changes', {
+                    event: '*',
+                    schema: 'public',
+                    table: 'user_presence'
+                }, callback)
+                .subscribe();
+            return channel;
         }
     };
 
@@ -954,8 +1204,14 @@
         notes,
         communityNotes,
         chat,
+        channels,
         likes,
-        presence
+        presence,
+        files: {
+            async upload() {
+                throw new Error('File uploads are not available in the local chat fallback yet.');
+            }
+        }
     };
 
     // Start initialization immediately

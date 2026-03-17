@@ -6,6 +6,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { createAuthStore } = require('./server/auth-store');
+const { createChatStore } = require('./server/chat-store');
 const { createNotesStore } = require('./server/notes-store');
 const { createPositionsStore } = require('./server/positions-store');
 const { buildPolicyPacket, deriveLegacyPolicy, deriveLegacyTpSl } = require('./server/policy-engine');
@@ -190,6 +191,7 @@ let trackingLatestActionAt = null;
 let trackingPreviousTrackedState = new Map();
 let trackingKnownUniverseSymbols = new Set();
 const authStore = createAuthStore({ baseDir: __dirname });
+const chatStore = createChatStore({ baseDir: __dirname });
 const notesStore = createNotesStore({ baseDir: __dirname });
 const positionsStore = createPositionsStore({ baseDir: __dirname });
 
@@ -295,6 +297,24 @@ function normalizeStopOrderPayload(body = {}) {
         highest_price: body.highest_price,
         lowest_price: body.lowest_price,
         quantity: body.quantity
+    };
+}
+
+function normalizeChatBoardPayload(body = {}) {
+    return {
+        name: body.name,
+        topic: body.topic,
+        is_public: body.is_public
+    };
+}
+
+function normalizeChatMessagePayload(body = {}) {
+    return {
+        content: body.content,
+        reply_to: body.reply_to ?? body.replyTo ?? null,
+        attachment_url: body.attachment_url ?? body.attachmentUrl ?? null,
+        attachment_type: body.attachment_type ?? body.attachmentType ?? null,
+        attachment_name: body.attachment_name ?? body.attachmentName ?? null
     };
 }
 
@@ -588,6 +608,176 @@ async function handleCommunityShareRoute(req, res, shareId) {
         note,
         related
     });
+}
+
+async function handleChatBoardsRoute(req, res) {
+    if (req.method === 'GET') {
+        sendJson(res, 200, {
+            success: true,
+            boards: chatStore.listBoards()
+        });
+        return;
+    }
+
+    if (req.method === 'POST') {
+        const user = requireAuthenticatedSiteUser(req, res);
+        if (!user) {
+            return;
+        }
+
+        const body = await readJsonBody(req);
+        const board = chatStore.createBoard(user.id, normalizeChatBoardPayload(body));
+        sendJson(res, 201, {
+            success: true,
+            board
+        });
+        return;
+    }
+
+    sendJson(res, 405, { success: false, error: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' });
+}
+
+async function handleChatBoardJoinRoute(req, res, boardId) {
+    const user = requireAuthenticatedSiteUser(req, res);
+    if (!user) {
+        return;
+    }
+
+    if (req.method !== 'POST') {
+        sendJson(res, 405, { success: false, error: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' });
+        return;
+    }
+
+    const board = chatStore.joinBoard(user.id, boardId);
+    if (!board) {
+        sendJson(res, 404, { success: false, error: 'NOT_FOUND', message: 'Board not found.' });
+        return;
+    }
+
+    chatStore.updatePresence(user.id, 'online', boardId);
+    sendJson(res, 200, {
+        success: true,
+        board
+    });
+}
+
+async function handleChatBoardMessagesRoute(req, res, boardId, parsedUrl) {
+    if (req.method === 'GET') {
+        sendJson(res, 200, {
+            success: true,
+            messages: chatStore.listMessages(boardId, parsedUrl.searchParams.get('limit'))
+        });
+        return;
+    }
+
+    if (req.method === 'POST') {
+        const user = requireAuthenticatedSiteUser(req, res);
+        if (!user) {
+            return;
+        }
+
+        const body = await readJsonBody(req);
+        const message = chatStore.sendMessage(user.id, boardId, normalizeChatMessagePayload(body));
+        if (!message) {
+            sendJson(res, 404, { success: false, error: 'NOT_FOUND', message: 'Board not found.' });
+            return;
+        }
+
+        chatStore.updatePresence(user.id, 'online', boardId);
+        sendJson(res, 201, {
+            success: true,
+            message
+        });
+        return;
+    }
+
+    sendJson(res, 405, { success: false, error: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' });
+}
+
+async function handleChatMessageItemRoute(req, res, messageId) {
+    const user = requireAuthenticatedSiteUser(req, res);
+    if (!user) {
+        return;
+    }
+
+    if (req.method === 'PUT' || req.method === 'PATCH') {
+        const body = await readJsonBody(req);
+        const message = chatStore.editMessage(user.id, messageId, body.content);
+        if (!message) {
+            sendJson(res, 404, { success: false, error: 'NOT_FOUND', message: 'Message not found.' });
+            return;
+        }
+        sendJson(res, 200, { success: true, message });
+        return;
+    }
+
+    if (req.method === 'DELETE') {
+        const deleted = chatStore.deleteMessage(user.id, messageId);
+        if (!deleted) {
+            sendJson(res, 404, { success: false, error: 'NOT_FOUND', message: 'Message not found.' });
+            return;
+        }
+        sendJson(res, 200, { success: true });
+        return;
+    }
+
+    sendJson(res, 405, { success: false, error: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' });
+}
+
+async function handleChatMessageReactionsRoute(req, res, messageId, parsedUrl) {
+    if (req.method === 'GET') {
+        sendJson(res, 200, {
+            success: true,
+            reactions: chatStore.listReactions(messageId)
+        });
+        return;
+    }
+
+    const user = requireAuthenticatedSiteUser(req, res);
+    if (!user) {
+        return;
+    }
+
+    if (req.method === 'POST') {
+        const body = await readJsonBody(req);
+        const reactions = chatStore.addReaction(user.id, messageId, body.emoji);
+        sendJson(res, 200, { success: true, reactions });
+        return;
+    }
+
+    if (req.method === 'DELETE') {
+        const emoji = parsedUrl.searchParams.get('emoji');
+        const reactions = chatStore.removeReaction(user.id, messageId, emoji);
+        sendJson(res, 200, { success: true, reactions });
+        return;
+    }
+
+    sendJson(res, 405, { success: false, error: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' });
+}
+
+async function handleChatPresenceRoute(req, res, parsedUrl) {
+    if (req.method === 'GET') {
+        const boardId = parsedUrl.searchParams.get('boardId');
+        sendJson(res, 200, {
+            success: true,
+            users: chatStore.listOnlineUsers(boardId)
+        });
+        return;
+    }
+
+    if (req.method === 'POST') {
+        const user = requireAuthenticatedSiteUser(req, res);
+        if (!user) {
+            return;
+        }
+
+        const body = await readJsonBody(req);
+        chatStore.updatePresence(user.id, body.status, body.boardId ?? body.board_id ?? null);
+        sendJson(res, 200, { success: true });
+        return;
+    }
+
+    sendJson(res, 405, { success: false, error: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' });
 }
 
 function parseNumber(value) {
@@ -7236,6 +7426,34 @@ const server = http.createServer((req, res) => {
         authStore.handleLogout(req, res, sendJson);
         return;
     }
+    if (parsedUrl.pathname === '/api/chat/boards') {
+        handleAsyncRoute(res, handleChatBoardsRoute(req, res), 'CHAT_BOARDS_FAILED');
+        return;
+    }
+    if (/^\/api\/chat\/boards\/\d+\/join$/.test(parsedUrl.pathname)) {
+        const boardId = Number(parsedUrl.pathname.split('/')[4]);
+        handleAsyncRoute(res, handleChatBoardJoinRoute(req, res, boardId), 'CHAT_JOIN_FAILED');
+        return;
+    }
+    if (/^\/api\/chat\/boards\/\d+\/messages$/.test(parsedUrl.pathname)) {
+        const boardId = Number(parsedUrl.pathname.split('/')[4]);
+        handleAsyncRoute(res, handleChatBoardMessagesRoute(req, res, boardId, parsedUrl), 'CHAT_MESSAGES_FAILED');
+        return;
+    }
+    if (/^\/api\/chat\/messages\/\d+\/reactions$/.test(parsedUrl.pathname)) {
+        const messageId = Number(parsedUrl.pathname.split('/')[4]);
+        handleAsyncRoute(res, handleChatMessageReactionsRoute(req, res, messageId, parsedUrl), 'CHAT_REACTIONS_FAILED');
+        return;
+    }
+    if (/^\/api\/chat\/messages\/\d+$/.test(parsedUrl.pathname)) {
+        const messageId = Number(parsedUrl.pathname.split('/')[4]);
+        handleAsyncRoute(res, handleChatMessageItemRoute(req, res, messageId), 'CHAT_MESSAGE_ITEM_FAILED');
+        return;
+    }
+    if (parsedUrl.pathname === '/api/chat/presence') {
+        handleAsyncRoute(res, handleChatPresenceRoute(req, res, parsedUrl), 'CHAT_PRESENCE_FAILED');
+        return;
+    }
     if (parsedUrl.pathname === '/api/notes') {
         handleAsyncRoute(res, handleNotesCollectionRoute(req, res, parsedUrl), 'NOTES_FAILED');
         return;
@@ -7433,6 +7651,12 @@ const server = http.createServer((req, res) => {
 
     if (parsedUrl.pathname.startsWith('/api/')) {
         proxyApi(req, res);
+        return;
+    }
+
+    if (parsedUrl.pathname === '/favicon.ico') {
+        res.writeHead(204);
+        res.end();
         return;
     }
 

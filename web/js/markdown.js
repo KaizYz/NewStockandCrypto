@@ -1,158 +1,207 @@
 // ========================================
 // StockandCrypto - Markdown Rendering
-// Uses marked.js + highlight.js
+// Stable local renderer without CDN dependencies
 // ========================================
 
 (function() {
     'use strict';
 
-    // Load external libraries
-    const MARKED_CDN = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
-    const HIGHLIGHT_CDN = 'https://cdn.jsdelivr.net/npm/highlight.js@11/lib/highlight.min.js';
-    const HIGHLIGHT_CSS = 'https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github-dark.min.css';
-
-    let markedLoaded = false;
-    let highlightLoaded = false;
-    let markdownFallbackWarned = false;
-
-    // Dynamically load scripts
-    function loadScript(src) {
-        return new Promise((resolve, reject) => {
-            if (document.querySelector(`script[src="${src}"]`)) {
-                resolve();
-                return;
-            }
-            const script = document.createElement('script');
-            script.src = src;
-            script.onload = resolve;
-            script.onerror = reject;
-            document.head.appendChild(script);
-        });
+    function normalizeMarkdownSource(value) {
+        return String(value || '')
+            .replace(/\r\n?/g, '\n')
+            .replace(/`r`n/g, '\n')
+            .replace(/`n/g, '\n')
+            .replace(/\\n/g, '\n')
+            .trim();
     }
 
-    function loadStylesheet(href) {
-        if (document.querySelector(`link[href="${href}"]`)) return;
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = href;
-        document.head.appendChild(link);
-    }
-
-    // Initialize marked with options
-    function configureMarked() {
-        if (typeof marked !== 'undefined') {
-            marked.setOptions({
-                breaks: true,
-                gfm: true,
-                headerIds: false,
-                highlight: function(code, lang) {
-                    if (typeof hljs !== 'undefined' && lang && hljs.getLanguage(lang)) {
-                        try {
-                            return hljs.highlight(code, { language: lang }).value;
-                        } catch (e) {}
-                    }
-                    if (typeof hljs !== 'undefined') {
-                        return hljs.highlightAuto(code).value;
-                    }
-                    return code;
-                }
-            });
-        }
-    }
-
-    // Load libraries on demand
-    async function ensureLibrariesLoaded() {
-        if (!markedLoaded) {
-            await loadScript(MARKED_CDN);
-            markedLoaded = true;
-        }
-        if (!highlightLoaded) {
-            await loadScript(HIGHLIGHT_CDN);
-            loadStylesheet(HIGHLIGHT_CSS);
-            highlightLoaded = true;
-        }
-        configureMarked();
-    }
-
-    // Render markdown to HTML
-    function renderFallbackMarkdown(text) {
-        const source = String(text || '').replace(/\r\n/g, '\n');
-        const escaped = escapeHtml(source);
-        const blocks = escaped.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
-        if (!blocks.length) {
-            return '';
-        }
-
-        return blocks.map((block) => {
-            if (/^###\s+/.test(block)) {
-                return `<h3>${inlineMarkdown(block.replace(/^###\s+/, ''))}</h3>`;
-            }
-            if (/^##\s+/.test(block)) {
-                return `<h2>${inlineMarkdown(block.replace(/^##\s+/, ''))}</h2>`;
-            }
-            if (/^#\s+/.test(block)) {
-                return `<h1>${inlineMarkdown(block.replace(/^#\s+/, ''))}</h1>`;
-            }
-            if (/^>\s+/.test(block)) {
-                return `<blockquote>${inlineMarkdown(block.replace(/^>\s+/, ''))}</blockquote>`;
-            }
-            if (/^-\s+/m.test(block)) {
-                const items = block.split('\n')
-                    .map((line) => line.trim())
-                    .filter(Boolean)
-                    .map((line) => line.replace(/^-\s+/, ''))
-                    .map((line) => `<li>${inlineMarkdown(line)}</li>`)
-                    .join('');
-                return `<ul>${items}</ul>`;
-            }
-            return `<p>${inlineMarkdown(block).replace(/\n/g, '<br>')}</p>`;
-        }).join('');
+    function escapeHtml(text) {
+        if (!text) return '';
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
     function inlineMarkdown(value) {
-        return String(value || '')
-            .replace(/`([^`]+)`/g, '<code>$1</code>')
-            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+        let html = escapeHtml(value || '');
+
+        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, href) => {
+            const safeHref = escapeHtml(href).replace(/javascript:/gi, '');
+            return `<a href="${safeHref}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+        });
+        html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/(^|[^\*])\*([^*]+)\*/g, '$1<em>$2</em>');
+        return html;
+    }
+
+    function renderBlocks(source) {
+        if (!source) {
+            return '';
+        }
+
+        const lines = source.split('\n');
+        const blocks = [];
+        let paragraph = [];
+        let listItems = [];
+        let listType = null;
+        let quoteLines = [];
+        let codeLines = [];
+        let codeLanguage = '';
+        let inCodeBlock = false;
+
+        function flushParagraph() {
+            if (!paragraph.length) return;
+            const content = paragraph.join('\n');
+            blocks.push(`<p>${inlineMarkdown(content).replace(/\n/g, '<br>')}</p>`);
+            paragraph = [];
+        }
+
+        function flushList() {
+            if (!listItems.length) return;
+            const tag = listType === 'ol' ? 'ol' : 'ul';
+            const items = listItems.map((item) => `<li>${inlineMarkdown(item)}</li>`).join('');
+            blocks.push(`<${tag}>${items}</${tag}>`);
+            listItems = [];
+            listType = null;
+        }
+
+        function flushQuote() {
+            if (!quoteLines.length) return;
+            blocks.push(`<blockquote>${inlineMarkdown(quoteLines.join('\n')).replace(/\n/g, '<br>')}</blockquote>`);
+            quoteLines = [];
+        }
+
+        function flushCode() {
+            if (!codeLines.length && !inCodeBlock) return;
+            const className = codeLanguage ? ` class="language-${escapeHtml(codeLanguage)}"` : '';
+            blocks.push(`<pre><code${className}>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
+            codeLines = [];
+            codeLanguage = '';
+        }
+
+        function flushAll() {
+            flushParagraph();
+            flushList();
+            flushQuote();
+        }
+
+        for (const line of lines) {
+            const fenceMatch = line.match(/^```([\w-]+)?\s*$/);
+            if (fenceMatch) {
+                if (inCodeBlock) {
+                    flushCode();
+                    inCodeBlock = false;
+                } else {
+                    flushAll();
+                    inCodeBlock = true;
+                    codeLanguage = fenceMatch[1] || '';
+                    codeLines = [];
+                }
+                continue;
+            }
+
+            if (inCodeBlock) {
+                codeLines.push(line);
+                continue;
+            }
+
+            if (!line.trim()) {
+                flushAll();
+                continue;
+            }
+
+            const headingMatch = line.match(/^(#{1,3})\s+(.*)$/);
+            if (headingMatch) {
+                flushAll();
+                const level = headingMatch[1].length;
+                blocks.push(`<h${level}>${inlineMarkdown(headingMatch[2])}</h${level}>`);
+                continue;
+            }
+
+            if (/^---+$/.test(line.trim())) {
+                flushAll();
+                blocks.push('<hr>');
+                continue;
+            }
+
+            if (/^>\s?/.test(line)) {
+                flushParagraph();
+                flushList();
+                quoteLines.push(line.replace(/^>\s?/, ''));
+                continue;
+            }
+
+            const unorderedMatch = line.match(/^[-*]\s+(.*)$/);
+            if (unorderedMatch) {
+                flushParagraph();
+                flushQuote();
+                if (listType && listType !== 'ul') flushList();
+                listType = 'ul';
+                listItems.push(unorderedMatch[1]);
+                continue;
+            }
+
+            const orderedMatch = line.match(/^\d+\.\s+(.*)$/);
+            if (orderedMatch) {
+                flushParagraph();
+                flushQuote();
+                if (listType && listType !== 'ol') flushList();
+                listType = 'ol';
+                listItems.push(orderedMatch[1]);
+                continue;
+            }
+
+            flushList();
+            flushQuote();
+            paragraph.push(line);
+        }
+
+        if (inCodeBlock) {
+            flushCode();
+        }
+        flushAll();
+
+        return blocks.join('');
+    }
+
+    function sanitizeHtml(html) {
+        const template = document.createElement('template');
+        template.innerHTML = html;
+
+        template.content.querySelectorAll('script,style,iframe,object,embed').forEach((node) => node.remove());
+        template.content.querySelectorAll('*').forEach((node) => {
+            [...node.attributes].forEach((attribute) => {
+                const name = attribute.name.toLowerCase();
+                const value = String(attribute.value || '');
+                if (name.startsWith('on')) {
+                    node.removeAttribute(attribute.name);
+                }
+                if ((name === 'href' || name === 'src') && value.toLowerCase().includes('javascript:')) {
+                    node.removeAttribute(attribute.name);
+                }
+            });
+        });
+
+        return template.innerHTML;
+    }
+
+    async function ensureLibrariesLoaded() {
+        return true;
     }
 
     async function renderMarkdown(text) {
-        try {
-            await ensureLibrariesLoaded();
-        } catch (error) {
-            if (!markdownFallbackWarned) {
-                console.warn('Markdown libraries unavailable, using fallback renderer:', error.message);
-                markdownFallbackWarned = true;
-            }
-            return renderFallbackMarkdown(text);
-        }
-
-        if (typeof marked === 'undefined') {
-            return renderFallbackMarkdown(text);
-        }
-        try {
-            return marked.parse(text || '');
-        } catch (e) {
-            console.error('Markdown parse error:', e);
-            return renderFallbackMarkdown(text);
-        }
+        const source = normalizeMarkdownSource(text);
+        return renderBlocks(source);
     }
 
-    // Render with sanitization
     function renderMarkdownSafe(text) {
-        const rawHtml = renderMarkdown(text);
-        // Basic sanitization - remove script tags and dangerous attributes
-        return rawHtml.then(html => {
-            return html
-                .replace(/<script\b[^<]*(-:(-!<\/script>)<[^<]*)*<\/script>/gi, '')
-                .replace(/on\w+="[^"]*"/gi, '')
-                .replace(/on\w+='[^']*'/gi, '')
-                .replace(/javascript:/gi, '');
-        });
+        return renderMarkdown(text).then((html) => sanitizeHtml(html));
     }
 
-    // Create a live preview editor
     function createMarkdownEditor(container, options = {}) {
         const {
             previewHeight = '300px',
@@ -175,36 +224,16 @@
         const toolbar = document.createElement('div');
         toolbar.className = 'markdown-toolbar';
         toolbar.innerHTML = `
-            <button type="button" data-action="bold" title="Bold (Ctrl+B)">
-                <strong>B</strong>
-            </button>
-            <button type="button" data-action="italic" title="Italic (Ctrl+I)">
-                <em>I</em>
-            </button>
-            <button type="button" data-action="code" title="Inline Code">
-                <code>&lt;/&gt;</code>
-            </button>
-            <button type="button" data-action="link" title="Link">
-                Link
-            </button>
-            <button type="button" data-action="heading" title="Heading">
-                H
-            </button>
-            <button type="button" data-action="list" title="List">
-                -
-            </button>
-            <button type="button" data-action="quote" title="Quote">
-                "
-            </button>
-            <button type="button" data-action="hr" title="Divider">
-                --
-            </button>
-            <button type="button" data-action="image" title="Image">
-                Image
-            </button>
-            <button type="button" data-action="table" title="Table">
-                Table
-            </button>
+            <button type="button" data-action="bold" title="Bold (Ctrl+B)"><strong>B</strong></button>
+            <button type="button" data-action="italic" title="Italic (Ctrl+I)"><em>I</em></button>
+            <button type="button" data-action="code" title="Inline Code"><code>&lt;/&gt;</code></button>
+            <button type="button" data-action="link" title="Link">Link</button>
+            <button type="button" data-action="heading" title="Heading">H</button>
+            <button type="button" data-action="list" title="List">-</button>
+            <button type="button" data-action="quote" title="Quote">"</button>
+            <button type="button" data-action="hr" title="Divider">--</button>
+            <button type="button" data-action="image" title="Image">Image</button>
+            <button type="button" data-action="table" title="Table">Table</button>
         `;
 
         const previewWrapper = document.createElement('div');
@@ -225,7 +254,6 @@
         preview.style.borderRadius = 'var(--radius-md)';
         preview.style.overflowY = 'auto';
 
-        // Add toolbar styles
         const style = document.createElement('style');
         style.textContent = `
             .markdown-toolbar {
@@ -270,10 +298,7 @@
                 overflow-x: auto;
                 margin: 0.75rem 0;
             }
-            .markdown-preview pre code {
-                background: none;
-                padding: 0;
-            }
+            .markdown-preview pre code { background: none; padding: 0; }
             .markdown-preview blockquote {
                 border-left: 3px solid var(--accent-primary);
                 padding-left: 1rem;
@@ -302,8 +327,7 @@
         `;
         document.head.appendChild(style);
 
-        // Toolbar actions
-        toolbar.addEventListener('click', async (e) => {
+        toolbar.addEventListener('click', (e) => {
             const btn = e.target.closest('button');
             if (!btn) return;
             const action = btn.dataset.action;
@@ -320,19 +344,18 @@
                 table: { prefix: '| Header | Header |\n|--------|--------|\n| Cell   | Cell   |', suffix: '', placeholder: '' }
             };
 
-            if (actions[action]) {
-                const { prefix, suffix, placeholder } = actions[action];
-                const start = input.selectionStart;
-                const end = input.selectionEnd;
-                const selected = input.value.substring(start, end) || placeholder;
-                input.value = input.value.substring(0, start) + prefix + selected + suffix + input.value.substring(end);
-                input.focus();
-                input.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
-                updatePreview();
-            }
+            const selectedAction = actions[action];
+            if (!selectedAction) return;
+
+            const start = input.selectionStart;
+            const end = input.selectionEnd;
+            const selected = input.value.substring(start, end) || selectedAction.placeholder;
+            input.value = input.value.substring(0, start) + selectedAction.prefix + selected + selectedAction.suffix + input.value.substring(end);
+            input.focus();
+            input.setSelectionRange(start + selectedAction.prefix.length, start + selectedAction.prefix.length + selected.length);
+            updatePreview();
         });
 
-        // Preview toggle
         previewToggle.addEventListener('click', () => {
             const isHidden = previewWrapper.style.display === 'none';
             previewWrapper.style.display = isHidden ? 'block' : 'none';
@@ -340,21 +363,17 @@
             if (isHidden) updatePreview();
         });
 
-        // Debounced preview update
         let debounceTimer;
         async function updatePreview() {
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(async () => {
-                const text = input.value;
-                const html = await renderMarkdownSafe(text);
+                const html = await renderMarkdownSafe(input.value);
                 preview.innerHTML = html;
                 if (onPreview) onPreview(html);
             }, debounceMs);
         }
 
         input.addEventListener('input', updatePreview);
-
-        // Keyboard shortcuts
         input.addEventListener('keydown', (e) => {
             if (e.ctrlKey || e.metaKey) {
                 if (e.key === 'b') {
@@ -367,7 +386,6 @@
             }
         });
 
-        // Assemble
         const headerRow = document.createElement('div');
         headerRow.style.display = 'flex';
         headerRow.style.alignItems = 'center';
@@ -399,15 +417,6 @@
         };
     }
 
-    // Escape HTML for fallback
-    function escapeHtml(text) {
-        if (!text) return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    // Export
     window.MarkdownRenderer = {
         render: renderMarkdown,
         renderSafe: renderMarkdownSafe,

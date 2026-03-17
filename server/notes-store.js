@@ -69,8 +69,16 @@ function parseTags(rawValue) {
     }
 }
 
-function stripMarkdown(value) {
+function normalizeTextContent(value) {
     return String(value || '')
+        .replace(/\r\n?/g, '\n')
+        .replace(/`r`n/g, '\n')
+        .replace(/`n/g, '\n')
+        .replace(/\\n/g, '\n');
+}
+
+function stripMarkdown(value) {
+    return normalizeTextContent(value)
         .replace(/```[\s\S]*?```/g, ' ')
         .replace(/`([^`]+)`/g, '$1')
         .replace(/!\[.*?\]\(.*?\)/g, ' ')
@@ -102,7 +110,7 @@ function mapNoteRow(row) {
         id: row.id,
         user_id: row.user_id,
         title: row.title,
-        content: row.content,
+        content: normalizeTextContent(row.content),
         market: row.market,
         tags: parseTags(row.tags),
         is_pinned: Boolean(row.is_pinned),
@@ -127,7 +135,7 @@ function mapIdeaRow(row, viewerUserId = null) {
         id: row.id,
         user_id: row.user_id,
         title: row.title,
-        content: row.content,
+        content: normalizeTextContent(row.content),
         excerpt: buildExcerpt(row.content),
         market: row.market,
         tags,
@@ -473,7 +481,7 @@ function createNotesStore(options = {}) {
         const payload = {
             user_id: userId,
             title: String(note.title || 'Untitled').trim() || 'Untitled',
-            content: String(note.content || ''),
+            content: normalizeTextContent(note.content),
             market: String(note.market || 'General'),
             tags: JSON.stringify(normalizeTags(note.tags)),
             is_pinned: normalizeBoolean(note.is_pinned) ? 1 : 0,
@@ -505,7 +513,7 @@ function createNotesStore(options = {}) {
 
         const next = {
             title: updates.title !== undefined ? String(updates.title || '').trim() || 'Untitled' : current.title,
-            content: updates.content !== undefined ? String(updates.content || '') : current.content,
+            content: updates.content !== undefined ? normalizeTextContent(updates.content) : current.content,
             market: updates.market !== undefined ? String(updates.market || 'General') : current.market,
             tags: updates.tags !== undefined ? JSON.stringify(normalizeTags(updates.tags)) : current.tags,
             is_pinned: updates.is_pinned !== undefined ? (normalizeBoolean(updates.is_pinned) ? 1 : 0) : current.is_pinned,

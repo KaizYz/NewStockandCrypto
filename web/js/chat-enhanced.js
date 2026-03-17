@@ -11,6 +11,7 @@ let reactionSubscription = null;
 let presenceSubscription = null;
 let typingTimeout = null;
 let currentAuthState = null;
+let legacyBoardPollTimer = null;
 
 // Reaction labels
 const REACTION_EMOJIS = ['Like', 'Love', 'Laugh', 'Wow', 'Sad', 'Celebrate', 'Rocket', 'Gem'];
@@ -31,7 +32,7 @@ async function initializeEnhancedChat() {
         currentAuthState = window.Auth?.ready
             ? await window.Auth.ready()
             : null;
-        currentUser = currentAuthState?.user || await window.SupabaseClient.auth.getCurrentUser();
+        currentUser = currentAuthState?.user || currentAuthState?.legacyUser || await window.SupabaseClient.auth.getCurrentUser();
         updateAuthUI();
         
         // Load boards
@@ -113,8 +114,17 @@ async function loadBoards() {
         const customChannels = window.SupabaseClient.channels?.getPublic
             ? await window.SupabaseClient.channels.getPublic()
             : [];
-        
-        const allBoards = [...boards, ...(customChannels || [])];
+
+        const uniqueBoards = new Map();
+        [...(boards || []), ...(customChannels || [])].forEach((board) => {
+            if (!board?.id) return;
+            uniqueBoards.set(String(board.id), {
+                ...uniqueBoards.get(String(board.id)),
+                ...board
+            });
+        });
+
+        const allBoards = Array.from(uniqueBoards.values());
         renderBoards(allBoards);
         
         // Load online users
@@ -220,6 +230,12 @@ async function selectBoard(boardId, boardName, boardTopic) {
         return;
     }
 
+    try {
+        await window.SupabaseClient.chat.join(boardId);
+    } catch (error) {
+        console.warn('Join lounge skipped:', error);
+    }
+
     // Show input area
     document.getElementById('inputArea').style.display = 'flex';
     document.getElementById('joinBtn').style.display = 'none';
@@ -231,24 +247,36 @@ async function selectBoard(boardId, boardName, boardTopic) {
     if (messageSubscription) window.SupabaseClient.chat.unsubscribe(messageSubscription);
     if (reactionSubscription) window.SupabaseClient.chat.unsubscribe(reactionSubscription);
     if (presenceSubscription) window.SupabaseClient.chat.unsubscribe(presenceSubscription);
+    if (legacyBoardPollTimer) {
+        window.clearInterval(legacyBoardPollTimer);
+        legacyBoardPollTimer = null;
+    }
 
     // Load messages
     await loadMessages(boardId);
 
-    // Subscribe to new messages
-    messageSubscription = window.SupabaseClient.chat.subscribe(boardId, (message) => {
-        appendMessage(message);
-    });
+    if (isLegacyCommunitySession()) {
+        legacyBoardPollTimer = window.setInterval(async () => {
+            if (!currentBoard || String(currentBoard.id) !== String(boardId)) return;
+            await loadMessages(boardId);
+            await loadOnlineUsers(boardId);
+        }, 5000);
+    } else {
+        // Subscribe to new messages
+        messageSubscription = window.SupabaseClient.chat.subscribe(boardId, (message) => {
+            appendMessage(message);
+        });
 
-    // Subscribe to reactions
-    reactionSubscription = window.SupabaseClient.chat.subscribeReactions(boardId, (payload) => {
-        handleReactionChange(payload);
-    });
+        // Subscribe to reactions
+        reactionSubscription = window.SupabaseClient.chat.subscribeReactions(boardId, (payload) => {
+            handleReactionChange(payload);
+        });
 
-    // Subscribe to presence
-    presenceSubscription = window.SupabaseClient.presence.subscribe(boardId, (payload) => {
-        handlePresenceChange(payload);
-    });
+        // Subscribe to presence
+        presenceSubscription = window.SupabaseClient.presence.subscribe(boardId, (payload) => {
+            handlePresenceChange(payload);
+        });
+    }
 
     // Load online users for this channel
     await loadOnlineUsers(boardId);
@@ -433,6 +461,10 @@ function handlePresenceChange(payload) {
     loadOnlineUsers(currentBoard?.id);
 }
 
+function isLegacyCommunitySession() {
+    return Boolean(currentAuthState?.legacyUser && !currentAuthState?.user);
+}
+
 // ==================== MESSAGE ACTIONS ====================
 
 async function sendMessage() {
@@ -452,6 +484,10 @@ async function sendMessage() {
         
         // Stop typing indicator
         window.SupabaseClient.presence.setTyping(currentBoard.id, false);
+
+        if (isLegacyCommunitySession()) {
+            await loadMessages(currentBoard.id);
+        }
     } catch (error) {
         console.error('Send error:', error);
         showToast('Failed to send message', 'error');
@@ -851,6 +887,17 @@ function setupEnhancedEventListeners() {
         });
     }
 
+    const joinBtn = document.getElementById('joinBtn');
+    if (joinBtn) {
+        joinBtn.addEventListener('click', async () => {
+            if (!currentUser || !currentBoard) {
+                showAuthRequired(currentAuthState);
+                return;
+            }
+            await selectBoard(currentBoard.id, currentBoard.name, currentBoard.topic);
+        });
+    }
+
     // File upload
     const uploadBtn = document.getElementById('uploadBtn');
     if (uploadBtn) {
@@ -871,6 +918,9 @@ function setupEnhancedEventListeners() {
     window.addEventListener('beforeunload', () => {
         if (currentUser) {
             window.SupabaseClient.presence.update('offline');
+        }
+        if (legacyBoardPollTimer) {
+            window.clearInterval(legacyBoardPollTimer);
         }
     });
 }
