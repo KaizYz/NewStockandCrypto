@@ -38,4 +38,4 @@ services:
       - key: PYTHON_VERSION
         value: "3.11.11"
       - key: MODEL_EXPLORER_MODE
-        value: "mock"
+        value: "live"

@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 from app.services.mock_provider import MockProvider
@@ -27,8 +28,16 @@ class ProviderFactory:
             closer()
 
     def _build(self) -> ProviderContext:
-        mode = str(os.getenv('MODEL_EXPLORER_MODE', 'mock')).strip().lower()
-        artifact_dir = str(os.getenv('MODEL_ARTIFACT_DIR', 'ml-service/artifacts/latest'))
+        service_root = Path(__file__).resolve().parents[2]
+        artifact_dir = str(Path(os.getenv('MODEL_ARTIFACT_DIR', service_root / 'artifacts' / 'latest')).resolve())
+        artifact_root = Path(artifact_dir)
+        render_runtime = bool(os.getenv('RENDER') or os.getenv('RENDER_EXTERNAL_URL'))
+        configured_mode = str(os.getenv('MODEL_EXPLORER_MODE', '')).strip().lower()
+        has_live_artifacts = (artifact_root / 'artifact_meta.json').exists() and (artifact_root / 'model_outputs.json').exists()
+
+        mode = configured_mode or ('live' if has_live_artifacts else 'mock')
+        if render_runtime and has_live_artifacts:
+            mode = 'live'
 
         if mode == 'live':
             from app.services.live_provider import LiveProvider
