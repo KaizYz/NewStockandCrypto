@@ -7206,16 +7206,38 @@ function buildHomeCompositeDetailLeadIn(cardKey, row) {
     return '';
 }
 
+function buildPreferredHomeCryptoRow(aggregate, benchmarkPayload, symbol) {
+    const trackedRow = findTrackingRow(aggregate, symbol, 'crypto');
+    const benchmarkQuote = benchmarkPayload
+        ? getCryptoRowBySymbol(benchmarkPayload, normalizeCryptoSymbol(symbol))
+        : null;
+    const benchmarkRow = benchmarkQuote
+        ? buildTrackingCryptoBenchmarkRow(
+            benchmarkQuote,
+            Boolean(benchmarkPayload?.meta?.stale),
+            benchmarkPayload?.meta?.stale_reason || benchmarkPayload?.meta?.staleReason || null,
+            benchmarkPayload?.meta?.timestamp || new Date().toISOString()
+        )
+        : null;
+
+    if (benchmarkRow && !benchmarkRow.stale && (!trackedRow || trackedRow.stale || trackedRow.signalSource === 'binance_us_benchmark')) {
+        return benchmarkRow;
+    }
+    return trackedRow || benchmarkRow || null;
+}
+
 async function buildHomeLandingPayload() {
     const aggregate = await getTrackingAggregateWithCache();
-    const [cnResult, usResult] = await Promise.allSettled([
+    const [cnResult, usResult, cryptoBenchmarkResult] = await Promise.allSettled([
         getCnPayloadWithCache(),
-        getUsPayloadWithCache()
+        getUsPayloadWithCache(),
+        getCryptoPricesWithCache()
     ]);
 
-    const cryptoBtc = findTrackingRow(aggregate, 'BTC', 'crypto');
-    const cryptoEth = findTrackingRow(aggregate, 'ETH', 'crypto');
-    const cryptoSol = findTrackingRow(aggregate, 'SOL', 'crypto');
+    const cryptoBenchmarkPayload = cryptoBenchmarkResult.status === 'fulfilled' ? cryptoBenchmarkResult.value : null;
+    const cryptoBtc = buildPreferredHomeCryptoRow(aggregate, cryptoBenchmarkPayload, 'BTC');
+    const cryptoEth = buildPreferredHomeCryptoRow(aggregate, cryptoBenchmarkPayload, 'ETH');
+    const cryptoSol = buildPreferredHomeCryptoRow(aggregate, cryptoBenchmarkPayload, 'SOL');
 
     const cnRows = aggregate.allRows.filter((row) => row.market === 'cn').sort((a, b) => b.totalScore - a.totalScore);
     const usRows = aggregate.allRows.filter((row) => row.market === 'us').sort((a, b) => b.totalScore - a.totalScore);
