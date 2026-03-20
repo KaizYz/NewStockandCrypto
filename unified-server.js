@@ -115,7 +115,8 @@ const US_INDEX_HISTORY_SYMBOLS = {
 const US_INDEX_HISTORY_MODE_ALLOW = new Set(['regular_sessions']);
 const TRACKING_REFRESH_INTERVAL_SEC = Number(process.env.TRACKING_REFRESH_INTERVAL_SEC || 10);
 const TRACKING_CACHE_TTL_MS = Number(process.env.TRACKING_CACHE_TTL_MS || 5000);
-const TRACKING_CRYPTO_CACHE_TTL_MS = Number(process.env.TRACKING_CRYPTO_CACHE_TTL_MS || 15000);
+const TRACKING_CRYPTO_CACHE_TTL_MS = Number(process.env.TRACKING_CRYPTO_CACHE_TTL_MS || 60000);
+const TRACKING_CRYPTO_FAILURE_BACKOFF_MS = Number(process.env.TRACKING_CRYPTO_FAILURE_BACKOFF_MS || 120000);
 const HOME_LANDING_CACHE_TTL_MS = Number(process.env.HOME_LANDING_CACHE_TTL_MS || 5000);
 const TRACKING_DEFAULT_PAGE_SIZE = Number(process.env.TRACKING_DEFAULT_PAGE_SIZE || 20);
 const TRACKING_ACTION_LOG_LIMIT = Number(process.env.TRACKING_ACTION_LOG_LIMIT || 100);
@@ -185,6 +186,9 @@ let usIndicesHistoryCacheAt = 0;
 let usIndicesHistoryCacheKey = '';
 let trackingCryptoUniverseCache = null;
 let trackingCryptoUniverseCacheAt = 0;
+let trackingCryptoUniversePromise = null;
+let trackingCryptoLastFailureAt = 0;
+let trackingCryptoLastFailureReason = null;
 let trackingAggregateCache = null;
 let trackingAggregateCacheAt = 0;
 let trackingAggregatePromise = null;
@@ -1032,6 +1036,26 @@ function readTrackingBucketSnapshot(market) {
 
 function writeTrackingBucketSnapshot(market, bucket) {
     writeTrackingSnapshot(market, bucket);
+}
+
+function markTrackingBucketStale(bucket, reason, fallbackSource = 'tracking') {
+    const stalePayload = deepCopy(bucket);
+    stalePayload.meta = {
+        ...stalePayload.meta,
+        source: stalePayload.meta?.source || fallbackSource,
+        stale: true,
+        staleReason: reason,
+        timestamp: new Date().toISOString()
+    };
+    stalePayload.rows = Array.isArray(stalePayload.rows)
+        ? stalePayload.rows.map((row) => ({
+            ...row,
+            stale: true,
+            staleReason: reason,
+            status: row.status === 'UNAVAILABLE' ? 'UNAVAILABLE' : 'STALE'
+        }))
+        : [];
+    return stalePayload;
 }
 
 function readCnLiveSnapshot() {
@@ -6465,82 +6489,89 @@ async function getTrackingCryptoUniverseWithCache() {
     }
 
     const diskSnapshot = readTrackingSnapshot('crypto');
-
-    try {
-        const timestamp = new Date().toISOString();
-        const rawRows = await fetchTrackingCryptoUniverse();
-        const rows = rawRows.map((row) => buildTrackingCryptoRow(row, false, null, timestamp));
-        const payload = {
-            meta: {
-                source: 'coingecko_markets',
-                timestamp,
-                stale: false
-            },
-            rows
-        };
-        trackingCryptoUniverseCache = payload;
-        trackingCryptoUniverseCacheAt = Date.now();
-        writeTrackingSnapshot('crypto', payload);
+    const snapshotCandidate = trackingCryptoUniverseCache?.rows?.length
+        ? trackingCryptoUniverseCache
+        : (diskSnapshot?.rows?.length ? diskSnapshot : null);
+    const shouldUseBackoffSnapshot = Boolean(
+        snapshotCandidate?.rows?.length
+        && trackingCryptoLastFailureAt
+        && (now - trackingCryptoLastFailureAt) <= TRACKING_CRYPTO_FAILURE_BACKOFF_MS
+    );
+    if (shouldUseBackoffSnapshot) {
+        return markTrackingBucketStale(
+            snapshotCandidate,
+            trackingCryptoLastFailureReason || `CoinGecko fetch backoff ${TRACKING_CRYPTO_FAILURE_BACKOFF_MS}ms`,
+            'coingecko_markets'
+        );
+    }
+    if (trackingCryptoUniversePromise) {
+        const payload = await trackingCryptoUniversePromise;
         return deepCopy(payload);
-    } catch (error) {
-        if (trackingCryptoUniverseCache) {
-            const stalePayload = deepCopy(trackingCryptoUniverseCache);
-            stalePayload.meta = {
-                ...stalePayload.meta,
-                stale: true,
-                staleReason: error.message,
-                timestamp: new Date().toISOString()
-            };
-            stalePayload.rows = stalePayload.rows.map((row) => ({
-                ...row,
-                stale: true,
-                staleReason: error.message,
-                status: row.status === 'UNAVAILABLE' ? 'UNAVAILABLE' : 'STALE'
-            }));
-            return stalePayload;
-        }
-        if (diskSnapshot?.rows?.length) {
-            const stalePayload = deepCopy(diskSnapshot);
-            stalePayload.meta = {
-                ...stalePayload.meta,
-                stale: true,
-                staleReason: error.message,
-                timestamp: new Date().toISOString()
-            };
-            stalePayload.rows = stalePayload.rows.map((row) => ({
-                ...row,
-                stale: true,
-                staleReason: error.message,
-                status: row.status === 'UNAVAILABLE' ? 'UNAVAILABLE' : 'STALE'
-            }));
-            trackingCryptoUniverseCache = stalePayload;
-            trackingCryptoUniverseCacheAt = Date.now();
-            return stalePayload;
-        }
+    }
+
+    const inFlight = (async () => {
         try {
-            const benchmarkPayload = await getCryptoPricesWithCache();
             const timestamp = new Date().toISOString();
-            const rows = listCryptoRows(benchmarkPayload)
-                .map((quote) => buildTrackingCryptoBenchmarkRow(quote, true, error.message, timestamp))
-                .filter((row) => row !== null);
-            if (rows.length) {
-                const stalePayload = {
-                    meta: {
-                        source: 'binance_us_benchmark',
-                        timestamp,
-                        stale: true,
-                        staleReason: error.message
-                    },
-                    rows
-                };
-                trackingCryptoUniverseCache = stalePayload;
-                trackingCryptoUniverseCacheAt = Date.now();
-                return deepCopy(stalePayload);
+            const rawRows = await fetchTrackingCryptoUniverse();
+            const rows = rawRows.map((row) => buildTrackingCryptoRow(row, false, null, timestamp));
+            const payload = {
+                meta: {
+                    source: 'coingecko_markets',
+                    timestamp,
+                    stale: false
+                },
+                rows
+            };
+            trackingCryptoUniverseCache = payload;
+            trackingCryptoUniverseCacheAt = Date.now();
+            trackingCryptoLastFailureAt = 0;
+            trackingCryptoLastFailureReason = null;
+            writeTrackingSnapshot('crypto', payload);
+            return payload;
+        } catch (error) {
+            trackingCryptoLastFailureAt = Date.now();
+            trackingCryptoLastFailureReason = error.message;
+
+            if (trackingCryptoUniverseCache?.rows?.length) {
+                return markTrackingBucketStale(trackingCryptoUniverseCache, error.message, 'coingecko_markets');
             }
-        } catch (benchmarkError) {
-            console.warn(`crypto benchmark fallback failed: ${benchmarkError.message}`);
+            if (diskSnapshot?.rows?.length) {
+                return markTrackingBucketStale(diskSnapshot, error.message, 'coingecko_markets');
+            }
+            try {
+                const benchmarkPayload = await getCryptoPricesWithCache();
+                const timestamp = new Date().toISOString();
+                const rows = listCryptoRows(benchmarkPayload)
+                    .map((quote) => buildTrackingCryptoBenchmarkRow(quote, true, error.message, timestamp))
+                    .filter((row) => row !== null);
+                if (rows.length) {
+                    const stalePayload = {
+                        meta: {
+                            source: 'binance_us_benchmark',
+                            timestamp,
+                            stale: true,
+                            staleReason: error.message
+                        },
+                        rows
+                    };
+                    trackingCryptoUniverseCache = stalePayload;
+                    trackingCryptoUniverseCacheAt = Date.now();
+                    return stalePayload;
+                }
+            } catch (benchmarkError) {
+                console.warn(`crypto benchmark fallback failed: ${benchmarkError.message}`);
+            }
+            throw error;
         }
-        throw error;
+    })();
+    trackingCryptoUniversePromise = inFlight;
+    try {
+        const payload = await inFlight;
+        return deepCopy(payload);
+    } finally {
+        if (trackingCryptoUniversePromise === inFlight) {
+            trackingCryptoUniversePromise = null;
+        }
     }
 }
 
