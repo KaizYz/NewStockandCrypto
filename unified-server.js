@@ -6949,7 +6949,20 @@ function findTrackingRow(aggregate, symbol, market = 'all') {
     const normalizedMarket = normalizeTrackingMarket(market);
     return aggregate.allRows.find((row) => {
         const marketMatch = normalizedMarket === 'all' || row.market === normalizedMarket;
-        return marketMatch && String(row.symbol || '').toUpperCase() === normalizedSymbol;
+        if (!marketMatch) {
+            return false;
+        }
+
+        const rowSymbol = String(row.symbol || '').trim().toUpperCase();
+        if (rowSymbol === normalizedSymbol) {
+            return true;
+        }
+
+        if (normalizedMarket === 'crypto' || row.market === 'crypto') {
+            return cryptoBaseSymbol(rowSymbol) === cryptoBaseSymbol(normalizedSymbol);
+        }
+
+        return false;
     }) || null;
 }
 
