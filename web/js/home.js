@@ -167,7 +167,7 @@ function renderDegradedNote() {
 
     if (cryptoFallbackActive) {
         note.hidden = false;
-        note.innerHTML = '<strong>Crypto backup live feed active.</strong> Homepage crypto cards are being served from a realtime Binance benchmark while the broader upstream crypto market source is temporarily rate-limited.';
+        note.innerHTML = '<span class="home-degraded-dot" aria-hidden="true"></span><span class="home-degraded-copy"><strong>Crypto backup live feed active.</strong> Homepage crypto cards are being served from a realtime Binance benchmark while the broader upstream crypto market source is temporarily rate-limited.</span>';
         return;
     }
 
@@ -247,7 +247,9 @@ function renderOverviewCards() {
         const toneClass = selected ? 'is-selected' : '';
         const staleClass = card.stale ? 'is-stale' : '';
         const unavailableClass = card.unavailable ? 'is-unavailable' : '';
+        const fallbackLive = isCryptoFallbackCard(card);
         const leaderMeta = card.leaderMeta ? `<div class="home-card-subcopy">${escapeHtml(card.leaderMeta.symbol)} | ${escapeHtml(card.leaderMeta.name || '')}</div>` : '';
+        const feedNote = fallbackLive ? '<div class="home-card-feed-note">Backup Live</div>' : '';
         const actionBadge = `<span class="status-badge ${badgeTone(card.actionTone)}">${escapeHtml(card.stale ? `${card.action} / STALE` : card.action || 'LIVE')}</span>`;
         return `
             <button type="button" class="metric-card home-overview-card ${toneClass} ${staleClass} ${unavailableClass}" data-home-card-key="${escapeHtml(card.cardKey)}">
@@ -255,6 +257,7 @@ function renderOverviewCards() {
                     <div>
                         <div class="metric-label">${escapeHtml(card.label || '--')}</div>
                         ${leaderMeta}
+                        ${feedNote}
                     </div>
                     ${actionBadge}
                 </div>
@@ -402,6 +405,12 @@ function badgeTone(tone) {
     if (tone === 'danger') return 'danger';
     if (tone === 'warning') return 'warning';
     return 'info';
+}
+
+function isCryptoFallbackCard(card) {
+    return card?.market === 'crypto'
+        && card?.signalSource === 'binance_us_benchmark'
+        && !card?.unavailable;
 }
 
 function factorValueTone(value) {
