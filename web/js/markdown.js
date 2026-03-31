@@ -29,6 +29,10 @@
         let html = escapeHtml(value || '');
 
         html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+        html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => {
+            const safeSrc = String(src || '').replace(/javascript:/gi, '');
+            return `<img src="${safeSrc}" alt="${alt}" loading="lazy" style="max-width:100%;height:auto;border-radius:16px;display:block;margin:0.75rem 0;" />`;
+        });
         html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, href) => {
             const safeHref = escapeHtml(href).replace(/javascript:/gi, '');
             return `<a href="${safeHref}" target="_blank" rel="noopener noreferrer">${label}</a>`;

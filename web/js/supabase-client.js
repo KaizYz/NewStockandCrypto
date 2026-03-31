@@ -233,18 +233,8 @@
         return payload.user || null;
     }
 
-    async function getNotesMode() {
-        const legacyUser = await getLegacyUser();
-        if (legacyUser) {
-            return 'legacy';
-        }
 
-        await initSupabase();
-        const user = await auth.getCurrentUser();
-        return user ? 'supabase' : null;
-    }
-
-    async function legacyNotesRequest(endpoint, options = {}) {
+    async function legacyApiRequest(endpoint, options = {}) {
         const response = await fetch(`${window.location.origin}/api${endpoint}`, {
             method: options.method || 'GET',
             credentials: 'same-origin',
@@ -258,9 +248,218 @@
 
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) {
-            throw new Error(payload.message || payload.error || `Legacy notes HTTP ${response.status}`);
+            throw new Error(payload.message || payload.error || `Legacy API HTTP ${response.status}`);
         }
         return payload;
+    }
+
+    async function getSupabaseUserIfAvailable() {
+        try {
+            await initSupabase();
+            return await auth.getCurrentUser();
+        } catch (error) {
+            return null;
+        }
+    }
+
+    async function getProfileMode() {
+        const state = window.Auth?.getState?.() || {};
+        if (state.user) {
+            return 'supabase';
+        }
+        if (state.legacyUser) {
+            return 'legacy';
+        }
+
+        const user = await getSupabaseUserIfAvailable();
+        if (user) {
+            return 'supabase';
+        }
+
+        const legacyUser = await getLegacyUser();
+        return legacyUser ? 'legacy' : null;
+    }
+
+    async function getFileUploadMode(type = 'file') {
+        if (type === 'note-image') {
+            return getNotesMode();
+        }
+
+        const state = window.Auth?.getState?.() || {};
+        if (state.user) {
+            return 'supabase';
+        }
+        if (state.legacyUser) {
+            return 'legacy';
+        }
+
+        const user = await getSupabaseUserIfAvailable();
+        if (user) {
+            return 'supabase';
+        }
+
+        const legacyUser = await getLegacyUser();
+        return legacyUser ? 'legacy' : null;
+    }
+
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const value = String(reader.result || '');
+                const base64 = value.includes(',') ? value.slice(value.indexOf(',') + 1) : value;
+                resolve(base64);
+            };
+            reader.onerror = () => reject(reader.error || new Error('Failed to read file.'));
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function uploadLegacyFile(endpoint, file) {
+        const dataBase64 = await fileToBase64(file);
+        return legacyApiRequest(endpoint, {
+            method: 'POST',
+            body: {
+                fileName: file.name,
+                mimeType: file.type,
+                dataBase64
+            }
+        });
+    }
+
+    function normalizeSupabaseProfile(profile) {
+        if (!profile) {
+            return null;
+        }
+        const preferences = profile.preferences || {};
+        return {
+            ...profile,
+            website: profile.website ?? preferences.website ?? '',
+            location: profile.location ?? preferences.location ?? ''
+        };
+    }
+
+    async function getSupabaseProfile(userId) {
+        await initSupabase();
+        const currentUser = await auth.getCurrentUser();
+        const targetUserId = userId || currentUser?.id;
+        if (!targetUserId) {
+            throw new Error('Not authenticated');
+        }
+
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', targetUserId)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+        return normalizeSupabaseProfile(data);
+    }
+
+    async function updateSupabaseProfile(updates = {}) {
+        await initSupabase();
+        const user = await auth.getCurrentUser();
+        if (!user) throw new Error('Not authenticated');
+
+        const currentProfile = await getSupabaseProfile(user.id).catch(() => null);
+        const nextPreferences = {
+            ...(currentProfile?.preferences || {})
+        };
+
+        if (updates.website !== undefined) {
+            nextPreferences.website = String(updates.website || '').trim();
+        }
+        if (updates.location !== undefined) {
+            nextPreferences.location = String(updates.location || '').trim();
+        }
+
+        const payload = {
+            id: user.id,
+            updated_at: new Date().toISOString(),
+            preferences: nextPreferences
+        };
+
+        if (updates.username !== undefined) {
+            payload.username = String(updates.username || '').trim() || user.email?.split('@')[0] || 'User';
+        }
+        if (updates.bio !== undefined) {
+            payload.bio = String(updates.bio || '').trim();
+        }
+        if (updates.avatar_url !== undefined) {
+            payload.avatar_url = updates.avatar_url || null;
+        }
+
+        const { data, error } = await supabase
+            .from('profiles')
+            .upsert(payload, { onConflict: 'id' })
+            .select('*')
+            .single();
+
+        if (error) throw error;
+        return normalizeSupabaseProfile(data);
+    }
+
+    async function uploadSupabaseAvatar(file) {
+        await initSupabase();
+        const user = await auth.getCurrentUser();
+        if (!user) throw new Error('Not authenticated');
+
+        const fileExt = String(file.name || '').split('.').pop();
+        const fileName = `${user.id}/avatar.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(fileName, file, { upsert: true });
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(fileName);
+
+        await updateSupabaseProfile({ avatar_url: publicUrl });
+        return publicUrl;
+    }
+
+    async function uploadSupabaseAttachment(file, type = 'image') {
+        await initSupabase();
+        const user = await auth.getCurrentUser();
+        if (!user) throw new Error('Not authenticated');
+
+        const fileExt = String(file.name || '').split('.').pop();
+        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('attachments')
+            .upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+            .from('attachments')
+            .getPublicUrl(fileName);
+
+        return {
+            url: publicUrl,
+            type,
+            name: file.name
+        };
+    }
+
+    async function getNotesMode() {
+        const legacyUser = await getLegacyUser();
+        if (legacyUser) {
+            return 'legacy';
+        }
+
+        await initSupabase();
+        const user = await auth.getCurrentUser();
+        return user ? 'supabase' : null;
+    }
+
+    async function legacyNotesRequest(endpoint, options = {}) {
+        return legacyApiRequest(endpoint, options);
     }
 
     async function getChatMode() {
@@ -655,6 +854,62 @@
                 throw new Error(payload.message || payload.error || `Community share HTTP ${response.status}`);
             }
             return payload;
+        }
+    };
+
+    const profile = {
+        async get(userId) {
+            const mode = await getProfileMode();
+            if (mode === 'legacy') {
+                const payload = await legacyApiRequest('/profile');
+                return payload.profile || null;
+            }
+            return getSupabaseProfile(userId);
+        },
+
+        async update(updates = {}) {
+            const mode = await getProfileMode();
+            if (mode === 'legacy') {
+                const payload = await legacyApiRequest('/profile', {
+                    method: 'PATCH',
+                    body: updates
+                });
+                return payload.profile || null;
+            }
+            return updateSupabaseProfile(updates);
+        },
+
+        async uploadAvatar(file) {
+            const mode = await getProfileMode();
+            if (mode === 'legacy') {
+                const payload = await uploadLegacyFile('/profile/avatar', file);
+                return payload.avatarUrl || null;
+            }
+            return uploadSupabaseAvatar(file);
+        }
+    };
+
+    const files = {
+        async upload(file, type = 'image') {
+            const mode = await getFileUploadMode(type);
+            if (mode === 'legacy') {
+                if (type !== 'note-image') {
+                    throw new Error('File uploads are not available in the local chat fallback yet.');
+                }
+                const payload = await uploadLegacyFile('/uploads/note-images', file);
+                const uploaded = payload.file || null;
+                if (!uploaded) {
+                    throw new Error('Upload failed.');
+                }
+                return {
+                    url: uploaded.url,
+                    type,
+                    name: uploaded.name || file.name,
+                    mimeType: uploaded.mimeType,
+                    size: uploaded.size
+                };
+            }
+            return uploadSupabaseAttachment(file, type);
         }
     };
 
@@ -1230,15 +1485,12 @@
         notes,
         notebooks,
         communityNotes,
+        profile,
         chat,
         channels,
         likes,
         presence,
-        files: {
-            async upload() {
-                throw new Error('File uploads are not available in the local chat fallback yet.');
-            }
-        }
+        files
     };
 
     // Start initialization immediately

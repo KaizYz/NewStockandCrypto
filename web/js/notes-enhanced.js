@@ -92,7 +92,7 @@
             'templateStrip', 'noteTitle', 'noteNotebook', 'noteTags', 'noteContent', 'notePreview',
             'noteMarket', 'notePublicToggle', 'noteFavoriteToggle', 'notePinToggle', 'shareLinkInput',
             'saveNoteBtn', 'deleteNoteBtn', 'clearDraftBtn', 'duplicateTemplateBtn', 'openDetailBtn',
-            'importMarkdownBtn', 'importMarkdownInput', 'exportMarkdownBtn', 'exportPdfBtn',
+            'noteImageUploadBtn', 'noteImageInput', 'importMarkdownBtn', 'importMarkdownInput', 'exportMarkdownBtn', 'exportPdfBtn',
             'editorStatus', 'editorTitle', 'editorDescription', 'editorEyebrow', 'editorGate', 'editorWorkspace',
             'markdownToolbar', 'noteMetaDetails'
         ].forEach((id) => {
@@ -135,8 +135,9 @@
             ]);
             state.notebooks = notebooks || [];
             state.notes = notes || [];
-            if (!state.selectedNotebookId && state.notebooks[0]) {
-                state.selectedNotebookId = state.notebooks.find((item) => item.is_default)?.id || state.notebooks[0].id;
+            const hasSelectedNotebook = state.notebooks.some((item) => Number(item.id) === Number(state.selectedNotebookId));
+            if ((!state.selectedNotebookId || !hasSelectedNotebook) && state.notebooks[0]) {
+                state.selectedNotebookId = getDefaultNotebookId();
             }
         } else {
             state.notebooks = [];
@@ -321,6 +322,27 @@
             applyTemplate(state.selectedTemplateKey);
         });
 
+        elements.noteImageUploadBtn?.addEventListener('click', () => {
+            if (!state.canEditWorkspace) {
+                notify('info', 'Sign in to upload images into your notes.');
+                return;
+            }
+            elements.noteImageInput?.click();
+        });
+
+        elements.noteImageInput?.addEventListener('change', async (event) => {
+            const files = Array.from(event.target.files || []).filter(Boolean);
+            if (!files.length) return;
+            try {
+                await uploadNoteImages(files, 'picker');
+            } catch (error) {
+                console.error('Failed to upload note images:', error);
+                notify('error', error.message || 'Unable to upload the selected image.');
+            } finally {
+                event.target.value = '';
+            }
+        });
+
         elements.importMarkdownBtn?.addEventListener('click', () => {
             if (!state.canEditWorkspace) {
                 notify('info', 'Sign in to import markdown files.');
@@ -407,21 +429,35 @@
         document.addEventListener('drop', async (event) => {
             if (!isFileDrag(event)) return;
             event.preventDefault();
-            const file = getDroppedMarkdownFile(event.dataTransfer);
+            const imageFiles = getDroppedImageFiles(event.dataTransfer);
+            const markdownFile = getDroppedMarkdownFile(event.dataTransfer);
             setDragImportState(false);
 
             if (!state.canEditWorkspace) {
-                notify('info', 'Sign in to import markdown files into your workspace.');
+                notify('info', 'Sign in to import markdown files or upload images into your workspace.');
                 return;
             }
 
-            if (!file) {
-                notify('info', 'Drop a .md, .markdown, or .txt file to import it.');
+            if (imageFiles.length) {
+                try {
+                    await uploadNoteImages(imageFiles, 'drop');
+                    if (markdownFile) {
+                        notify('info', 'Images were uploaded. Markdown files in the same drop were ignored.');
+                    }
+                } catch (error) {
+                    console.error('Failed to upload dropped images:', error);
+                    notify('error', error.message || 'Unable to upload dropped images.');
+                }
+                return;
+            }
+
+            if (!markdownFile) {
+                notify('info', 'Drop a PNG, JPG, GIF, WEBP, .md, .markdown, or .txt file.');
                 return;
             }
 
             try {
-                await importMarkdownFile(file);
+                await importMarkdownFile(markdownFile);
             } catch (error) {
                 console.error('Failed to import dropped markdown:', error);
                 notify('error', 'Unable to import that markdown file.');
@@ -442,11 +478,9 @@
     function setMode(mode) {
         const nextMode = Object.values(WORKSPACE_MODES).includes(mode) ? mode : WORKSPACE_MODES.ALL;
         state.mode = nextMode;
-        if (nextMode !== WORKSPACE_MODES.ALL) {
-            state.selectedNotebookId = null;
-        }
         state.activeNote = null;
         state.activeNoteId = null;
+        state.editorMode = nextMode === WORKSPACE_MODES.DISCOVER ? 'read' : 'edit';
         renderWorkspace();
         updateUrlState();
     }
@@ -621,17 +655,9 @@
         }
 
         if (!state.activeNote) {
-            renderEditorDraft({
-                title: '',
-                content: '',
-                notebook_id: state.selectedNotebookId || state.notebooks.find((item) => item.is_default)?.id || '',
-                tags: [],
-                market: 'General',
-                is_public: false,
-                is_favorite: false,
-                is_pinned: false,
-                share_id: ''
-            }, false);
+            renderEditorDraft(buildDraftNote({
+                notebook_id: getDefaultNotebookId() || ''
+            }), false);
             return;
         }
 
@@ -639,33 +665,17 @@
     }
 
     function renderEditorDraft(note, isExisting) {
-        setText('editorEyebrow', isExisting ? 'Workspace note' : 'New draft');
-        setText('editorTitle', isExisting ? 'Edit note' : 'Create note');
-        setText('editorDescription', isExisting
-            ? 'Keep writing in markdown, move the note between notebooks, or publish it when it is ready.'
-            : 'Start with a private note, then organize it with tags and a notebook.');
-
-        setValue('noteTitle', note.title || '');
-        setValue('noteContent', note.content || '');
-        setValue('noteTags', Array.isArray(note.tags) ? note.tags.join(', ') : (note.tags || ''));
-        setValue('noteMarket', note.market || 'General');
-        setValue('shareLinkInput', note.is_public && note.share_id ? buildShareLink(note.share_id) : '');
-        if (elements.noteNotebook) {
-            elements.noteNotebook.value = String(note.notebook_id || state.selectedNotebookId || elements.noteNotebook.value || '');
-        }
-        if (elements.notePublicToggle) elements.notePublicToggle.checked = Boolean(note.is_public);
-        if (elements.noteFavoriteToggle) elements.noteFavoriteToggle.checked = Boolean(note.is_favorite);
-        if (elements.notePinToggle) elements.notePinToggle.checked = Boolean(note.is_pinned);
-
-        if (elements.deleteNoteBtn) {
-            elements.deleteNoteBtn.style.display = isExisting ? 'inline-flex' : 'none';
-        }
-        if (elements.openDetailBtn) {
-            elements.openDetailBtn.style.display = isExisting ? 'inline-flex' : 'none';
-        }
-
-        updateEditorStatus();
-        renderEditorMode();
+        applyEditorValues(note);
+        applyEditorChrome({
+            eyebrow: isExisting ? 'Workspace note' : 'New draft',
+            title: isExisting ? 'Edit note' : 'Create note',
+            description: isExisting
+                ? 'Keep writing in markdown, move the note between notebooks, or publish it when it is ready.'
+                : 'Start with a private note, then organize it with tags and a notebook.',
+            isExisting,
+            readOnly: false,
+            status: ''
+        });
     }
 
     function renderDiscoverEditor() {
@@ -674,50 +684,100 @@
             return;
         }
 
-        setText('editorEyebrow', 'Discover');
-        setText('editorTitle', state.activeNote.title || 'Shared note');
-        setText('editorDescription', state.activeNote.author?.display_name
-            ? `Published by ${state.activeNote.author.display_name}`
-            : 'Published note');
-
-        setValue('noteTitle', state.activeNote.title || '');
-        setValue('noteContent', state.activeNote.content || '');
-        setValue('noteTags', Array.isArray(state.activeNote.tags) ? state.activeNote.tags.join(', ') : '');
-        setValue('noteMarket', state.activeNote.market || 'General');
-        setValue('shareLinkInput', state.activeNote.is_public && state.activeNote.share_id ? buildShareLink(state.activeNote.share_id) : '');
-        if (elements.noteNotebook) {
-            elements.noteNotebook.value = String(state.activeNote.notebook_id || '');
-        }
-        if (elements.notePublicToggle) elements.notePublicToggle.checked = Boolean(state.activeNote.is_public);
-        if (elements.noteFavoriteToggle) elements.noteFavoriteToggle.checked = Boolean(state.activeNote.is_favorite);
-        if (elements.notePinToggle) elements.notePinToggle.checked = Boolean(state.activeNote.is_pinned);
-
-        setEditorDisabled(true);
-        if (elements.deleteNoteBtn) elements.deleteNoteBtn.style.display = 'none';
-        if (elements.openDetailBtn) elements.openDetailBtn.style.display = 'inline-flex';
-        setText('editorStatus', 'Discover is read-only. Open the detail page if you want a shareable reader view.');
-        renderEditorMode();
+        applyEditorValues(state.activeNote);
+        applyEditorChrome({
+            eyebrow: 'Discover',
+            title: state.activeNote.title || 'Shared note',
+            description: state.activeNote.author?.display_name
+                ? `Published by ${state.activeNote.author.display_name}`
+                : 'Published note',
+            isExisting: true,
+            readOnly: true,
+            status: 'Discover is read-only. Open the detail page if you want a shareable reader view.'
+        });
     }
 
     function renderEditorEmpty(title, copy) {
-        setText('editorEyebrow', state.mode === WORKSPACE_MODES.DISCOVER ? 'Discover' : 'Editor');
+        applyEditorValues(buildDraftNote());
+        applyEditorChrome({
+            eyebrow: state.mode === WORKSPACE_MODES.DISCOVER ? 'Discover' : 'Editor',
+            title,
+            description: copy,
+            isExisting: false,
+            readOnly: state.mode === WORKSPACE_MODES.DISCOVER,
+            status: copy
+        });
+    }
+
+    function buildDraftNote(overrides = {}) {
+        return {
+            title: '',
+            content: '',
+            notebook_id: getDefaultNotebookId() || '',
+            tags: [],
+            market: 'General',
+            is_public: false,
+            is_favorite: false,
+            is_pinned: false,
+            share_id: '',
+            ...overrides
+        };
+    }
+
+    function getDefaultNotebookId() {
+        return state.selectedNotebookId
+            || state.notebooks.find((item) => item.is_default)?.id
+            || state.notebooks[0]?.id
+            || null;
+    }
+
+    function applyEditorValues(note) {
+        const nextNote = buildDraftNote(note);
+        setValue('noteTitle', nextNote.title || '');
+        setValue('noteContent', nextNote.content || '');
+        setValue('noteTags', Array.isArray(nextNote.tags) ? nextNote.tags.join(', ') : (nextNote.tags || ''));
+        setValue('noteMarket', nextNote.market || 'General');
+        setValue('shareLinkInput', nextNote.is_public && nextNote.share_id ? buildShareLink(nextNote.share_id) : '');
+        if (elements.noteNotebook) {
+            elements.noteNotebook.value = String(nextNote.notebook_id || getDefaultNotebookId() || '');
+        }
+        if (elements.notePublicToggle) elements.notePublicToggle.checked = Boolean(nextNote.is_public);
+        if (elements.noteFavoriteToggle) elements.noteFavoriteToggle.checked = Boolean(nextNote.is_favorite);
+        if (elements.notePinToggle) elements.notePinToggle.checked = Boolean(nextNote.is_pinned);
+    }
+
+    function applyEditorChrome(config) {
+        const {
+            eyebrow,
+            title,
+            description,
+            isExisting,
+            readOnly,
+            status
+        } = config;
+
+        setText('editorEyebrow', eyebrow);
         setText('editorTitle', title);
-        setText('editorDescription', copy);
-        setValue('noteTitle', '');
-        setValue('noteContent', '');
-        setValue('noteTags', '');
-        setValue('noteMarket', 'General');
-        setValue('shareLinkInput', '');
-        if (elements.notePublicToggle) elements.notePublicToggle.checked = false;
-        if (elements.noteFavoriteToggle) elements.noteFavoriteToggle.checked = false;
-        if (elements.notePinToggle) elements.notePinToggle.checked = false;
-        setEditorDisabled(state.mode === WORKSPACE_MODES.DISCOVER);
+        setText('editorDescription', description);
+        setEditorDisabled(readOnly);
+
+        if (elements.deleteNoteBtn) {
+            elements.deleteNoteBtn.style.display = isExisting && !readOnly ? 'inline-flex' : 'none';
+        }
+        if (elements.openDetailBtn) {
+            elements.openDetailBtn.style.display = isExisting ? 'inline-flex' : 'none';
+        }
+
+        if (status) {
+            setText('editorStatus', status);
+        } else {
+            updateEditorStatus();
+        }
         renderEditorMode();
-        setText('editorStatus', copy);
     }
 
     function setEditorDisabled(disabled) {
-        ['noteTitle', 'noteNotebook', 'noteTags', 'noteContent', 'noteMarket', 'notePublicToggle', 'noteFavoriteToggle', 'notePinToggle', 'saveNoteBtn', 'duplicateTemplateBtn', 'clearDraftBtn'].forEach((id) => {
+        ['noteTitle', 'noteNotebook', 'noteTags', 'noteContent', 'noteMarket', 'notePublicToggle', 'noteFavoriteToggle', 'notePinToggle', 'saveNoteBtn', 'duplicateTemplateBtn', 'clearDraftBtn', 'noteImageUploadBtn', 'noteImageInput'].forEach((id) => {
             if (elements[id]) {
                 elements[id].disabled = disabled;
             }
@@ -800,6 +860,9 @@
             }
 
             const note = await window.SupabaseClient.notes.getOne(noteId);
+            if (!note) {
+                throw new Error('Note not found');
+            }
             state.activeNoteId = note?.id || null;
             state.activeNote = note || null;
             state.editorMode = 'edit';
@@ -1037,6 +1100,92 @@
         renderEditorMode();
         updateEditorStatus('Template applied. Customize it before saving.');
         elements.noteTitle?.focus();
+    }
+
+    function isAcceptedImageFile(file) {
+        if (!file) return false;
+        const type = String(file.type || '').toLowerCase();
+        return ['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(type);
+    }
+
+    function getDroppedImageFiles(dataTransfer) {
+        const files = Array.from(dataTransfer?.files || []);
+        return files.filter((file) => isAcceptedImageFile(file));
+    }
+
+    function ensureEditableDraftForInsertion() {
+        if (!state.canEditWorkspace) {
+            throw new Error('Sign in to edit private notes.');
+        }
+
+        if (state.mode === WORKSPACE_MODES.DISCOVER) {
+            state.mode = WORKSPACE_MODES.ALL;
+            state.activeNoteId = null;
+            state.activeNote = null;
+            state.editorMode = 'edit';
+            renderWorkspace();
+            updateUrlState();
+            return;
+        }
+
+        if (state.editorMode !== 'edit') {
+            state.editorMode = 'edit';
+            renderEditorMode();
+        }
+    }
+
+    function buildImageAltText(fileName) {
+        return String(fileName || 'image')
+            .replace(/\.[^.]+$/i, '')
+            .replace(/[-_]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim() || 'image';
+    }
+
+    function buildImageMarkdown(fileName, url) {
+        return `![${buildImageAltText(fileName)}](${String(url || '').trim()})`;
+    }
+
+    function insertMarkdownAtCursor(markdownText) {
+        const textarea = elements.noteContent;
+        if (!textarea) return;
+
+        const start = Number.isFinite(textarea.selectionStart) ? textarea.selectionStart : textarea.value.length;
+        const end = Number.isFinite(textarea.selectionEnd) ? textarea.selectionEnd : textarea.value.length;
+        const before = textarea.value.slice(0, start);
+        const after = textarea.value.slice(end);
+        const needsLeadingBreak = before && !before.endsWith('\n');
+        const needsTrailingBreak = after && !after.startsWith('\n');
+        const wrapped = `${needsLeadingBreak ? '\n\n' : ''}${markdownText}${needsTrailingBreak ? '\n\n' : ''}`;
+
+        textarea.setRangeText(wrapped, start, end, 'end');
+        textarea.focus();
+        renderEditorPreview();
+        updateEditorStatus();
+    }
+
+    async function uploadNoteImages(files, source = 'picker') {
+        const validFiles = Array.from(files || []).filter((file) => isAcceptedImageFile(file));
+        if (!validFiles.length) {
+            throw new Error('Please choose a PNG, JPG, GIF, or WEBP image.');
+        }
+
+        ensureEditableDraftForInsertion();
+        setButtonBusy(elements.noteImageUploadBtn, true, 'Uploading...');
+
+        try {
+            const markdownLines = [];
+            for (const file of validFiles) {
+                const uploaded = await window.SupabaseClient.files.upload(file, 'note-image');
+                markdownLines.push(buildImageMarkdown(uploaded.name || file.name, uploaded.url));
+            }
+
+            insertMarkdownAtCursor(markdownLines.join('\n\n'));
+            updateEditorStatus('Image uploaded. Save the note when you are ready.');
+            notify('success', `${validFiles.length} image${validFiles.length === 1 ? '' : 's'} uploaded from ${source}.`);
+        } finally {
+            setButtonBusy(elements.noteImageUploadBtn, false, 'Upload Image');
+        }
     }
 
     async function importMarkdownFile(file) {

@@ -782,10 +782,11 @@
 
                     <div class="editor-stack" id="editorWorkspace">
                         <input type="file" id="importMarkdownInput" class="editor-import-input" accept=".md,.markdown,text/markdown,text/plain">
+                        <input type="file" id="noteImageInput" class="editor-import-input" accept="image/png,image/jpeg,image/gif,image/webp" multiple>
                         <div class="drag-import-banner" id="dragImportBanner" aria-hidden="true">
                             <div>
-                                <strong>Drop a markdown file to import it into this draft</strong>
-                                <span>Supports <code>.md</code>, <code>.markdown</code>, and <code>.txt</code>.</span>
+                                <strong>Drop images or markdown files into this draft</strong>
+                                <span>Supports <code>.png</code>, <code>.jpg</code>, <code>.gif</code>, <code>.webp</code>, <code>.md</code>, <code>.markdown</code>, and <code>.txt</code>.</span>
                             </div>
                             <span>Import</span>
                         </div>
@@ -836,6 +837,7 @@
                             <div class="editor-actions-left">
                                 <button type="button" class="btn btn-secondary btn-sm" id="clearDraftBtn">Clear</button>
                                 <button type="button" class="btn btn-secondary btn-sm" id="duplicateTemplateBtn">Apply Template</button>
+                                <button type="button" class="btn btn-secondary btn-sm" id="noteImageUploadBtn">Upload Image</button>
                                 <button type="button" class="btn btn-secondary btn-sm" id="importMarkdownBtn">Import Markdown</button>
                                 <button type="button" class="btn btn-secondary btn-sm" id="exportMarkdownBtn">Export Markdown</button>
                                 <button type="button" class="btn btn-secondary btn-sm" id="exportPdfBtn">Export PDF</button>

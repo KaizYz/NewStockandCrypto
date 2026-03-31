@@ -1,17 +1,19 @@
 // ========================================
 // StockandCrypto - User Profile Logic
-// Profile management, DM list, Settings
+// Profile management, avatar uploads, activity, and messages
 // ========================================
 
 let currentUser = null;
 let userProfile = null;
+let isLegacyOnlySession = false;
+
 
 document.addEventListener('DOMContentLoaded', async function() {
     try {
         await waitForSupabaseClient();
         await initializeProfile();
     } catch (error) {
-        console.error('Failed to initialize:', error);
+        console.error('Failed to initialize profile:', error);
         window.location.href = 'login.html';
     }
 });
@@ -36,14 +38,15 @@ function waitForSupabaseClient(timeout = 10000) {
 }
 
 async function initializeProfile() {
-    // Initialize Supabase
     await window.SupabaseClient.init();
 
-    // Check auth
     const authState = window.Auth?.ready
         ? await window.Auth.ready()
-        : null;
-    currentUser = authState?.user || await window.SupabaseClient.auth.getCurrentUser();
+        : (window.Auth?.getState?.() || {});
+
+    currentUser = authState?.user || authState?.legacyUser || await window.SupabaseClient.auth.getCurrentUser();
+    isLegacyOnlySession = Boolean(authState?.legacyUser && !authState?.user);
+
     if (!currentUser) {
         const redirectTarget = window.location.pathname.split('/').pop() || 'profile.html';
         const reason = authState?.legacyMismatch ? 'legacy-session' : 'signin-required';
@@ -51,114 +54,215 @@ async function initializeProfile() {
         return;
     }
 
-    // Load profile
     await loadProfile();
-
-    // Load stats
-    await loadStats();
-
-    // Setup event listeners
+    await Promise.all([
+        loadStats(),
+        loadActivity(),
+        loadDirectMessages()
+    ]);
     setupEventListeners();
+}
 
-    // Load DMs
-    await loadDirectMessages();
+function getUserEmail(user = currentUser) {
+    return String(user?.email || '').trim();
+}
+
+function getUserDisplayName(user = currentUser) {
+    const metadata = user?.user_metadata || {};
+    return String(
+        userProfile?.username
+        || user?.displayName
+        || metadata.full_name
+        || metadata.username
+        || metadata.name
+        || getUserEmail(user).split('@')[0]
+        || 'User'
+    ).trim() || 'User';
+}
+
+function getUserCreatedAt(user = currentUser) {
+    return user?.created_at || user?.createdAt || null;
+}
+
+function renderProfileAvatar(username, avatarUrl) {
+    const profileAvatar = document.getElementById('profileAvatar');
+    const avatarLetter = document.getElementById('avatarLetter');
+    const firstLetter = String(username || 'U').charAt(0).toUpperCase() || 'U';
+
+    if (!profileAvatar || !avatarLetter) {
+        return;
+    }
+
+    if (avatarUrl) {
+        profileAvatar.innerHTML = `<img src="${escapeHtml(avatarUrl)}" alt="Avatar">`;
+        return;
+    }
+
+    profileAvatar.innerHTML = '<span id="avatarLetter"></span>';
+    const nextAvatarLetter = document.getElementById('avatarLetter');
+    if (nextAvatarLetter) {
+        nextAvatarLetter.textContent = firstLetter;
+    }
 }
 
 async function loadProfile() {
     try {
         userProfile = await window.SupabaseClient.profile.get(currentUser.id);
 
-        if (userProfile) {
-            displayProfile();
-        } else {
-            // Create profile if not exists
+        if (!userProfile && !isLegacyOnlySession) {
             userProfile = await window.SupabaseClient.profile.update({
-                username: currentUser.email.split('@')[0]
+                username: getUserDisplayName(currentUser)
             });
-            displayProfile();
         }
+
+        displayProfile();
+        dispatchProfileUpdated();
     } catch (error) {
         console.error('Load profile error:', error);
-        // Show default values
-        document.getElementById('displayUsername').textContent = currentUser.email.split('@')[0];
-        document.getElementById('displayEmail').textContent = currentUser.email;
-        document.getElementById('avatarLetter').textContent = currentUser.email.charAt(0).toUpperCase();
+        displayProfile();
+        dispatchProfileUpdated();
     }
 }
 
 function displayProfile() {
-    const username = userProfile?.username || currentUser.email.split('@')[0];
+    const username = userProfile?.username || getUserDisplayName(currentUser);
+    const email = getUserEmail(currentUser) || 'No email available';
     const bio = userProfile?.bio || 'No bio yet...';
-    const avatarUrl = userProfile?.avatar_url;
+    const avatarUrl = userProfile?.avatar_url || null;
 
     document.getElementById('displayUsername').textContent = username;
-    document.getElementById('displayEmail').textContent = currentUser.email;
+    document.getElementById('displayEmail').textContent = email;
     document.getElementById('displayBio').textContent = bio;
-    document.getElementById('avatarLetter').textContent = username.charAt(0).toUpperCase();
+    renderProfileAvatar(username, avatarUrl);
 
-    // Set avatar image if exists
-    if (avatarUrl) {
-        document.getElementById('profileAvatar').innerHTML = `<img src="${avatarUrl}" alt="Avatar">`;
-    }
-
-    // Edit form values
-    document.getElementById('editUsername').value = userProfile?.username || '';
+    document.getElementById('editUsername').value = userProfile?.username || username;
     document.getElementById('editBio').value = userProfile?.bio || '';
     document.getElementById('editWebsite').value = userProfile?.website || '';
     document.getElementById('editLocation').value = userProfile?.location || '';
 }
 
+function dispatchProfileUpdated() {
+    window.dispatchEvent(new CustomEvent('profile:updated', {
+        detail: {
+            profile: userProfile || null
+        }
+    }));
+}
+
 async function loadStats() {
     try {
-        // Get notes count
         const notes = await window.SupabaseClient.notes.get({ limit: 1000 });
         document.getElementById('notesCount').textContent = notes?.length || 0;
 
-        // Get messages count (approximate)
-        const { count } = await window.SupabaseClient.supabase
-            .from('chat_messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', currentUser.id);
-        document.getElementById('messagesCount').textContent = count || 0;
+        let messagesCount = 0;
+        if (!isLegacyOnlySession && window.SupabaseClient.supabase && currentUser?.id) {
+            const { count, error } = await window.SupabaseClient.supabase
+                .from('chat_messages')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', currentUser.id);
+            if (!error) {
+                messagesCount = count || 0;
+            }
+        }
+        document.getElementById('messagesCount').textContent = messagesCount;
 
-        // Member since
-        const created = new Date(currentUser.created_at);
-        document.getElementById('memberSince').textContent = created.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short'
-        });
-
+        const createdAt = getUserCreatedAt(currentUser);
+        if (createdAt) {
+            const created = new Date(createdAt);
+            document.getElementById('memberSince').textContent = created.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short'
+            });
+        } else {
+            document.getElementById('memberSince').textContent = '--';
+        }
     } catch (error) {
         console.error('Load stats error:', error);
     }
 }
 
+async function loadActivity() {
+    const container = document.getElementById('activityList');
+    if (!container) {
+        return;
+    }
+
+    try {
+        const notes = await window.SupabaseClient.notes.get({ limit: 6 });
+        if (!notes?.length) {
+            container.innerHTML = `
+                <div style="text-align:center; color: var(--text-muted); padding: 2rem;">
+                    No recent activity yet.
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = notes
+            .sort((a, b) => new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0))
+            .slice(0, 6)
+            .map((note) => `
+                <div class="dm-item" onclick="window.location.href='note-detail.html?id=${encodeURIComponent(note.id)}'">
+                    <div class="dm-avatar">📝</div>
+                    <div class="dm-preview">
+                        <div class="dm-preview-header">
+                            <span class="dm-username">${escapeHtml(note.title || 'Untitled note')}</span>
+                            <span class="dm-time">${formatTime(note.updated_at || note.created_at)}</span>
+                        </div>
+                        <div class="dm-message">${escapeHtml(buildExcerpt(note.content || ''))}</div>
+                    </div>
+                </div>
+            `)
+            .join('');
+    } catch (error) {
+        console.error('Load activity error:', error);
+        container.innerHTML = `
+            <div style="text-align:center; color: var(--text-muted); padding: 2rem;">
+                Failed to load recent activity.
+            </div>
+        `;
+    }
+}
+
 async function loadDirectMessages() {
     const container = document.getElementById('dmList');
-    
+    if (!container) {
+        return;
+    }
+
+    if (isLegacyOnlySession || !window.SupabaseClient.supabase || !currentUser?.id) {
+        container.innerHTML = `
+            <div style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                <p>Direct messages are not available for local-only accounts yet.</p>
+                <p style="font-size: 0.85rem;">Your profile, notes, and avatar still work normally.</p>
+            </div>
+        `;
+        return;
+    }
+
     try {
-        // Get unique conversations
-        const { data: sentMessages } = await window.SupabaseClient.supabase
+        const { data: sentMessages, error: sentError } = await window.SupabaseClient.supabase
             .from('direct_messages')
             .select('receiver_id, users:receiver_id(username, avatar_url), content, created_at, read_at')
             .eq('sender_id', currentUser.id)
             .order('created_at', { ascending: false });
+        if (sentError) throw sentError;
 
-        const { data: receivedMessages } = await window.SupabaseClient.supabase
+        const { data: receivedMessages, error: receivedError } = await window.SupabaseClient.supabase
             .from('direct_messages')
             .select('sender_id, users:sender_id(username, avatar_url), content, created_at, read_at')
             .eq('receiver_id', currentUser.id)
             .order('created_at', { ascending: false });
+        if (receivedError) throw receivedError;
 
-        // Merge and dedupe conversations
         const conversations = new Map();
 
-        (sentMessages || []).forEach(msg => {
+        (sentMessages || []).forEach((msg) => {
             if (!conversations.has(msg.receiver_id)) {
                 conversations.set(msg.receiver_id, {
                     userId: msg.receiver_id,
                     username: msg.users?.username || 'User',
-                    avatarUrl: msg.users?.avatar_url,
+                    avatarUrl: msg.users?.avatar_url || '',
                     lastMessage: msg.content,
                     lastTime: msg.created_at,
                     unread: 0
@@ -166,7 +270,7 @@ async function loadDirectMessages() {
             }
         });
 
-        (receivedMessages || []).forEach(msg => {
+        (receivedMessages || []).forEach((msg) => {
             const existing = conversations.get(msg.sender_id);
             if (existing) {
                 if (new Date(msg.created_at) > new Date(existing.lastTime)) {
@@ -174,13 +278,13 @@ async function loadDirectMessages() {
                     existing.lastTime = msg.created_at;
                 }
                 if (!msg.read_at) {
-                    existing.unread++;
+                    existing.unread += 1;
                 }
             } else {
                 conversations.set(msg.sender_id, {
                     userId: msg.sender_id,
                     username: msg.users?.username || 'User',
-                    avatarUrl: msg.users?.avatar_url,
+                    avatarUrl: msg.users?.avatar_url || '',
                     lastMessage: msg.content,
                     lastTime: msg.created_at,
                     unread: msg.read_at ? 0 : 1
@@ -188,25 +292,24 @@ async function loadDirectMessages() {
             }
         });
 
-        if (conversations.size === 0) {
+        if (!conversations.size) {
             container.innerHTML = `
                 <div style="text-align: center; color: var(--text-muted); padding: 2rem;">
                     <p>No conversations yet</p>
-                    <p style="font-size: 0.85rem;">Start a conversation from the chat!</p>
+                    <p style="font-size: 0.85rem;">Start a conversation from the chat page.</p>
                 </div>
             `;
             return;
         }
 
-        const html = Array.from(conversations.values())
+        container.innerHTML = Array.from(conversations.values())
             .sort((a, b) => new Date(b.lastTime) - new Date(a.lastTime))
-            .map(conv => `
+            .map((conv) => `
                 <div class="dm-item" onclick="openDM('${conv.userId}')">
                     <div class="dm-avatar">
-                        ${conv.avatarUrl 
-                            ? `<img src="${conv.avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` 
-                            : conv.username.charAt(0).toUpperCase()
-                        }
+                        ${conv.avatarUrl
+                            ? `<img src="${escapeHtml(conv.avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
+                            : escapeHtml(conv.username.charAt(0).toUpperCase())}
                     </div>
                     <div class="dm-preview">
                         <div class="dm-preview-header">
@@ -217,50 +320,40 @@ async function loadDirectMessages() {
                     </div>
                     ${conv.unread > 0 ? `<span class="dm-unread">${conv.unread}</span>` : ''}
                 </div>
-            `).join('');
-
-        container.innerHTML = html;
-
+            `)
+            .join('');
     } catch (error) {
         console.error('Load DMs error:', error);
         container.innerHTML = `
             <div style="text-align: center; color: var(--text-muted); padding: 2rem;">
-                Failed to load conversations
+                Failed to load conversations.
             </div>
         `;
     }
 }
 
 function setupEventListeners() {
-    // Tab switching
-    document.querySelectorAll('.profile-tab').forEach(tab => {
+    document.querySelectorAll('.profile-tab').forEach((tab) => {
         tab.addEventListener('click', (e) => {
-            const tabName = e.target.dataset.tab;
-            switchTab(tabName);
+            switchTab(e.currentTarget.dataset.tab);
         });
     });
 
-    // Edit profile
     document.getElementById('editProfileBtn')?.addEventListener('click', () => {
         document.getElementById('viewMode').classList.add('hidden');
         document.getElementById('editMode').classList.add('active');
         document.getElementById('avatarUploadWrapper').style.display = 'block';
     });
 
-    // Cancel edit
     document.getElementById('cancelEditBtn')?.addEventListener('click', () => {
         document.getElementById('viewMode').classList.remove('hidden');
         document.getElementById('editMode').classList.remove('active');
         document.getElementById('avatarUploadWrapper').style.display = 'none';
     });
 
-    // Save profile
     document.getElementById('saveProfileBtn')?.addEventListener('click', saveProfile);
-
-    // Avatar upload
     document.getElementById('avatarInput')?.addEventListener('change', handleAvatarUpload);
 
-    // Online status
     document.getElementById('onlineStatus')?.addEventListener('change', async (e) => {
         try {
             await window.SupabaseClient.presence.update(e.target.value);
@@ -270,38 +363,35 @@ function setupEventListeners() {
         }
     });
 
-    // Browser notifications
     document.getElementById('browserNotifications')?.addEventListener('change', (e) => {
         if (e.target.checked) {
             requestNotificationPermission();
         }
     });
 
-    // Delete account
     document.getElementById('deleteAccountBtn')?.addEventListener('click', async () => {
-        if (confirm('Are you sure you want to delete your account? This cannot be undone.')) {
-            if (confirm('This will permanently delete all your data. Are you absolutely sure?')) {
-                try {
-                    // In production, this would call a server function
-                    showToast('Account deletion requested', 'info');
-                    await window.SupabaseClient.auth.signOut();
-                    window.location.href = 'index.html';
-                } catch (error) {
-                    console.error('Delete account error:', error);
-                }
-            }
+        if (!confirm('Are you sure you want to delete your account? This cannot be undone.')) {
+            return;
+        }
+        if (!confirm('This will permanently delete all your data. Are you absolutely sure?')) {
+            return;
+        }
+        try {
+            showToast('Account deletion requested', 'info');
+            await window.SupabaseClient.auth.signOut();
+            window.location.href = 'index.html';
+        } catch (error) {
+            console.error('Delete account error:', error);
         }
     });
 }
 
 function switchTab(tabName) {
-    // Update tab buttons
-    document.querySelectorAll('.profile-tab').forEach(tab => {
+    document.querySelectorAll('.profile-tab').forEach((tab) => {
         tab.classList.toggle('active', tab.dataset.tab === tabName);
     });
 
-    // Update tab content
-    document.querySelectorAll('.tab-content').forEach(content => {
+    document.querySelectorAll('.tab-content').forEach((content) => {
         content.classList.toggle('active', content.id === `${tabName}Tab`);
     });
 }
@@ -318,23 +408,20 @@ async function saveProfile() {
     }
 
     try {
-        await window.SupabaseClient.profile.update({
+        userProfile = await window.SupabaseClient.profile.update({
             username,
             bio,
             website,
             location
         });
 
+        await loadProfile();
+        dispatchProfileUpdated();
         showToast('Profile updated!', 'success');
 
-        // Reload profile
-        await loadProfile();
-
-        // Switch to view mode
         document.getElementById('viewMode').classList.remove('hidden');
         document.getElementById('editMode').classList.remove('active');
         document.getElementById('avatarUploadWrapper').style.display = 'none';
-
     } catch (error) {
         console.error('Save profile error:', error);
         showToast('Failed to save profile', 'error');
@@ -342,34 +429,47 @@ async function saveProfile() {
 }
 
 async function handleAvatarUpload(e) {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file
     const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!validTypes.includes(file.type)) {
-        showToast('Please upload an image file', 'error');
+        showToast('Please upload a PNG, JPG, GIF, or WEBP image.', 'error');
+        e.target.value = '';
         return;
     }
 
-    const maxSize = 2 * 1024 * 1024; // 2MB
+    const maxSize = 2 * 1024 * 1024;
     if (file.size > maxSize) {
-        showToast('Image must be under 2MB', 'error');
+        showToast('Image must be under 2MB.', 'error');
+        e.target.value = '';
         return;
     }
 
     try {
         showToast('Uploading...', 'info');
-        
         const avatarUrl = await window.SupabaseClient.profile.uploadAvatar(file);
-        
-        document.getElementById('profileAvatar').innerHTML = `<img src="${avatarUrl}" alt="Avatar">`;
+        userProfile = {
+            ...(userProfile || {}),
+            avatar_url: avatarUrl
+        };
+        renderProfileAvatar(getUserDisplayName(currentUser), avatarUrl);
+        dispatchProfileUpdated();
         showToast('Avatar updated!', 'success');
-
     } catch (error) {
         console.error('Avatar upload error:', error);
         showToast('Failed to upload avatar', 'error');
+    } finally {
+        e.target.value = '';
     }
+}
+
+function buildExcerpt(text, limit = 90) {
+    const plain = String(text || '').replace(/\s+/g, ' ').trim();
+    if (plain.length <= limit) {
+        return plain || 'No content yet.';
+    }
+    return `${plain.slice(0, Math.max(0, limit - 3)).trim()}...`;
 }
 
 function openDM(userId) {
@@ -377,18 +477,22 @@ function openDM(userId) {
 }
 
 function requestNotificationPermission() {
-    if ('Notification' in window) {
-        Notification.requestPermission().then(permission => {
-            if (permission === 'granted') {
-                showToast('Notifications enabled!', 'success');
-            } else {
-                showToast('Notifications blocked', 'error');
-                document.getElementById('browserNotifications').checked = false;
-            }
-        });
-    } else {
+    if (!('Notification' in window)) {
         showToast('Notifications not supported', 'error');
+        return;
     }
+
+    Notification.requestPermission().then((permission) => {
+        if (permission === 'granted') {
+            showToast('Notifications enabled!', 'success');
+        } else {
+            showToast('Notifications blocked', 'error');
+            const input = document.getElementById('browserNotifications');
+            if (input) {
+                input.checked = false;
+            }
+        }
+    });
 }
 
 function formatTime(dateStr) {
@@ -429,7 +533,5 @@ function showToast(message, type = 'info') {
     setTimeout(() => toast.remove(), 3000);
 }
 
-// Make functions globally available
 window.openDM = openDM;
-
 console.log('✅ Profile module loaded');

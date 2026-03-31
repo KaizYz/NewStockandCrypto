@@ -257,6 +257,20 @@ const api = {
         return this.post('/model-explorer/v1/backtest/run', payload);
     },
 
+    // ==================== Quant Router ====================
+
+    async getQuantRouterRuns() {
+        return this.get('/quant/router/runs');
+    },
+
+    async getQuantRouterLatest() {
+        return this.get('/quant/router/runs/latest');
+    },
+
+    async getQuantRouterRun(runId) {
+        return this.get(`/quant/router/runs/${encodeURIComponent(runId)}`);
+    },
+
     // ==================== Session Forecast ====================
     
     // Get crypto session forecast

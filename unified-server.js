@@ -10,6 +10,8 @@ const { createAuthStore } = require('./server/auth-store');
 const { createChatStore } = require('./server/chat-store');
 const { createNotesStore } = require('./server/notes-store');
 const { createPositionsStore } = require('./server/positions-store');
+const { createProfileStore } = require('./server/profile-store');
+const { createUploadStore } = require('./server/upload-store');
 const { buildPolicyPacket, deriveLegacyPolicy, deriveLegacyTpSl } = require('./server/policy-engine');
 
 const HOST = process.env.HOST || '127.0.0.1';
@@ -28,6 +30,13 @@ const MODEL_EXPLORER_PORT = Number(
 );
 const WEB_ROOT = path.join(__dirname, 'web');
 const APP_DATA_DIR = process.env.APP_DATA_DIR || path.join(__dirname, 'data');
+const LOCAL_UPLOADS_ROOT = path.join(APP_DATA_DIR, 'uploads');
+const NEW_QUANT_MODEL_ROOT = process.env.NEW_QUANT_MODEL_ROOT || 'E:\\NewQuantModel';
+const NEW_QUANT_OUTPUT_DIR = path.join(NEW_QUANT_MODEL_ROOT, 'output');
+const NEW_QUANT_RUNS_DIR = path.join(NEW_QUANT_OUTPUT_DIR, 'runs');
+const NEW_QUANT_ARCHIVE_DIR = path.join(NEW_QUANT_OUTPUT_DIR, 'archive');
+const NEW_QUANT_CACHE_DIR = path.join(NEW_QUANT_OUTPUT_DIR, 'cache');
+const NEW_QUANT_PIPELINE_STATUS_PATH = path.join(NEW_QUANT_CACHE_DIR, 'pipeline_status.json');
 const APP_VERSION = process.env.RENDER_GIT_COMMIT || process.env.GITHUB_SHA || 'local';
 const SERVER_STARTED_AT = new Date();
 const REQUEST_LOGGING_ENABLED = String(process.env.REQUEST_LOGGING || 'true').toLowerCase() !== 'false';
@@ -195,6 +204,12 @@ let trackingAggregatePromise = null;
 let homeLandingCache = null;
 let homeLandingCacheAt = 0;
 let homeLandingPromise = null;
+const quantRouterCache = {
+    runs: null,
+    latest: null,
+    bundles: new Map(),
+    status: null
+};
 let trackingActionLog = [];
 let trackingLatestActionAt = null;
 let trackingPreviousTrackedState = new Map();
@@ -203,6 +218,8 @@ const authStore = createAuthStore({ baseDir: __dirname, dataDir: APP_DATA_DIR })
 const chatStore = createChatStore({ baseDir: __dirname, dataDir: APP_DATA_DIR });
 const notesStore = createNotesStore({ baseDir: __dirname, dataDir: APP_DATA_DIR });
 const positionsStore = createPositionsStore({ baseDir: __dirname, dataDir: APP_DATA_DIR });
+const profileStore = createProfileStore({ baseDir: __dirname, dataDir: APP_DATA_DIR });
+const uploadStore = createUploadStore({ baseDir: __dirname, dataDir: APP_DATA_DIR });
 const REQUEST_METRICS = {
     total: 0,
     inFlight: 0,
@@ -229,6 +246,7 @@ const MIME_TYPES = {
     '.jpg': 'image/jpeg',
     '.jpeg': 'image/jpeg',
     '.gif': 'image/gif',
+    '.webp': 'image/webp',
     '.ico': 'image/x-icon',
     '.woff': 'font/woff',
     '.woff2': 'font/woff2'
@@ -420,13 +438,16 @@ function handleSystemMetricsRoute(req, res) {
     sendJson(res, 200, buildMetricsSnapshot());
 }
 
-function readJsonBody(req) {
+function readJsonBody(req, maxBytes = 1_000_000) {
     return new Promise((resolve, reject) => {
         let body = '';
         req.on('data', (chunk) => {
             body += chunk.toString('utf8');
-            if (body.length > 1_000_000) {
-                reject(new Error('Request body too large'));
+            if (body.length > maxBytes) {
+                const error = new Error('Request body too large');
+                error.status = 413;
+                error.code = 'PAYLOAD_TOO_LARGE';
+                reject(error);
                 req.destroy();
             }
         });
@@ -438,7 +459,10 @@ function readJsonBody(req) {
             try {
                 resolve(JSON.parse(body));
             } catch (error) {
-                reject(new Error(`Invalid JSON body: ${error.message}`));
+                const invalidJsonError = new Error(`Invalid JSON body: ${error.message}`);
+                invalidJsonError.status = 400;
+                invalidJsonError.code = 'INVALID_JSON';
+                reject(invalidJsonError);
             }
         });
         req.on('error', reject);
@@ -462,6 +486,61 @@ function requireAuthenticatedSiteUser(req, res) {
     return user;
 }
 
+async function handleProfileRoute(req, res) {
+    const user = requireAuthenticatedSiteUser(req, res);
+    if (!user) {
+        return;
+    }
+
+    if (req.method === 'GET') {
+        const profile = profileStore.getProfile(user);
+        sendJson(res, 200, { success: true, profile });
+        return;
+    }
+
+    if (req.method === 'PATCH' || req.method === 'PUT') {
+        const body = await readJsonBody(req);
+        const profile = profileStore.updateProfile(user, normalizeProfilePayload(body));
+        sendJson(res, 200, { success: true, profile });
+        return;
+    }
+
+    sendJson(res, 405, { success: false, error: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' });
+}
+
+async function handleProfileAvatarRoute(req, res) {
+    const user = requireAuthenticatedSiteUser(req, res);
+    if (!user) {
+        return;
+    }
+
+    if (req.method !== 'POST') {
+        sendJson(res, 405, { success: false, error: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' });
+        return;
+    }
+
+    const body = await readJsonBody(req, 4 * 1024 * 1024);
+    const upload = uploadStore.saveAvatar(user.id, body, { maxBytes: 2 * 1024 * 1024 });
+    const profile = profileStore.updateProfile(user, { avatar_url: upload.url });
+    sendJson(res, 200, { success: true, avatarUrl: upload.url, profile });
+}
+
+async function handleNoteImageUploadRoute(req, res) {
+    const user = requireAuthenticatedSiteUser(req, res);
+    if (!user) {
+        return;
+    }
+
+    if (req.method !== 'POST') {
+        sendJson(res, 405, { success: false, error: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' });
+        return;
+    }
+
+    const body = await readJsonBody(req, 8 * 1024 * 1024);
+    const file = uploadStore.saveNoteImage(user.id, body, { maxBytes: 5 * 1024 * 1024 });
+    sendJson(res, 200, { success: true, file });
+}
+
 function normalizeNotePayload(body = {}) {
     return {
         notebook_id: body.notebook_id ?? body.notebookId ?? null,
@@ -481,6 +560,15 @@ function normalizeNotebookPayload(body = {}) {
         color: body.color,
         icon: body.icon,
         sort_order: body.sort_order ?? body.sortOrder ?? 0
+    };
+}
+
+function normalizeProfilePayload(body = {}) {
+    return {
+        username: body.username,
+        bio: body.bio,
+        website: body.website,
+        location: body.location
     };
 }
 
@@ -7737,6 +7825,334 @@ function handleAlertContract(req, res) {
     sendJson(res, 405, { error: 'Method not allowed' });
 }
 
+async function readJsonFileSafe(filePath, fallback = null) {
+    try {
+        const content = await fs.promises.readFile(filePath, 'utf8');
+        return JSON.parse(content);
+    } catch {
+        return fallback;
+    }
+}
+
+function parseCsvLine(line) {
+    const cells = [];
+    let current = '';
+    let inQuotes = false;
+    for (let index = 0; index < line.length; index += 1) {
+        const char = line[index] || '';
+        if (char === '"') {
+            const nextChar = line[index + 1] || '';
+            if (inQuotes && nextChar === '"') {
+                current += '"';
+                index += 1;
+            } else {
+                inQuotes = !inQuotes;
+            }
+            continue;
+        }
+        if (char === ',' && !inQuotes) {
+            cells.push(current);
+            current = '';
+            continue;
+        }
+        current += char;
+    }
+    cells.push(current);
+    return cells;
+}
+
+async function readCsvFileSafe(filePath) {
+    try {
+        const content = await fs.promises.readFile(filePath, 'utf8');
+        return content.trim() ? content.trim().split(/\r?\n/g).map(parseCsvLine) : [];
+    } catch {
+        return [];
+    }
+}
+
+function applyQuantManifestFlags(manifest) {
+    if (!manifest) return null;
+    const staleAfterHours = Number(manifest.staleAfterHours || 24);
+    const generatedAtMs = Date.parse(manifest.generatedAt || '');
+    const stale = Number.isFinite(generatedAtMs)
+        ? (Date.now() - generatedAtMs) > staleAfterHours * 60 * 60 * 1000
+        : Boolean(manifest.stale);
+    return {
+        ...manifest,
+        stale,
+        latestSignal: {
+            ...(manifest.latestSignal || {}),
+            stale
+        }
+    };
+}
+
+async function listQuantRunEntries() {
+    const roots = [
+        { root: NEW_QUANT_RUNS_DIR, archived: false },
+        { root: NEW_QUANT_ARCHIVE_DIR, archived: true }
+    ];
+    const entries = [];
+    for (const entry of roots) {
+        let dirents = [];
+        try {
+            dirents = await fs.promises.readdir(entry.root, { withFileTypes: true });
+        } catch {
+            dirents = [];
+        }
+        for (const dirent of dirents) {
+            if (!dirent.isDirectory()) continue;
+            const manifest = applyQuantManifestFlags(await readJsonFileSafe(path.join(entry.root, dirent.name, 'manifest.json'), null));
+            if (!manifest) continue;
+            entries.push({
+                runId: dirent.name,
+                archived: entry.archived,
+                manifest
+            });
+        }
+    }
+    return entries.sort((left, right) => String(right.manifest.generatedAt || '').localeCompare(String(left.manifest.generatedAt || '')));
+}
+
+async function resolveQuantRunDirectory(runId) {
+    for (const base of [NEW_QUANT_RUNS_DIR, NEW_QUANT_ARCHIVE_DIR]) {
+        const candidate = path.join(base, runId);
+        try {
+            await fs.promises.access(path.join(candidate, 'manifest.json'));
+            return candidate;
+        } catch {
+            continue;
+        }
+    }
+    return null;
+}
+
+async function readQuantPipelineStatus() {
+    return readJsonFileSafe(NEW_QUANT_PIPELINE_STATUS_PATH, {
+        stage: 'idle',
+        updating: false,
+        currentMode: null,
+        startedAt: null,
+        finishedAt: null,
+        lastSuccessfulRunId: null,
+        error: null
+    });
+}
+
+async function readQuantRunBundle(runId) {
+    const runDir = await resolveQuantRunDirectory(runId);
+    if (!runDir) return null;
+
+    const manifest = applyQuantManifestFlags(await readJsonFileSafe(path.join(runDir, 'manifest.json'), null));
+    if (!manifest) return null;
+
+    const [backtestSummary, walkForward, monteCarlo, pineExport, alertTemplate, equityRows, regimeRows] = await Promise.all([
+        readJsonFileSafe(path.join(runDir, 'backtest_summary.json'), {}),
+        readJsonFileSafe(path.join(runDir, 'walk_forward.json'), {}),
+        readJsonFileSafe(path.join(runDir, 'monte_carlo.json'), {}),
+        readJsonFileSafe(path.join(runDir, 'pine_export.json'), {}),
+        readJsonFileSafe(path.join(runDir, 'alert_template.json'), manifest.latestSignal || {}),
+        readCsvFileSafe(path.join(runDir, 'equity_curve.csv')),
+        readCsvFileSafe(path.join(runDir, 'regime_series.csv'))
+    ]);
+
+    return {
+        manifest,
+        backtestSummary,
+        walkForward,
+        monteCarlo,
+        pineExport,
+        alertTemplate,
+        equity: equityRows.slice(1).map((row) => ({
+            timestamp: row[0] || '',
+            equity: Number(row[1] || 0),
+            drawdown: Number(row[2] || 0),
+            regime: row[3] || 'neutral'
+        })),
+        regimeSeries: regimeRows.slice(1).map((row) => ({
+            timestamp: row[0] || '',
+            state: row[1] || 'neutral',
+            bullProb: Number(row[2] || 0),
+            bearProb: Number(row[3] || 0),
+            neutralProb: Number(row[4] || 0),
+            shockScore: Number(row[5] || 0)
+        }))
+    };
+}
+
+async function loadQuantRunsWithFallback() {
+    try {
+        const runs = await listQuantRunEntries();
+        const status = await readQuantPipelineStatus();
+        quantRouterCache.runs = runs;
+        quantRouterCache.status = status;
+        return { runs, status, degraded: false, cached: false };
+    } catch (error) {
+        if (quantRouterCache.runs) {
+            return {
+                runs: quantRouterCache.runs,
+                status: quantRouterCache.status || await readQuantPipelineStatus(),
+                degraded: true,
+                cached: true,
+                error: error instanceof Error ? error.message : String(error)
+            };
+        }
+        throw error;
+    }
+}
+
+async function loadQuantRunWithFallback(runId) {
+    try {
+        const run = await readQuantRunBundle(runId);
+        const status = await readQuantPipelineStatus();
+        if (!run) {
+            return { run: null, status, degraded: false, cached: false };
+        }
+        quantRouterCache.bundles.set(runId, run);
+        if (!quantRouterCache.latest || quantRouterCache.latest.manifest?.runId === runId) {
+            quantRouterCache.latest = run;
+        }
+        quantRouterCache.status = status;
+        return { run, status, degraded: false, cached: false };
+    } catch (error) {
+        const cachedRun = quantRouterCache.bundles.get(runId);
+        if (cachedRun) {
+            return {
+                run: cachedRun,
+                status: quantRouterCache.status || await readQuantPipelineStatus(),
+                degraded: true,
+                cached: true,
+                error: error instanceof Error ? error.message : String(error)
+            };
+        }
+        throw error;
+    }
+}
+
+async function handleQuantRouterRunsRoute(req, res) {
+    if (req.method !== 'GET') {
+        sendJson(res, 405, { ok: false, error: 'METHOD_NOT_ALLOWED' });
+        return;
+    }
+    try {
+        const payload = await loadQuantRunsWithFallback();
+        sendJson(res, 200, {
+            ok: true,
+            runs: payload.runs.map((entry) => ({
+                runId: entry.runId,
+                archived: entry.archived,
+                generatedAt: entry.manifest.generatedAt,
+                status: entry.manifest.status,
+                championStatus: entry.manifest.championStatus,
+                championSource: entry.manifest.championSource || 'new',
+                stale: Boolean(entry.manifest.stale),
+                updating: Boolean(payload.status?.updating)
+            })),
+            status: payload.status,
+            degraded: payload.degraded,
+            cached: payload.cached,
+            error: payload.error || null
+        });
+    } catch (error) {
+        sendJson(res, 503, {
+            ok: false,
+            error: 'QUANT_ROUTER_UNAVAILABLE',
+            detail: error instanceof Error ? error.message : String(error)
+        });
+    }
+}
+
+async function handleQuantRouterLatestRoute(req, res) {
+    if (req.method !== 'GET') {
+        sendJson(res, 405, { ok: false, error: 'METHOD_NOT_ALLOWED' });
+        return;
+    }
+    try {
+        const runsPayload = await loadQuantRunsWithFallback();
+        const latestRunId = runsPayload.runs[0]?.runId;
+        if (!latestRunId) {
+            sendJson(res, 200, { ok: true, run: null, status: runsPayload.status, degraded: runsPayload.degraded, cached: runsPayload.cached });
+            return;
+        }
+        const runPayload = await loadQuantRunWithFallback(latestRunId);
+        quantRouterCache.latest = runPayload.run;
+        sendJson(res, 200, {
+            ok: true,
+            run: runPayload.run,
+            status: runPayload.status,
+            degraded: Boolean(runsPayload.degraded || runPayload.degraded),
+            cached: Boolean(runsPayload.cached || runPayload.cached),
+            error: runPayload.error || runsPayload.error || null
+        });
+    } catch (error) {
+        if (quantRouterCache.latest) {
+            sendJson(res, 200, {
+                ok: true,
+                run: quantRouterCache.latest,
+                status: quantRouterCache.status || await readQuantPipelineStatus(),
+                degraded: true,
+                cached: true,
+                error: error instanceof Error ? error.message : String(error)
+            });
+            return;
+        }
+        sendJson(res, 503, {
+            ok: false,
+            error: 'QUANT_ROUTER_UNAVAILABLE',
+            detail: error instanceof Error ? error.message : String(error)
+        });
+    }
+}
+
+async function handleQuantRouterRunRoute(req, res, runId) {
+    if (req.method !== 'GET') {
+        sendJson(res, 405, { ok: false, error: 'METHOD_NOT_ALLOWED' });
+        return;
+    }
+    try {
+        const payload = await loadQuantRunWithFallback(runId);
+        if (!payload.run) {
+            sendJson(res, 404, { ok: false, error: 'RUN_NOT_FOUND' });
+            return;
+        }
+        sendJson(res, 200, {
+            ok: true,
+            run: payload.run,
+            status: payload.status,
+            degraded: payload.degraded,
+            cached: payload.cached,
+            error: payload.error || null
+        });
+    } catch (error) {
+        sendJson(res, 503, {
+            ok: false,
+            error: 'QUANT_ROUTER_UNAVAILABLE',
+            detail: error instanceof Error ? error.message : String(error)
+        });
+    }
+}
+
+async function handleQuantRouterFileRoute(req, res, runId, fileName) {
+    if (req.method !== 'GET') {
+        sendJson(res, 405, { ok: false, error: 'METHOD_NOT_ALLOWED' });
+        return;
+    }
+    const runDir = await resolveQuantRunDirectory(runId);
+    if (!runDir) {
+        sendJson(res, 404, { ok: false, error: 'RUN_NOT_FOUND' });
+        return;
+    }
+    const safeName = path.basename(fileName);
+    const targetPath = path.join(runDir, safeName);
+    try {
+        await fs.promises.access(targetPath);
+        res.writeHead(200);
+        fs.createReadStream(targetPath).pipe(res);
+    } catch {
+        sendJson(res, 404, { ok: false, error: 'FILE_NOT_FOUND' });
+    }
+}
+
 function proxyApi(req, res) {
     if (req.method === 'OPTIONS') {
         sendJson(res, 200, { ok: true });
@@ -7818,25 +8234,31 @@ function proxyModelExplorer(req, res, parsedUrl) {
 }
 
 function safeJoin(basePath, targetPath) {
-    const resolvedPath = path.normalize(path.join(basePath, targetPath));
-    if (!resolvedPath.startsWith(basePath)) {
+    const resolvedBase = path.resolve(basePath);
+    const sanitizedTarget = String(targetPath || '').replace(/^[\\/]+/, '');
+    const resolvedPath = path.resolve(resolvedBase, sanitizedTarget);
+    if (resolvedPath !== resolvedBase && !resolvedPath.startsWith(`${resolvedBase}${path.sep}`)) {
         return null;
     }
     return resolvedPath;
 }
 
-function serveStatic(req, res) {
-    const requestPath = req.url === '/' ? '/index.html' : req.url.split('?')[0];
-    const filePath = safeJoin(WEB_ROOT, decodeURIComponent(requestPath));
+function serveStaticAsset(basePath, requestPath, res, options = {}) {
+    const filePath = safeJoin(basePath, decodeURIComponent(requestPath));
 
     if (!filePath) {
         sendJson(res, 400, { error: 'Invalid path' });
         return;
     }
 
-    const targetPath = fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()
-        ? path.join(filePath, 'index.html')
-        : filePath;
+    let targetPath = filePath;
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+        if (options.allowDirectories === false) {
+            sendJson(res, 404, { error: 'Not found' });
+            return;
+        }
+        targetPath = path.join(filePath, 'index.html');
+    }
 
     fs.readFile(targetPath, (error, data) => {
         if (error) {
@@ -7855,19 +8277,35 @@ function serveStatic(req, res) {
     });
 }
 
+function serveStatic(req, res) {
+    const requestPath = req.url === '/' ? 'index.html' : req.url.split('?')[0].replace(/^[\\/]+/, '');
+    serveStaticAsset(WEB_ROOT, requestPath, res, { allowDirectories: true });
+}
+
+function serveUploads(req, res) {
+    const requestPath = req.url.split('?')[0].replace(/^\/uploads\/?/, '');
+    if (!requestPath) {
+        sendJson(res, 404, { error: 'Not found' });
+        return;
+    }
+    serveStaticAsset(LOCAL_UPLOADS_ROOT, requestPath, res, { allowDirectories: false });
+}
+
 function handleAsyncRoute(res, promise, errorCode = 'REQUEST_FAILED') {
     Promise.resolve(promise).catch((error) => {
         const message = error instanceof Error ? error.message : String(error);
-        console.error(`${errorCode}: ${message}`);
+        const statusCode = Number(error?.status) || 500;
+        const resolvedErrorCode = error?.code || errorCode;
+        console.error(`${resolvedErrorCode}: ${message}`);
         if (error instanceof Error && error.stack) {
             console.error(error.stack);
         }
         if (res.writableEnded) {
             return;
         }
-        sendJson(res, 500, {
+        sendJson(res, statusCode, {
             success: false,
-            error: errorCode,
+            error: resolvedErrorCode,
             message
         });
     });
@@ -7891,6 +8329,11 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    if (parsedUrl.pathname.startsWith('/uploads/')) {
+        serveUploads(req, res);
+        return;
+    }
+
     if (parsedUrl.pathname === '/api/auth/register') {
         handleAsyncRoute(res, authStore.handleRegister(req, res, sendJson, readJsonBody), 'REGISTER_FAILED');
         return;
@@ -7905,6 +8348,18 @@ const server = http.createServer((req, res) => {
     }
     if (parsedUrl.pathname === '/api/auth/logout') {
         authStore.handleLogout(req, res, sendJson);
+        return;
+    }
+    if (parsedUrl.pathname === '/api/profile') {
+        handleAsyncRoute(res, handleProfileRoute(req, res), 'PROFILE_FAILED');
+        return;
+    }
+    if (parsedUrl.pathname === '/api/profile/avatar') {
+        handleAsyncRoute(res, handleProfileAvatarRoute(req, res), 'PROFILE_AVATAR_FAILED');
+        return;
+    }
+    if (parsedUrl.pathname === '/api/uploads/note-images') {
+        handleAsyncRoute(res, handleNoteImageUploadRoute(req, res), 'NOTE_IMAGE_UPLOAD_FAILED');
         return;
     }
     if (parsedUrl.pathname === '/api/chat/boards') {
@@ -8126,6 +8581,27 @@ const server = http.createServer((req, res) => {
 
     if (parsedUrl.pathname === '/api/home/landing') {
         handleAsyncRoute(res, handleHomeLanding(req, res), 'HOME_LANDING_FAILED');
+        return;
+    }
+
+    if (parsedUrl.pathname === '/api/quant/router/runs') {
+        handleAsyncRoute(res, handleQuantRouterRunsRoute(req, res), 'QUANT_ROUTER_RUNS_FAILED');
+        return;
+    }
+    if (parsedUrl.pathname === '/api/quant/router/runs/latest') {
+        handleAsyncRoute(res, handleQuantRouterLatestRoute(req, res), 'QUANT_ROUTER_LATEST_FAILED');
+        return;
+    }
+    if (/^\/api\/quant\/router\/runs\/[^/]+\/file\/[^/]+$/.test(parsedUrl.pathname)) {
+        const segments = parsedUrl.pathname.split('/');
+        const runId = decodeURIComponent(segments[5]);
+        const fileName = decodeURIComponent(segments[7]);
+        handleAsyncRoute(res, handleQuantRouterFileRoute(req, res, runId, fileName), 'QUANT_ROUTER_FILE_FAILED');
+        return;
+    }
+    if (/^\/api\/quant\/router\/runs\/[^/]+$/.test(parsedUrl.pathname)) {
+        const runId = decodeURIComponent(parsedUrl.pathname.replace('/api/quant/router/runs/', ''));
+        handleAsyncRoute(res, handleQuantRouterRunRoute(req, res, runId), 'QUANT_ROUTER_RUN_FAILED');
         return;
     }
 

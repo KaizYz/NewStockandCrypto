@@ -55,10 +55,14 @@ data/*.db-wal
 *.tmp
 *.temp
 .temp/
+tmp_*_extracted.txt
 
 # Local browser automation artifacts
 .playwright-cli/
 output/
+
+# User-uploaded local assets
+data/uploads/
 
 # Local planning docs not intended for commit
 docs/FEATURE_ENHANCEMENT_PLAN.md

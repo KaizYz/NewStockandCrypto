@@ -2,7 +2,7 @@
 // StockandCrypto - Shared Navigation Controller
 // ========================================
 (function initSiteNavigationModule() {
-    const MOBILE_BREAKPOINT = 991;
+    const MOBILE_BREAKPOINT = 1180;
     const NAV_ITEMS = [
         { type: 'link', href: 'index.html', label: 'Home' },
         {
@@ -125,6 +125,12 @@
         navMenu.classList.add('nav-menu');
         navMenu.innerHTML = buildMenuMarkup();
 
+        const mobileActionsShell = document.createElement('li');
+        mobileActionsShell.className = 'nav-mobile-actions-shell';
+        mobileActionsShell.setAttribute('aria-hidden', 'true');
+        mobileActionsShell.innerHTML = '<div class="nav-mobile-actions"></div>';
+        navMenu.appendChild(mobileActionsShell);
+
         const navBackdrop = document.createElement('button');
         navBackdrop.type = 'button';
         navBackdrop.className = 'nav-backdrop';
@@ -139,7 +145,13 @@
             logoIcon.textContent = '◇';
         }
 
-        return { navMenu, navToggle, navBackdrop };
+        return {
+            navMenu,
+            navToggle,
+            navBackdrop,
+            mobileActionsShell,
+            mobileActions: mobileActionsShell.querySelector('.nav-mobile-actions')
+        };
     }
 
     const SiteNav = {
@@ -155,9 +167,45 @@
                 return;
             }
 
-            const { navMenu, navToggle, navBackdrop } = ensureNavScaffold(nav);
+            const {
+                navMenu,
+                navToggle,
+                navBackdrop,
+                mobileActionsShell,
+                mobileActions
+            } = ensureNavScaffold(nav);
             const dropdowns = Array.from(navMenu.querySelectorAll('.nav-dropdown'));
             const closeTimers = new WeakMap();
+            const desktopActions = nav.closest('.header-container')?.querySelector(':scope > .nav-actions')
+                || document.querySelector('.header-container > .nav-actions');
+
+            const syncHeaderMetrics = () => {
+                const header = document.querySelector('.header');
+                const headerHeight = Math.ceil(header?.getBoundingClientRect().height || 78);
+                document.documentElement.style.setProperty('--mobile-nav-offset', `${headerHeight + 12}px`);
+                document.documentElement.style.setProperty('--mobile-nav-max-height', `calc(100vh - ${headerHeight + 24}px)`);
+            };
+
+            const syncMobileActions = () => {
+                if (!mobileActions || !mobileActionsShell) {
+                    return;
+                }
+
+                if (!desktopActions || !desktopActions.innerHTML.trim()) {
+                    mobileActions.innerHTML = '';
+                    mobileActionsShell.hidden = true;
+                    mobileActionsShell.setAttribute('aria-hidden', 'true');
+                    return;
+                }
+
+                const temp = document.createElement('div');
+                temp.innerHTML = desktopActions.innerHTML;
+                temp.querySelectorAll('[id]').forEach((node) => node.removeAttribute('id'));
+                mobileActions.innerHTML = temp.innerHTML;
+                const hasContent = Boolean(mobileActions.textContent.trim());
+                mobileActionsShell.hidden = !hasContent;
+                mobileActionsShell.setAttribute('aria-hidden', hasContent ? 'false' : 'true');
+            };
 
             const clearCloseTimer = (dropdown) => {
                 const timer = closeTimers.get(dropdown);
@@ -197,6 +245,7 @@
                 navToggle.classList.remove('active');
                 navToggle.setAttribute('aria-expanded', 'false');
                 closeDropdowns();
+                syncHeaderMetrics();
             };
 
             const toggleMobileMenu = () => {
@@ -204,6 +253,7 @@
                 nav.classList.toggle('menu-open', willOpen);
                 navToggle.classList.toggle('active', willOpen);
                 navToggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+                syncHeaderMetrics();
                 if (!willOpen) {
                     closeDropdowns();
                 }
@@ -294,12 +344,26 @@
                 });
             });
 
-            navMenu.querySelectorAll('.nav-link').forEach((link) => {
+            navMenu.querySelectorAll('a.nav-link').forEach((link) => {
                 link.addEventListener('click', () => {
                     if (isMobileViewport()) {
                         closeMobileMenu();
                     }
                 });
+            });
+
+            mobileActions?.addEventListener('click', (event) => {
+                const trigger = event.target.closest('a, button');
+                if (!trigger || !isMobileViewport()) {
+                    return;
+                }
+                if (trigger.matches('[data-auth-logout]')) {
+                    closeMobileMenu();
+                    return;
+                }
+                if (trigger.tagName === 'A') {
+                    closeMobileMenu();
+                }
             });
 
             document.addEventListener('click', (event) => {
@@ -323,6 +387,12 @@
                     navToggle.classList.remove('active');
                     navToggle.setAttribute('aria-expanded', 'false');
                 }
+                syncHeaderMetrics();
+            });
+
+            window.addEventListener('auth:changed', () => {
+                syncHeaderMetrics();
+                syncMobileActions();
             });
 
             const currentPage = getCurrentPage();
@@ -345,6 +415,8 @@
                 }
             }
 
+            syncHeaderMetrics();
+            syncMobileActions();
             this.isInitialized = true;
         }
     };

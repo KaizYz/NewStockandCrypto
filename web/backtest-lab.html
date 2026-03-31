@@ -25,9 +25,27 @@
         .btn-secondary { margin-top: 0.6rem; margin-left: 0.5rem; padding: 0.85rem 1.35rem; background: rgba(148, 163, 184, 0.18); color: #E2E8F0; border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 8px; font-weight: 700; cursor: pointer; }
         .status-note { color: #94A3B8; font-size: 0.86rem; margin-top: 0.8rem; }
         .chart-wrap { height: 350px; position: relative; }
+        .section-kicker { color: #00E5FF; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.72rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .router-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.85rem; margin-bottom: 1rem; }
+        .router-metric { padding: 0.95rem; border-radius: 10px; background: rgba(10, 18, 34, 0.82); border: 1px solid rgba(255, 255, 255, 0.10); }
+        .router-metric-title { color: #94A3B8; font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .router-metric-value { color: #F8FAFC; font-size: 1.05rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; margin-top: 0.45rem; }
+        .router-shell { margin-top: 2rem; }
+        .router-status-chips { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
+        .router-chip { padding: 0.3rem 0.55rem; border-radius: 999px; font-size: 0.76rem; border: 1px solid rgba(255, 255, 255, 0.14); color: #CBD5E1; }
+        .router-chip.good { color: #00FFAA; }
+        .router-chip.warn { color: #F59E0B; }
+        .router-chip.bad { color: #FF4D4F; }
+        .router-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        .router-table th, .router-table td { padding: 0.65rem 0.5rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.08); vertical-align: top; }
+        .router-table th { color: #94A3B8; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+        .router-downloads { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem; }
+        .router-downloads a { display: block; padding: 0.8rem 0.9rem; border-radius: 8px; background: rgba(10, 18, 34, 0.82); border: 1px solid rgba(255,255,255,0.10); color: #7DD3FC; text-decoration: none; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; }
         @media (max-width: 1100px) {
             .grid-2 { grid-template-columns: 1fr; }
             .grid-3 { grid-template-columns: 1fr; }
+            .router-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .router-downloads { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -135,6 +153,90 @@
                 <h3 style="font-size: 1.1rem; margin-bottom: 0.9rem; font-weight: 700;">Model Comparison (Current Asset/Horizon)</h3>
                 <div style="height: 360px; position: relative;"><canvas id="btRadarChart"></canvas></div>
             </div>
+
+            <section class="router-shell">
+                <div style="margin: 2rem 0 1rem;">
+                    <div class="section-kicker">Research Consumer</div>
+                    <h2 style="font-size: 1.8rem; margin: 0 0 0.5rem; font-weight: 800;">BTC Regime Router</h2>
+                    <p style="color: #64748B; font-size: 1rem; margin: 0;">Runs streamed from <code>E:\NewQuantModel</code> with cached fallback when the research workspace is unavailable.</p>
+                </div>
+
+                <div class="panel" style="margin-bottom: 1rem;">
+                    <div class="grid-3">
+                        <div>
+                            <label class="label" for="qrRunSelect">Run</label>
+                            <select class="select" id="qrRunSelect"></select>
+                        </div>
+                        <div>
+                            <label class="label">Section</label>
+                            <div class="input" id="qrSectionName">BTC Regime Router</div>
+                        </div>
+                        <div>
+                            <label class="label">Current Regime</label>
+                            <div class="input" id="qrCurrentRegime">--</div>
+                        </div>
+                    </div>
+                    <button class="btn-primary" id="qrReloadBtn">Reload Router Runs</button>
+                    <div class="status-note" id="qrStatusNote">Loading BTC Regime Router...</div>
+                    <div class="router-status-chips" id="qrStatusChips"></div>
+                </div>
+
+                <div class="router-metrics">
+                    <div class="router-metric"><div class="router-metric-title">Champion Status</div><div class="router-metric-value" id="qrChampionStatus">--</div></div>
+                    <div class="router-metric"><div class="router-metric-title">Deployment Return</div><div class="router-metric-value" id="qrTotalReturn">--</div></div>
+                    <div class="router-metric"><div class="router-metric-title">Deployment Sharpe</div><div class="router-metric-value" id="qrSharpe">--</div></div>
+                    <div class="router-metric"><div class="router-metric-title">Deployment MDD</div><div class="router-metric-value" id="qrMaxDrawdown">--</div></div>
+                    <div class="router-metric"><div class="router-metric-title">Monte Carlo Q10</div><div class="router-metric-value" id="qrMonteCarloQ10">--</div></div>
+                    <div class="router-metric"><div class="router-metric-title">Selection Edge</div><div class="router-metric-value" id="qrBenchmarkEdge">--</div></div>
+                    <div class="router-metric"><div class="router-metric-title">Deployment Trades</div><div class="router-metric-value" id="qrTrades">--</div></div>
+                    <div class="router-metric"><div class="router-metric-title">Latest Signal</div><div class="router-metric-value" id="qrLatestSignal">--</div></div>
+                </div>
+
+                <div class="grid-2" style="margin-bottom: 1rem;">
+                    <div class="panel">
+                        <h3 style="font-size: 1.1rem; margin-bottom: 0.9rem; font-weight: 700;">Strategy Equity vs Benchmarks</h3>
+                        <div class="chart-wrap"><canvas id="qrEquityChart"></canvas></div>
+                    </div>
+                    <div class="panel">
+                        <h3 style="font-size: 1.1rem; margin-bottom: 0.9rem; font-weight: 700;">Regime Timeline</h3>
+                        <div class="chart-wrap"><canvas id="qrRegimeChart"></canvas></div>
+                    </div>
+                </div>
+
+                <div class="grid-2" style="margin-bottom: 1rem;">
+                    <div class="panel">
+                        <h3 style="font-size: 1.1rem; margin-bottom: 0.9rem; font-weight: 700;">Module Breakdown</h3>
+                        <table class="router-table">
+                            <thead><tr><th>Module</th><th>Return</th><th>Sharpe</th><th>Trades</th><th>Win Rate</th></tr></thead>
+                            <tbody id="qrModuleTable"></tbody>
+                        </table>
+                    </div>
+                    <div class="panel">
+                        <h3 style="font-size: 1.1rem; margin-bottom: 0.35rem; font-weight: 700;">Top Candidates</h3>
+                        <p style="margin: 0 0 0.9rem; color: #64748B; font-size: 0.82rem;">Validation-window ranking from the constrained search.</p>
+                        <table class="router-table">
+                            <thead><tr><th>Candidate</th><th>Status</th><th>Sharpe</th><th>MDD</th><th>Edge</th></tr></thead>
+                            <tbody id="qrCandidateTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="grid-2" style="margin-bottom: 1rem;">
+                    <div class="panel">
+                        <h3 style="font-size: 1.1rem; margin-bottom: 0.9rem; font-weight: 700;">Walk-Forward Sharpe by Fold</h3>
+                        <div class="chart-wrap"><canvas id="qrWalkForwardChart"></canvas></div>
+                    </div>
+                    <div class="panel">
+                        <h3 style="font-size: 1.1rem; margin-bottom: 0.9rem; font-weight: 700;">Return Comparison</h3>
+                        <div class="chart-wrap"><canvas id="qrBenchmarkChart"></canvas></div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h3 style="font-size: 1.1rem; margin-bottom: 0.9rem; font-weight: 700;">Run Files</h3>
+                    <div class="router-downloads" id="qrDownloads"></div>
+                </div>
+            </section>
         </div>
     </main>
 
